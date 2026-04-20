@@ -11,8 +11,10 @@ function Login() {
     email: '',
     password: '',
   })
+  const [error, setError] = useState('')
 
   const handleChange = (e) => {
+    setError('') // clear error on type
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
@@ -21,6 +23,7 @@ function Login() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    setError('')
 
     try {
       const data = await loginRequest(formData.email, formData.password)
@@ -29,14 +32,15 @@ function Login() {
       localStorage.setItem('user', JSON.stringify(data.user))
 
       navigate('/dashboard')
-    } catch (error) {
-      console.log(error)
-      alert(error.response?.data?.message || 'Login failed')
+    } catch (err) {
+      console.log(err)
+      setError(err.response?.data?.message || 'Login failed. Please check your credentials.')
     }
   }
 
   const handleGoogleLogin = async () => {
     try {
+      setError('')
       const result = await signInWithPopup(auth, provider)
       const firebaseToken = await result.user.getIdToken()
       const data = await googleLoginRequest(firebaseToken)
@@ -45,9 +49,9 @@ function Login() {
       localStorage.setItem('user', JSON.stringify(data.user))
 
       navigate('/dashboard')
-    } catch (error) {
-      console.log(error)
-      alert('Google login failed')
+    } catch (err) {
+      console.log(err)
+      setError('Google login failed. Please try again.')
     }
   }
 
@@ -60,6 +64,8 @@ function Login() {
         <div className="auth-card">
           <h2>Welcome Back</h2>
           <p>Log in to continue to XPLOR</p>
+
+          {error && <div className="error-message">{error}</div>}
 
           <form onSubmit={handleSubmit}>
             <input

@@ -120,6 +120,18 @@
   margin-bottom: 32px;
 }
 
+.error-message {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  font-size: 14px;
+  text-align: center;
+  backdrop-filter: blur(8px);
+}
+
 .auth-card form {
   display: flex;
   flex-direction: column;

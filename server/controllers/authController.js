@@ -24,6 +24,14 @@ const registerUser = async (req, res) => {
     password,
   } = req.body
 
+  // Password Validation: At least 6 characters and 1 capital letter
+  const passwordRegex = /^(?=.*[A-Z]).{6,}$/
+  if (!passwordRegex.test(password)) {
+    return res.status(400).json({
+      message: 'Password must be at least 6 characters long and contain at least one capital letter.',
+    })
+  }
+
   try {
     const existingUser = await User.findOne({ email })
 
