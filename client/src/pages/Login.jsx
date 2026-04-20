@@ -3,7 +3,6 @@ import { useNavigate, Link } from 'react-router-dom'
 import { signInWithPopup } from 'firebase/auth'
 import { auth, provider } from '../firebase'
 import { loginRequest, googleLoginRequest } from '../services/authService'
-import AuthVisual from '../components/AuthVisual'
 import '../styles/auth.css'
 
 function Login() {
@@ -53,7 +52,10 @@ function Login() {
   }
 
   return (
-    <div className="auth-page reverse-layout">
+    <div className="auth-page">
+      <div className="auth-header">
+        <Link to="/">XPLOR</Link>
+      </div>
       <div className="auth-form-container">
         <div className="auth-card">
           <h2>Welcome Back</h2>
@@ -96,8 +98,6 @@ function Login() {
           </p>
         </div>
       </div>
-      
-      <AuthVisual type="login" />
     </div>
   )
 }

@@ -4,7 +4,6 @@ import { useNavigate, Link } from 'react-router-dom'
 import { signInWithPopup } from 'firebase/auth'
 import { auth, provider } from '../firebase'
 import { googleLoginRequest, registerRequest } from '../services/authService'
-import AuthVisual from '../components/AuthVisual'
 
 function Signup() {
   const navigate = useNavigate()
@@ -72,6 +71,9 @@ function Signup() {
 
   return (
     <div className="auth-page">
+      <div className="auth-header">
+        <Link to="/">XPLOR</Link>
+      </div>
       <div className="auth-form-container">
         <div className="auth-card">
           <h2>Create Account</h2>
@@ -155,8 +157,6 @@ function Signup() {
           </p>
         </div>
       </div>
-      
-      <AuthVisual />
     </div>
   )
 }

@@ -8,10 +8,10 @@
   overflow: hidden;
   background: linear-gradient(
     135deg,
-    #050816,
-    #0b1026,
-    #12122e,
-    #1a103d
+    #0a0f1c,
+    #0e1526,
+    #141b31,
+    #1a1f38
   );
   background-size: 300% 300%;
   animation: gradientMove 12s ease infinite;
@@ -24,7 +24,7 @@
   height: 700px;
   top: -250px;
   right: -150px;
-  background: radial-gradient(circle, rgba(124, 58, 237, 0.25), transparent 70%);
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.15), transparent 70%);
   filter: blur(60px);
   animation: blobMove1 10s ease-in-out infinite alternate;
 }
@@ -36,7 +36,7 @@
   height: 600px;
   bottom: -250px;
   left: -150px;
-  background: radial-gradient(circle, rgba(6, 182, 212, 0.22), transparent 70%);
+  background: radial-gradient(circle, rgba(20, 184, 166, 0.12), transparent 70%);
   filter: blur(60px);
   animation: blobMove2 12s ease-in-out infinite alternate;
 }
@@ -54,9 +54,9 @@
   border: 1px solid rgba(255,255,255,0.1);
   background: rgba(255,255,255,0.05);
   backdrop-filter: blur(20px);
-  color: #a855f7;
+  color: #818cf8;
   margin-bottom: 30px;
-  box-shadow: 0 0 25px rgba(124, 58, 237, 0.15);
+  box-shadow: 0 0 25px rgba(99, 102, 241, 0.15);
 }
 
 .hero-left h1 {
@@ -68,7 +68,7 @@
 }
 
 .hero-left h1 span {
-  background: linear-gradient(90deg, #7c3aed, #06b6d4, #2563eb);
+  background: linear-gradient(90deg, #6366f1, #14b8a6, #3b82f6);
   background-size: 300% 300%;
   animation: gradientText 6s ease infinite;
     background-clip: text;
@@ -94,21 +94,21 @@
   border-radius: 40px;
   background: linear-gradient(
     90deg,
-    #7c3aed,
-    #2563eb,
-    #06b6d4
+    #6366f1,
+    #3b82f6,
+    #14b8a6
   );
   background-size: 300% 300%;
   animation: gradientButton 6s ease infinite;
   color: white;
   font-size: 16px;
   transition: 0.4s;
-  box-shadow: 0 0 30px rgba(124, 58, 237, 0.4);
+  box-shadow: 0 0 30px rgba(99, 102, 241, 0.4);
 }
 
 .hero-btn-primary:hover {
   transform: translateY(-5px) scale(1.03);
-  box-shadow: 0 0 50px rgba(124, 58, 237, 0.6);
+  box-shadow: 0 0 50px rgba(99, 102, 241, 0.6);
 }
 
 .hero-btn-secondary {
@@ -142,7 +142,7 @@
 .glow-one {
   width: 320px;
   height: 320px;
-  background: rgba(124, 58, 237, 0.35);
+  background: rgba(99, 102, 241, 0.2);
   top: 80px;
   right: 80px;
 }
@@ -150,7 +150,7 @@
 .glow-two {
   width: 260px;
   height: 260px;
-  background: rgba(6, 182, 212, 0.3);
+  background: rgba(20, 184, 166, 0.15);
   bottom: 120px;
   right: 220px;
 }
@@ -165,7 +165,7 @@
   background: rgba(255,255,255,0.06);
   backdrop-filter: blur(25px);
   border: 1px solid rgba(255,255,255,0.08);
-  box-shadow: 0 0 40px rgba(124, 58, 237, 0.15);
+  box-shadow: 0 0 40px rgba(99, 102, 241, 0.15);
   animation: floatCard 5s ease-in-out infinite alternate;
   z-index: 2;
 }
@@ -190,15 +190,15 @@
   right: 280px;
   background: linear-gradient(
     135deg,
-    #7c3aed,
-    #2563eb,
-    #06b6d4,
-    #7c3aed
+    #6366f1,
+    #3b82f6,
+    #14b8a6,
+    #6366f1
   );
   background-size: 300% 300%;
   animation: orbMove 6s ease-in-out infinite alternate,
              orbGradient 8s ease infinite;
-  box-shadow: 0 0 80px rgba(124, 58, 237, 0.45);
+  box-shadow: 0 0 80px rgba(99, 102, 241, 0.45);
 }
 
 @keyframes gradientMove {
