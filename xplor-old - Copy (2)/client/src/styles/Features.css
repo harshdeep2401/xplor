@@ -1,0 +1,38 @@
+.features-section {
+  padding: 120px 80px;
+}
+
+.features-header {
+  text-align: center;
+  margin-bottom: 60px;
+}
+
+.features-header p {
+  color: #7c3aed;
+  margin-bottom: 15px;
+}
+
+.features-header h2 {
+  font-size: 48px;
+  max-width: 700px;
+  margin: auto;
+}
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 30px;
+}
+
+.feature-card {
+  padding: 40px;
+  border-radius: 30px;
+  background: rgba(255,255,255,0.05);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.08);
+  transition: 0.4s;
+}
+
+.feature-card:hover {
+  transform: translateY(-10px) rotateX(4deg);
+  box-shadow: 0 0 30px rgba(124, 58, 237, 0.2);
+}

@@ -1,0 +1,274 @@
+﻿XPLOR Master Reference Document
+                                        
+
+1. Product Definition
+1.1 Core Idea
+XPLOR is an AI-enabled 2D → 3D → VR visualization platform for the real estate sector.
+It enables non-technical users to generate interactive VR walkthroughs of spaces from simple 2D floor plans 
+within minutes.
+
+1.2 Problem Statement
+Traditional VR workflows:
+
+• Require specialized tools (Blender, Unreal, etc.)
+
+• Require technical expertise
+
+• Take significant time (days/weeks)
+
+• Are costly
+XPLOR aims to:
+
+• Remove technical barriers
+
+• Reduce time drastically
+
+• Lower cost of VR creation
+
+1.3 Value Proposition
+• “Upload → Customize → Experience in VR”
+
+• Fast, intuitive, scalable visualization
+
+• Designed for non-technical users
+
+2. User Journey (End-to-End Flow)
+Step 1: Entry
+• User logs in → Dashboard
+
+Step 2: Project Creation
+• Create new project
+
+• Upload 2D floor plan
+
+Step 3: AI Processing
+• Image detection model identifies walls, rooms, structure
+
+
+
+• Output: structured JSON
+
+• Python libraries convert JSON → 3D model
+
+Step 4: 3D Editor (Web-Based)
+User can:
+
+• Add/remove furniture
+
+• Move, scale, rotate objects
+
+• Modify colors, materials
+
+• Add lighting
+
+• Use asset library
+
+• Get recommendations
+
+Step 5: Save System
+• Autosave + manual save
+
+• Backend stores layout, assets, configurations
+
+Step 6: VR Generation
+• User clicks “Convert to VR”
+
+• Scene converted into VR-compatible format
+
+Step 7: VR Experience
+• Viewed on VR devices
+
+• Interactive walkthrough
+
+3. Definition of “Job”
+A Job = ANY one of the following:
+1. 1-hour session in 3D editor
+2. Full 2D → VR conversion
+3. 3D editor → VR conversion
+
+4. Current System Architecture
+4.1 Frontend
+• Web-based interface
+
+• Dashboard + project management + 3D editor
+
+• Handles UI, rendering, API communication
+
+4.2 Backend
+
+
+
+• Planned: Node.js
+
+• Responsibilities:
+
+• Authentication
+
+• File uploads
+
+• Project storage
+
+• API layer
+
+• Job tracking (to be built)
+
+4.3 AI / Processing Layer
+• Image detection model → floor plan to JSON
+
+• Python libraries → JSON to 3D geometry
+
+• No Blender automation
+
+• No Dockerization currently (may be introduced later if required)
+
+4.4 3D Editor
+(Current: Basic functional prototype)
+
+• Import assets
+
+• Object transformations
+
+• Material/color editing
+
+• Lighting
+
+4.5 VR Layer
+• Unreal-based pipeline (planned / partially explored)
+
+• Renders interactive walkthrough
+
+5. Current Progress Status
+5.1 Completed
+• Vision finalized
+
+• Workflow finalized
+
+• UI/UX finalized
+
+• Basic 3D editor functional
+
+5.2 In Progress
+• Backend system design
+
+
+
+• Editor improvements
+
+• Integration planning
+
+5.3 Not Yet Built (Critical Gaps)
+• Production-grade backend
+
+• Authentication & file systems (robust version)
+
+• Job tracking system
+
+• Billing & plan enforcement
+
+• Asset management system
+
+• Scalable processing pipeline
+
+• VR production pipeline
+
+6. Pricing & Plans (System Constraints)
+6.1 Key Constraints
+System must enforce:
+
+• Jobs per month
+
+• Admin limits
+
+• Screen limits
+
+• Furniture limits
+
+• Add-on pricing
+
+6.2 Plans
+• Neo (entry tier)
+
+• Addonno (mid tier)
+
+• Apice (premium tier)
+(Pricing logic defined separately and must be enforced at backend level.)
+
+7. Key Technical Challenges
+7.1 Core Challenges
+1. Floor plan → accurate 3D conversion
+2. Real-time 3D editor performance
+3. VR optimization
+4. Asset standardization
+5. State synchronization across systems
+
+
+
+7.2 Biggest Risk
+Pipeline reliability (2D → 3D accuracy)
+If this fails, the product fails.
+
+8. Future Enhancements (Planned)
+• Smart Asset Suggestion Engine: Context-based asset recommendations
+
+• 2D Floor Plan Editor: Native tool to create structured floor plans directly
+
+• Template-Based Generation: Pre-built layouts for faster onboarding
+
+• Assisted Editing: Constraint-based and guided editing system
+
+• AI 3D Copilot (Long Term): Natural language + context-aware design actions
+
+9. Immediate Action Plan
+Phase 1: Backend Foundation
+• Design project schema
+
+• Build auth system
+
+• Implement file storage
+
+• Introduce basic job tracking
+
+Phase 2: Editor Stabilization
+• Improve rendering performance
+
+• Add undo/redo
+
+• Add scene validation
+
+Phase 3: Pipeline Reliability
+• Improve AI accuracy
+
+• Strengthen JSON structure
+
+• Add error handling
+
+Phase 4: VR Pipeline
+• Optimize rendering
+
+• Reduce scene complexity
+
+Phase 5: Monetization
+• Usage tracking
+
+
+
+• Plan enforcement
+
+• Billing system
+
+10. Strategic Insight
+XPLOR is:
+
+A spatial pipeline automation system
+Your moat will be:
+
+• Speed
+
+• Simplicity
+
+• Reliability
+Not:
+
+• UI polish
+
+• Basic editor features

@@ -1,0 +1,128 @@
+﻿XPLOR: Zero-Cost MVP Deployment & Scalability Strategy
+                                        
+Document Status: Active Addendum to XPLOR Knowledge Base
+Target Phase: Pre-Seed / MVP (Bootstrapping) -> Series A (Enterprise Scale)
+
+1. Executive Summary
+This document outlines the bridging architecture for the XPLOR platform. It modifies the original "XPLOR 
+Backend Architecture & Implementation Plan" to achieve a zero-cost MVP infrastructure while strictly avoiding 
+vendor lock-in.
+The core philosophy is "Dockerize Everything." By containerizing the Express backend and FastAPI 
+microservices, we can utilize generous free-tier PaaS (Platform as a Service) offerings today, and perform a 
+seamless lift-and-shift to AWS (EKS/ECS) tomorrow.
+
+2. Phase 1: The Zero-Cost MVP Architecture
+This setup splits standard web traffic (cheap) from heavy AI computation (expensive), utilizing free cloud 
+services for the former and local hardware for the latter.
+
+2.1 Frontend UI (React/Vite)
+• Platform: Vercel (Free Tier)
+
+• Role: Serves the static React frontend globally via an edge CDN.
+
+• Why: Unbeatable developer experience, zero configuration for Vite apps, and robust CI/CD integration 
+with GitHub.
+
+2.2 Backend API Gateway (Node.js/Express)
+• Platform: Render, Railway, or Fly.io (Free Tier)
+
+• Architecture: Dockerized Express application.
+
+• Deviation from Vercel Serverless: We deliberately avoid refactoring our Express routes into Vercel 
+Serverless Functions. Deploying a Dockerized Express server ensures the codebase remains cloud-
+agnostic.
+
+• Role: Handles routing, auth verification, database reads/writes, and coordinates the AI microservices.
+
+2.3 Database & ORM (PostgreSQL)
+• Platform: Neon (Free Tier - up to 500MB)
+
+• Tooling: Prisma ORM.
+
+• Role: Replaces the initial MongoDB setup. Stores users, projects, subscription states, and eventually pgvector embeddings.
+
+• Why: Neon is raw PostgreSQL under the hood. It ensures ACID compliance from day one without the immediate overhead of an AWS RDS instance.
+
+2.4 Authentication
+
+
+
+• Platform: Firebase Authentication (Current)
+
+• Role: Handles user identity, OAuth (Google), and issues JWTs.
+
+• Future Consideration: Can be migrated to Supabase Auth later to consolidate the database and user 
+management under a single provider.
+
+2.5 Blob Storage (Floor Plans & 3D Models)
+• Platform: Cloudflare R2 (Free Tier - 10GB/month)
+
+• Role: Stores user-uploaded 2D floor plans and generated 3D scene files.
+
+• Why: Cloudflare R2 has zero egress fees. This is critical for 3D assets, which consume massive bandwidth. 
+AWS S3 free tier (5GB) charges for bandwidth, which can quickly become a surprise cost.
+
+• Workflow: The Express backend generates a pre-signed URL (using the AWS S3 SDK, which is fully 
+compatible with R2), allowing the frontend to upload files directly to Cloudflare, bypassing the 
+Render/Railway backend payload limits.
+
+2.6 The AI Microservice (FastAPI + GPU)
+• Platform: Local Hardware (NVIDIA RTX GPU) + Docker + Cloudflare Tunnels
+
+• Role: Processes 2D-to-3D computer vision models.
+
+• Why: Cloud GPU instances (AWS EC2 G4/G5) cost hundreds of dollars a month.
+
+• Workflow:
+a. FastAPI app runs locally in a Docker container, loading models into local VRAM.
+b. cloudflared  (Cloudflare Tunnels) creates a secure, encrypted outbound tunnel from the local machine 
+
+to the internet (e.g., ai-api.xplor.com ).
+c. The Express backend sends a webhook to this Tunnel URL.
+d. Local GPU processes the job, updates the Supabase database directly, and uploads the 3D file to 
+
+Cloudflare R2.
+
+3. Phase 2: The Enterprise AWS Migration Path
+When XPLOR secures funding, hits the free-tier limits, or requires strict enterprise compliance (SOC2/ISO27001), 
+the migration path requires zero code rewrites, only infrastructure updates.
+
+Component Phase 1: MVP Phase 2: Enterprise Migration Effort
+(Zero-Cost) (AWS)
+
+Frontend Vercel AWS Amplify or Low (Update CI/CD pipeline)
+CloudFront + S3
+
+Backend Render/Railway AWS ECS (Fargate) or Very Low (Deploy existing 
+API (Docker) EKS Docker image)
+
+Database Neon AWS RDS (PostgreSQL) Medium (Standard pg_dump  
+(PostgreSQL) and restore, update 
+
+DATABASE_URL  env var)
+
+
+
+Storage Cloudflare R2 AWS S3 Very Low (Change endpoint 
+URL and API keys in .env , 
+both use AWS SDK)
+
+AI Compute Local GPU + CF AWS EC2 (G5 instances) Low (Deploy existing FastAPI 
+Tunnels or SageMaker Docker container to cloud 
+
+GPU, update webhook URL)
+
+Queueing Basic DB BullMQ + Amazon Medium (Introduce Redis 
+polling/Status ElastiCache (Redis) infrastructure, update 
+flags worker code)
+
+4. Operational & Security Requirements (MVP Phase)
+1. Secrets Management: Ensure .env  variables (Database URLs, Firebase Keys, R2 Tokens) are managed 
+
+securely in Vercel/Render dashboards. Never commit them to version control.
+2. Tunnel Security: Cloudflare Tunnels must be restricted to only accept incoming traffic from the Express 
+
+Backend's IP addresses or via secure API key validation to prevent unauthorized usage of your local GPU.
+3. Database Backups: Even on the free tier, configure regular logical backups of the Neon instance using 
+
+pg_dump via a cron job.

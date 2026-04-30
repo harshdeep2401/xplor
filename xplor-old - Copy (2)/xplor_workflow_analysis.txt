@@ -1,0 +1,64 @@
+# XPLOR - Project Analysis and Workflow
+
+## Project Overview
+XPLOR is a full-stack web application designed as a futuristic AI-startup platform. Currently, its primary functional feature is a 2D floor plan editor where users can design architectural layouts. The application is divided into a React frontend (Client) and an Express/MongoDB backend (Server).
+
+## Technology Stack
+### Frontend (Client)
+- Framework: React.js with Vite
+- Routing: React Router (`react-router-dom`)
+- 2D Canvas & Drawing: Konva & React Konva (`react-konva`)
+- Animations: Framer Motion (`framer-motion`) and GSAP (`gsap`)
+- 3D Rendering (Planned/Setup): Three.js (`three`) and React Three Fiber (`@react-three/fiber`)
+- Authentication: Firebase Auth (`firebase`)
+
+### Backend (Server)
+- Environment: Node.js with Express.js
+- Database: MongoDB with Mongoose
+- Authentication: Firebase Admin (`firebase-admin`), JWT (`jsonwebtoken`), and Bcrypt (`bcryptjs`) for hybrid auth solutions.
+
+---
+
+## Current Architecture & Workflow
+
+### 1. Authentication Flow
+- Users can sign up or log in via the `Login` and `Signup` pages on the frontend.
+- Authentication relies on Firebase Auth on the client side, and the backend also has Firebase Admin configured (likely for verifying tokens or integrating Firebase with MongoDB).
+- The `User` model in MongoDB stores user profiles, including fields for `email`, `password`, `googleId`, and `authProvider`.
+
+### 2. Dashboard & Project Management
+- Once authenticated, users land on the `Dashboard`.
+- The dashboard displays a "Recent Works" grid and provides options to create either 3D or 2D projects.
+- Creating a "New 2D Project":
+  - Triggers a modal to input Project Name, Canvas Width, and Canvas Height.
+  - Sends a `POST` request to `http://localhost:5000/api/projects`.
+  - The backend creates a new document in the `Project` MongoDB collection and returns the project ID.
+  - The user is then redirected to `/editor/:projectId`.
+
+### 3. 2D Floor Plan Editor (Core Feature)
+- The `Editor` component is the central workspace built using `react-konva`.
+- **Canvas State & Viewport:**
+  - Loads project data via `GET /api/projects/:projectId`.
+  - Supports infinite panning and zooming (both via mouse wheel and UI buttons), clamped to fit the screen.
+- **Drawing Tools:**
+  - **Select:** Selects existing elements for manipulation or deletion.
+  - **Wall (🧱):** Allows drawing contiguous lines. Snaps to 90-degree angles automatically when close, or manually when holding `Shift`.
+  - **Door (🚪):** Drops a door element on the canvas (represented by a door leaf and swing arc).
+  - **Window (🪟):** Drops a window element.
+- **Element Manipulation:**
+  - Elements can be selected, moved, deleted (Backspace/Delete key), and rotated (pressing `R`).
+  - Supports Undo (`Ctrl+Z`) and Redo (`Ctrl+Y`) with a complete history stack.
+- **Persistence (Autosave):**
+  - Uses a debounced autosave mechanism. Every 1.5 seconds after a change is made, a `PUT` request is sent to `/api/projects/:projectId` with the updated elements array.
+  - The MongoDB `Project` model saves these under `canvas.elements` using a flexible schema.
+- **Exporting:**
+  - Users can export the current canvas as a high-resolution PNG image without the selection highlights.
+
+---
+
+## Next Steps / What to Build Next (For the AI Agent)
+When sharing this with another LLM or AI agent to continue development, focus on:
+1. **3D Implementation:** The dashboard has a button for a 3D Project, and dependencies (`three`, `@react-three/fiber`) are installed, but the 3D editor logic needs to be built or integrated with the 2D floor plans (e.g., extruding walls to 3D).
+2. **Backend Authentication Alignment:** Finalizing the authentication workflow to ensure Firebase tokens correctly map to MongoDB users consistently.
+3. **Advanced Editor Features:** Adding more elements (furniture, stairs), snapping walls to each other, measuring tools, and area calculation.
+4. **Responsive UI:** Ensuring the editor sidebar and dashboard scale perfectly across varying resolutions.
