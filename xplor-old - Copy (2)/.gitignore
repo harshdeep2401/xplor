@@ -33,3 +33,7 @@ server/.env
 dist/
 build/
 .next/
+
+# macOS system files
+.DS_Store
+__MACOSX/
