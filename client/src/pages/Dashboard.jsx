@@ -7,9 +7,13 @@ function Dashboard() {
   const navigate = useNavigate()
   const [user, setUser] = useState(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isModal3DOpen, setIsModal3DOpen] = useState(false)
   const [projectName, setProjectName] = useState('Untitled Floor Plan')
   const [canvasWidth, setCanvasWidth] = useState(2000)
   const [canvasHeight, setCanvasHeight] = useState(2000)
+  const [gridWidth, setGridWidth] = useState(10)
+  const [gridLength, setGridLength] = useState(10)
+  const [gridHeight, setGridHeight] = useState(2.8)
   const [isCreating, setIsCreating] = useState(false)
 
   useEffect(() => {
@@ -75,12 +79,50 @@ function Dashboard() {
       
       const data = await response.json()
       if (response.ok) {
-        navigate(`/editor/${data.project._id}`)
+        navigate(`/editor/2d/${data.project._id}`)
       } else {
         console.error('Failed to create project:', data.message)
       }
     } catch (error) {
       console.error('Error creating project:', error)
+    } finally {
+      setIsCreating(false)
+    }
+  }
+
+  const handleCreateProject3D = async () => {
+    setIsCreating(true)
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch('http://localhost:5001/api/projects', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}` // if needed
+        },
+        body: JSON.stringify({
+          name: projectName,
+          canvasWidth: Number(gridWidth),
+          canvasHeight: Number(gridLength),
+          type: '3d',
+          userId: user.id
+        })
+      })
+      
+      const data = await response.json()
+      if (response.ok) {
+        navigate(`/editor/3d/${data.project._id}`, {
+          state: {
+            gridWidth: Number(gridWidth),
+            gridLength: Number(gridLength),
+            height: Number(gridHeight)
+          }
+        })
+      } else {
+        console.error('Failed to create 3D project:', data.message)
+      }
+    } catch (error) {
+      console.error('Error creating 3D project:', error)
     } finally {
       setIsCreating(false)
     }
@@ -110,7 +152,7 @@ function Dashboard() {
 
         {/* Primary Actions */}
         <div className="dashboard-actions">
-          <div className="action-card action-card-3d">
+          <div className="action-card action-card-3d" onClick={() => setIsModal3DOpen(true)}>
             <div className="action-icon icon-3d">
               <span>🧊</span>
             </div>
@@ -197,6 +239,65 @@ function Dashboard() {
               <button 
                 className="modal-create-btn" 
                 onClick={handleCreateProject}
+                disabled={isCreating}
+              >
+                {isCreating ? 'Creating...' : 'Create Project'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create 3D Project Modal */}
+      {isModal3DOpen && (
+        <div className="create-project-modal-overlay">
+          <div className="create-project-modal">
+            <h2>Create New 3D Environment</h2>
+            <div className="modal-field">
+              <label>Project Name</label>
+              <input 
+                type="text" 
+                value={projectName} 
+                onChange={e => setProjectName(e.target.value)} 
+              />
+            </div>
+            <div className="modal-row">
+              <div className="modal-field">
+                <label>Grid Width</label>
+                <input 
+                  type="number" 
+                  value={gridWidth} 
+                  onChange={e => setGridWidth(e.target.value)} 
+                />
+              </div>
+              <div className="modal-field">
+                <label>Grid Length</label>
+                <input 
+                  type="number" 
+                  value={gridLength} 
+                  onChange={e => setGridLength(e.target.value)} 
+                />
+              </div>
+            </div>
+            <div className="modal-field">
+              <label>Wall Height</label>
+              <input 
+                type="number" 
+                value={gridHeight} 
+                onChange={e => setGridHeight(e.target.value)} 
+              />
+            </div>
+            <div className="modal-actions">
+              <button 
+                className="modal-cancel-btn" 
+                onClick={() => setIsModal3DOpen(false)}
+                disabled={isCreating}
+              >
+                Cancel
+              </button>
+              <button 
+                className="modal-create-btn" 
+                onClick={handleCreateProject3D}
                 disabled={isCreating}
               >
                 {isCreating ? 'Creating...' : 'Create Project'}
