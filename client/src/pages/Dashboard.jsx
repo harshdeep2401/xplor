@@ -15,6 +15,10 @@ function Dashboard() {
   const [gridLength, setGridLength] = useState(10)
   const [gridHeight, setGridHeight] = useState(2.8)
   const [isCreating, setIsCreating] = useState(false)
+  const [projects, setProjects] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api'
 
   useEffect(() => {
     // Check if user is logged in
@@ -26,7 +30,29 @@ function Dashboard() {
       return
     }
 
-    setUser(JSON.parse(userData))
+    const parsedUser = JSON.parse(userData)
+    setUser(parsedUser)
+
+    // Fetch user projects
+    const fetchProjects = async () => {
+      try {
+        const response = await fetch(`${API_URL}/projects`, {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        })
+        const data = await response.json()
+        if (response.ok) {
+          setProjects(data.projects || [])
+        }
+      } catch (error) {
+        console.error('Error fetching projects:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchProjects()
   }, [navigate])
 
   const handleLogout = () => {
@@ -51,22 +77,15 @@ function Dashboard() {
     return 'Explorer'
   }
 
-  // Mock Recent Works Data
-  const recentProjects = [
-    { id: 1, name: 'Modern Villa 3D Walkthrough', type: '3D Project', date: '2 hours ago', gradient: 'gradient-1' },
-    { id: 2, name: 'Office Floor Plan', type: '2D Project', date: 'Yesterday', gradient: 'gradient-2' },
-    { id: 3, name: 'Minimalist Apartment VR', type: '3D Project', date: '3 days ago', gradient: 'gradient-3' },
-  ]
-
   const handleCreateProject = async () => {
     setIsCreating(true)
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch('http://localhost:5001/api/projects', {
+      const response = await fetch(`${API_URL}/projects`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}` // if needed
+          Authorization: `Bearer ${token}`
         },
         body: JSON.stringify({
           name: projectName,
@@ -94,11 +113,11 @@ function Dashboard() {
     setIsCreating(true)
     try {
       const token = localStorage.getItem('token')
-      const response = await fetch('http://localhost:5001/api/projects', {
+      const response = await fetch(`${API_URL}/projects`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}` // if needed
+          Authorization: `Bearer ${token}`
         },
         body: JSON.stringify({
           name: projectName,
@@ -172,22 +191,38 @@ function Dashboard() {
         {/* Recent Works */}
         <div className="dashboard-recent-works">
           <h2 className="recent-works-header">Recent Works</h2>
-          <div className="projects-grid">
-            {recentProjects.map(project => (
-              <div key={project.id} className="project-card">
-                <div className={`project-thumbnail ${project.gradient}`}>
-                  {project.type === '3D Project' ? '🧊' : '📐'}
-                </div>
-                <div className="project-info">
-                  <h4>{project.name}</h4>
-                  <p>
-                    <span>{project.type}</span>
-                    <span>{project.date}</span>
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
+          {isLoading ? (
+            <p>Loading projects...</p>
+          ) : projects.length === 0 ? (
+            <p>No projects yet. Create one to get started!</p>
+          ) : (
+            <div className="projects-grid">
+              {projects.map((project, index) => {
+                const gradient = `gradient-${(index % 3) + 1}`
+                const is3D = project.type === '3d'
+                const dateString = new Date(project.updatedAt).toLocaleDateString()
+                return (
+                  <div 
+                    key={project._id || project.id} 
+                    className="project-card"
+                    onClick={() => navigate(`/editor/${is3D ? '3d' : '2d'}/${project._id || project.id}`)}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    <div className={`project-thumbnail ${gradient}`}>
+                      {is3D ? '🧊' : '📐'}
+                    </div>
+                    <div className="project-info">
+                      <h4>{project.name}</h4>
+                      <p>
+                        <span>{is3D ? '3D Project' : '2D Project'}</span>
+                        <span>{dateString}</span>
+                      </p>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
 
       </main>

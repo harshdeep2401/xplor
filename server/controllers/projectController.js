@@ -2,7 +2,10 @@ const { prisma } = require('../config/db')
 
 const createProject = async (req, res) => {
   try {
-    const { name, canvasWidth, canvasHeight, type, userId } = req.body
+    const { name, canvasWidth, canvasHeight, type } = req.body
+    
+    // User is authenticated by protect middleware
+    const userId = req.user.id
 
     const project = await prisma.project.create({
       data: {
@@ -39,9 +42,31 @@ const getProject = async (req, res) => {
       return res.status(404).json({ message: 'Project not found' })
     }
 
+    // Check ownership
+    if (project.userId !== req.user.id) {
+      return res.status(401).json({ message: 'Not authorized to access this project' })
+    }
+
     const responseProject = { ...project, _id: project.id }
 
     res.status(200).json({ project: responseProject })
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    })
+  }
+}
+
+const getProjects = async (req, res) => {
+  try {
+    const projects = await prisma.project.findMany({
+      where: { userId: req.user.id },
+      orderBy: { updatedAt: 'desc' },
+    })
+
+    const responseProjects = projects.map(p => ({ ...p, _id: p.id }))
+
+    res.status(200).json({ projects: responseProjects })
   } catch (error) {
     res.status(500).json({
       message: error.message,
@@ -74,8 +99,37 @@ const saveProject = async (req, res) => {
   }
 }
 
+const deleteProject = async (req, res) => {
+  try {
+    const project = await prisma.project.findUnique({
+      where: { id: req.params.id }
+    })
+    
+    if (!project) {
+      return res.status(404).json({ message: 'Project not found' })
+    }
+
+    // Check ownership
+    if (project.userId !== req.user.id) {
+      return res.status(401).json({ message: 'Not authorized to delete this project' })
+    }
+
+    await prisma.project.delete({
+      where: { id: req.params.id }
+    })
+
+    res.status(200).json({ message: 'Project deleted successfully' })
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    })
+  }
+}
+
 module.exports = {
   createProject,
   getProject,
+  getProjects,
   saveProject,
+  deleteProject,
 }

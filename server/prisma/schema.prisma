@@ -19,18 +19,180 @@ model User {
   authProvider String?   @default("email")
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
-  projects     Project[]
+  
+  lastLogin    DateTime?
+  isActive     Boolean   @default(true)
+  planId       String?
+  plan         SubscriptionPlan? @relation(fields: [planId], references: [id])
+  
+  projects           Project[]
+  subscriptions      UserSubscription[]
+  jobs               Job[]
+  editorSessions     EditorSession[]
+  userAssets         UserAsset[]
+  auditLogs          AuditLog[]
+}
+
+model SubscriptionPlan {
+  id             String    @id @default(cuid())
+  name           String
+  jobsPerMonth   Int
+  adminLimit     Int
+  screenLimit    Int
+  furnitureLimit Int
+  priceMonthly   Decimal?  @db.Decimal(10, 2)
+  priceYearly    Decimal?  @db.Decimal(10, 2)
+  features       Json?
+  createdAt      DateTime  @default(now())
+
+  users          User[]
+  subscriptions  UserSubscription[]
+}
+
+model UserSubscription {
+  id                 String           @id @default(cuid())
+  userId             String
+  user               User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planId             String
+  plan               SubscriptionPlan @relation(fields: [planId], references: [id])
+  status             String           @default("active")
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  jobsUsedThisPeriod Int              @default(0)
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  @@index([userId])
 }
 
 model Project {
   id           String   @id @default(cuid())
   name         String
   userId       String
-  user         User     @relation(fields: [userId], references: [id])
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   type         String   @default("2d")
   canvasWidth  Int      @default(2000)
   canvasHeight Int      @default(2000)
   canvas       Json     @default("{\"elements\": []}")
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
+  
+  description  String?
+  status       String   @default("draft")
+  floorPlanUrl String?
+  thumbnailUrl String?
+  lastAccessed DateTime?
+
+  scenes         Scene[]
+  jobs           Job[]
+  editorSessions EditorSession[]
+  vrOutputs      VrOutput[]
+
+  @@index([userId])
+}
+
+model Scene {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  version   Int      @default(1)
+  sceneData Json     @default("{}")
+  metadata  Json?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId])
+}
+
+model Job {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId       String
+  project         Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  jobType         String
+  status          String    @default("pending")
+  startedAt       DateTime? @default(now())
+  completedAt     DateTime?
+  durationMinutes Int?
+  errorMessage    String?
+  metadata        Json?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  editorSessions  EditorSession[]
+  vrOutputs       VrOutput[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model EditorSession {
+  id             String    @id @default(cuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  projectId      String
+  project        Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  jobId          String?
+  job            Job?      @relation(fields: [jobId], references: [id])
+  startedAt      DateTime  @default(now())
+  lastActivity   DateTime  @default(now())
+  endedAt        DateTime?
+  isActive       Boolean   @default(true)
+  autoSavedState Json?
+
+  @@index([userId, projectId])
+}
+
+model Asset {
+  id           String      @id @default(cuid())
+  name         String
+  category     String?
+  subcategory  String?
+  fileUrl      String
+  thumbnailUrl String?
+  metadata     Json?
+  isPremium    Boolean     @default(false)
+  createdAt    DateTime    @default(now())
+  usageCount   Int         @default(0)
+
+  userAssets   UserAsset[]
+}
+
+model UserAsset {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assetId       String?
+  asset         Asset?   @relation(fields: [assetId], references: [id])
+  isCustom      Boolean  @default(false)
+  customFileUrl String?
+  createdAt     DateTime @default(now())
+}
+
+model VrOutput {
+  id         String   @id @default(cuid())
+  projectId  String
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  jobId      String?
+  job        Job?     @relation(fields: [jobId], references: [id])
+  outputUrl  String
+  format     String?
+  fileSizeMb Decimal? @db.Decimal(10, 2)
+  createdAt  DateTime @default(now())
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id])
+  action     String
+  entityType String?
+  entityId   String?
+  metadata   Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
 }

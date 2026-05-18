@@ -4,12 +4,19 @@ const router = express.Router()
 const {
   createProject,
   getProject,
+  getProjects,
   saveProject,
+  deleteProject,
 } = require('../controllers/projectController')
 
-// Protect routes if necessary. For now, matching standard express routing.
+const { protect } = require('../middleware/authMiddleware')
+
+router.use(protect)
+
 router.post('/', createProject)
+router.get('/', getProjects)
 router.get('/:id', getProject)
 router.put('/:id', saveProject)
+router.delete('/:id', deleteProject)
 
 module.exports = router
