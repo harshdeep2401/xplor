@@ -1,4 +1,5 @@
 const { prisma } = require('../config/db')
+const { processFloorPlan } = require('../services/aiService')
 
 const createProject = async (req, res) => {
   try {
@@ -160,7 +161,7 @@ const uploadFloorPlan = async (req, res) => {
       data: { floorPlanUrl }
     })
 
-    const job = await prisma.job.create({
+    let job = await prisma.job.create({
       data: {
         userId: req.user.id,
         projectId: project.id,
@@ -176,6 +177,66 @@ const uploadFloorPlan = async (req, res) => {
     })
 
     const responseProject = { ...updatedProject, _id: updatedProject.id }
+
+    // Call the AI service synchronously and fold the result into the job
+    // before responding. See ai-service/README.md for why this is sync
+    // rather than a queue/webhook at this stage.
+    //
+    // Errors here (AI service unreachable, bad detection, etc.) do NOT
+    // fail this request — the upload itself already succeeded. They're
+    // recorded on the job instead, and the client finds out by polling
+    // GET /api/jobs/:id like it already does.
+    try {
+      job = await prisma.job.update({
+        where: { id: job.id },
+        data: { status: 'processing' },
+      })
+
+      const result = await processFloorPlan({
+        jobId: job.id,
+        projectId: project.id,
+        floorPlanUrl,
+      })
+
+      if (result.status === 'completed') {
+        await prisma.scene.create({
+          data: {
+            projectId: project.id,
+            sceneData: result.detection,
+            metadata: result.metadata,
+          },
+        })
+
+        job = await prisma.job.update({
+          where: { id: job.id },
+          data: {
+            status: 'completed',
+            completedAt: new Date(),
+            metadata: { ...(job.metadata || {}), ...result.metadata },
+          },
+        })
+      } else {
+        job = await prisma.job.update({
+          where: { id: job.id },
+          data: {
+            status: 'failed',
+            completedAt: new Date(),
+            errorMessage: result.error || 'AI service reported failure',
+          },
+        })
+      }
+    } catch (aiError) {
+      // Transport-level failure (service down, timeout, etc.) — same
+      // handling as a reported "failed" result above.
+      job = await prisma.job.update({
+        where: { id: job.id },
+        data: {
+          status: 'failed',
+          completedAt: new Date(),
+          errorMessage: aiError.message,
+        },
+      })
+    }
 
     res.status(201).json({
       message: 'Floor plan uploaded, job created',
