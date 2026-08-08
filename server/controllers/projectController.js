@@ -126,10 +126,74 @@ const deleteProject = async (req, res) => {
   }
 }
 
+// POST /api/projects/:id/upload-floor-plan
+// multer (uploadMiddleware) has already written the file to disk by the
+// time this runs and populated req.file. This handler just:
+//   1. verifies the project exists and belongs to the caller
+//   2. records where the file landed (floorPlanUrl)
+//   3. creates a Job row (status: 'pending') that will later be picked up
+//      and sent to the FastAPI AI service
+const uploadFloorPlan = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded. Expected field name "floorPlan".' })
+    }
+
+    const project = await prisma.project.findUnique({
+      where: { id: req.params.id }
+    })
+
+    if (!project) {
+      return res.status(404).json({ message: 'Project not found' })
+    }
+
+    if (project.userId !== req.user.id) {
+      return res.status(401).json({ message: 'Not authorized to modify this project' })
+    }
+
+    // Local-disk URL for now — served statically from /uploads (see server.js).
+    // Once storage moves to S3/R2, this becomes the bucket URL instead.
+    const floorPlanUrl = `/uploads/floor-plans/${req.user.id}/${req.file.filename}`
+
+    const updatedProject = await prisma.project.update({
+      where: { id: project.id },
+      data: { floorPlanUrl }
+    })
+
+    const job = await prisma.job.create({
+      data: {
+        userId: req.user.id,
+        projectId: project.id,
+        jobType: 'floor_plan_processing',
+        status: 'pending',
+        metadata: {
+          floorPlanUrl,
+          originalFilename: req.file.originalname,
+          fileSizeBytes: req.file.size,
+          mimeType: req.file.mimetype,
+        },
+      }
+    })
+
+    const responseProject = { ...updatedProject, _id: updatedProject.id }
+
+    res.status(201).json({
+      message: 'Floor plan uploaded, job created',
+      project: responseProject,
+      job,
+    })
+  } catch (error) {
+    res.status(500).json({
+      message: error.message,
+    })
+  }
+}
+
 module.exports = {
   createProject,
   getProject,
   getProjects,
   saveProject,
   deleteProject,
+  uploadFloorPlan,
 }
