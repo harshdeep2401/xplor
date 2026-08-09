@@ -37,3 +37,10 @@ build/
 # macOS system files
 .DS_Store
 __MACOSX/
+
+
+# virtual env for ai service
+.venv/
+__pycache__/
+*.pyc
+venv/
