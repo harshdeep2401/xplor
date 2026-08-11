@@ -4,13 +4,14 @@
 //   - the response interceptor clears the session and bounces to /login on 401
 //     so an expired/invalid token can't leave the UI in a broken state.
 import axios from 'axios'
+import type { InternalAxiosRequestConfig, AxiosError } from 'axios'
 import { getToken, clearSession } from './session'
 
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
 })
 
-apiClient.interceptors.request.use((config) => {
+apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   const token = getToken()
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
@@ -20,7 +21,7 @@ apiClient.interceptors.request.use((config) => {
 
 apiClient.interceptors.response.use(
   (response) => response,
-  (error) => {
+  (error: AxiosError) => {
     if (error.response?.status === 401) {
       clearSession()
       if (window.location.pathname !== '/login') {

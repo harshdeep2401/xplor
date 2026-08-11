@@ -1,14 +1,14 @@
-const express = require('express')
-const router = express.Router()
-
-const {
+import express from 'express'
+import {
   registerUser,
   googleLogin,
   loginUser,
-} = require('../controllers/authController')
+} from '../controllers/authController'
+
+const router = express.Router()
 
 router.post('/register', registerUser)
 router.post('/login', loginUser)
 router.post('/google-login', googleLogin)
 
-module.exports = router
+export default router

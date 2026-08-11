@@ -3,8 +3,8 @@ import Home from './pages/Home'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
 import Dashboard from './pages/Dashboard'
-import Editor2D from './pages/Editor.jsx'
-import Editor3D from './pages/Editor.tsx'
+import Editor2D from './pages/Editor2D'
+import Editor3D from './pages/Editor'
 import { ProtectedRoute, RedirectIfAuthenticated } from './components/routing/guards'
 
 function App() {

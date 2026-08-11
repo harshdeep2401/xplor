@@ -1,12 +1,14 @@
-const { prisma } = require('../config/db')
-const { processFloorPlan } = require('../services/aiService')
+import type { Request, Response } from 'express'
+import { Prisma } from '@prisma/client'
+import { prisma } from '../config/db'
+import { processFloorPlan } from '../services/aiService'
 
-const createProject = async (req, res) => {
+const createProject = async (req: Request, res: Response) => {
   try {
     const { name, canvasWidth, canvasHeight, type } = req.body
-    
+
     // User is authenticated by protect middleware
-    const userId = req.user.id
+    const userId = req.user!.id
 
     const project = await prisma.project.create({
       data: {
@@ -28,23 +30,23 @@ const createProject = async (req, res) => {
     })
   } catch (error) {
     res.status(500).json({
-      message: error.message,
+      message: (error as Error).message,
     })
   }
 }
 
-const getProject = async (req, res) => {
+const getProject = async (req: Request<{ id: string }>, res: Response) => {
   try {
     const project = await prisma.project.findUnique({
       where: { id: req.params.id }
     })
-    
+
     if (!project) {
       return res.status(404).json({ message: 'Project not found' })
     }
 
     // Check ownership
-    if (project.userId !== req.user.id) {
+    if (project.userId !== req.user!.id) {
       return res.status(401).json({ message: 'Not authorized to access this project' })
     }
 
@@ -53,15 +55,15 @@ const getProject = async (req, res) => {
     res.status(200).json({ project: responseProject })
   } catch (error) {
     res.status(500).json({
-      message: error.message,
+      message: (error as Error).message,
     })
   }
 }
 
-const getProjects = async (req, res) => {
+const getProjects = async (req: Request, res: Response) => {
   try {
     const projects = await prisma.project.findMany({
-      where: { userId: req.user.id },
+      where: { userId: req.user!.id },
       orderBy: { updatedAt: 'desc' },
     })
 
@@ -70,12 +72,12 @@ const getProjects = async (req, res) => {
     res.status(200).json({ projects: responseProjects })
   } catch (error) {
     res.status(500).json({
-      message: error.message,
+      message: (error as Error).message,
     })
   }
 }
 
-const saveProject = async (req, res) => {
+const saveProject = async (req: Request<{ id: string }>, res: Response) => {
   try {
     const { canvas } = req.body
 
@@ -89,7 +91,7 @@ const saveProject = async (req, res) => {
       return res.status(404).json({ message: 'Project not found' })
     }
 
-    if (existing.userId !== req.user.id) {
+    if (existing.userId !== req.user!.id) {
       return res.status(401).json({ message: 'Not authorized to modify this project' })
     }
 
@@ -105,27 +107,27 @@ const saveProject = async (req, res) => {
       project: responseProject,
     })
   } catch (error) {
-    if (error.code === 'P2025') {
+    if ((error as Prisma.PrismaClientKnownRequestError).code === 'P2025') {
       return res.status(404).json({ message: 'Project not found' })
     }
     res.status(500).json({
-      message: error.message,
+      message: (error as Error).message,
     })
   }
 }
 
-const deleteProject = async (req, res) => {
+const deleteProject = async (req: Request<{ id: string }>, res: Response) => {
   try {
     const project = await prisma.project.findUnique({
       where: { id: req.params.id }
     })
-    
+
     if (!project) {
       return res.status(404).json({ message: 'Project not found' })
     }
 
     // Check ownership
-    if (project.userId !== req.user.id) {
+    if (project.userId !== req.user!.id) {
       return res.status(401).json({ message: 'Not authorized to delete this project' })
     }
 
@@ -136,7 +138,7 @@ const deleteProject = async (req, res) => {
     res.status(200).json({ message: 'Project deleted successfully' })
   } catch (error) {
     res.status(500).json({
-      message: error.message,
+      message: (error as Error).message,
     })
   }
 }
@@ -148,7 +150,7 @@ const deleteProject = async (req, res) => {
 //   2. records where the file landed (floorPlanUrl)
 //   3. creates a Job row (status: 'pending') that will later be picked up
 //      and sent to the FastAPI AI service
-const uploadFloorPlan = async (req, res) => {
+const uploadFloorPlan = async (req: Request<{ id: string }>, res: Response) => {
   try {
     if (!req.file) {
       return res.status(400).json({ message: 'No file uploaded. Expected field name "floorPlan".' })
@@ -162,13 +164,13 @@ const uploadFloorPlan = async (req, res) => {
       return res.status(404).json({ message: 'Project not found' })
     }
 
-    if (project.userId !== req.user.id) {
+    if (project.userId !== req.user!.id) {
       return res.status(401).json({ message: 'Not authorized to modify this project' })
     }
 
     // Local-disk URL for now — served statically from /uploads (see server.js).
     // Once storage moves to S3/R2, this becomes the bucket URL instead.
-    const floorPlanUrl = `/uploads/floor-plans/${req.user.id}/${req.file.filename}`
+    const floorPlanUrl = `/uploads/floor-plans/${req.user!.id}/${req.file.filename}`
 
     const updatedProject = await prisma.project.update({
       where: { id: project.id },
@@ -177,7 +179,7 @@ const uploadFloorPlan = async (req, res) => {
 
     let job = await prisma.job.create({
       data: {
-        userId: req.user.id,
+        userId: req.user!.id,
         projectId: project.id,
         jobType: 'floor_plan_processing',
         status: 'pending',
@@ -226,7 +228,10 @@ const uploadFloorPlan = async (req, res) => {
           data: {
             status: 'completed',
             completedAt: new Date(),
-            metadata: { ...(job.metadata || {}), ...result.metadata },
+            metadata: {
+              ...((job.metadata as Record<string, unknown>) ?? {}),
+              ...result.metadata,
+            } as Prisma.InputJsonValue,
           },
         })
       } else {
@@ -247,7 +252,7 @@ const uploadFloorPlan = async (req, res) => {
         data: {
           status: 'failed',
           completedAt: new Date(),
-          errorMessage: aiError.message,
+          errorMessage: (aiError as Error).message,
         },
       })
     }
@@ -259,12 +264,12 @@ const uploadFloorPlan = async (req, res) => {
     })
   } catch (error) {
     res.status(500).json({
-      message: error.message,
+      message: (error as Error).message,
     })
   }
 }
 
-module.exports = {
+export {
   createProject,
   getProject,
   getProjects,

@@ -5,6 +5,7 @@ import { signInWithPopup } from 'firebase/auth'
 import { auth, provider } from '../firebase'
 import { googleLoginRequest, registerRequest } from '../services/authService'
 import { setSession } from '../services/session'
+import { getApiErrorMessage } from '../services/errors'
 
 function Signup() {
   const navigate = useNavigate()
@@ -20,7 +21,9 @@ function Signup() {
   
   const [error, setError] = useState('')
 
-  const handleChange = (e) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
     setError('') // clear error on type
     setFormData({
       ...formData,
@@ -28,7 +31,7 @@ function Signup() {
     })
   }
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError('')
 
@@ -58,7 +61,7 @@ function Signup() {
       navigate('/dashboard')
     } catch (err) {
       console.log(err)
-      setError(err.response?.data?.message || 'Something went wrong. Please try again.')
+      setError(getApiErrorMessage(err, 'Something went wrong. Please try again.'))
     }
   }
 

@@ -7,20 +7,78 @@ import '../styles/editor.css'
 // Fix for trackpads interpreting tiny finger movements as drags instead of clicks
 Konva.dragDistance = 5;
 
+type Tool = 'select' | 'wall' | 'door' | 'window' | 'label' | 'delete' | 'pan'
+
+interface WallElement {
+  id: string
+  type: 'wall'
+  startX: number
+  startY: number
+  endX: number
+  endY: number
+  thickness: number
+  curvature?: number
+}
+interface DoorElement {
+  id: string
+  type: 'door'
+  x: number
+  y: number
+  width: number
+  height: number
+  rotation: number
+}
+interface WindowElement {
+  id: string
+  type: 'window'
+  x: number
+  y: number
+  startX: number
+  startY: number
+  width: number
+  height: number
+  rotation: number
+  curvature: number
+  attachedWallId: string | null
+}
+interface LabelElement {
+  id: string
+  type: 'label'
+  x: number
+  y: number
+  text: string
+  fontSize: number
+}
+type EditorElement = WallElement | DoorElement | WindowElement | LabelElement
+
+interface Editor2DProject {
+  name: string
+  canvasWidth: number
+  canvasHeight: number
+  canvas: { elements?: EditorElement[] }
+}
+
+interface SelectionBox {
+  startX: number
+  startY: number
+  endX: number
+  endY: number
+}
+
 function Editor() {
   const { projectId } = useParams()
   const navigate = useNavigate()
-  const [project, setProject] = useState(null)
+  const [project, setProject] = useState<Editor2DProject | null>(null)
 
   // Editor State
-  const [elements, setElements] = useState([])
-  const [history, setHistory] = useState([])
+  const [elements, setElements] = useState<EditorElement[]>([])
+  const [history, setHistory] = useState<EditorElement[][]>([])
   const [historyStep, setHistoryStep] = useState(-1)
 
-  const [activeTool, setActiveTool] = useState('select') // select, wall, door, window, delete, pan
-  const [selectedElementId, setSelectedElementId] = useState(null)
-  const [marqueeSelectionIds, setMarqueeSelectionIds] = useState([])
-  const [selectionBox, setSelectionBox] = useState(null)
+  const [activeTool, setActiveTool] = useState<Tool>('select') // select, wall, door, window, delete, pan
+  const [selectedElementId, setSelectedElementId] = useState<string | null>(null)
+  const [marqueeSelectionIds, setMarqueeSelectionIds] = useState<string[]>([])
+  const [selectionBox, setSelectionBox] = useState<SelectionBox | null>(null)
   const [isDrawing, setIsDrawing] = useState(false)
   const [saveStatus, setSaveStatus] = useState('Saved')
 
@@ -29,7 +87,7 @@ function Editor() {
   const [stagePosition, setStagePosition] = useState({ x: 0, y: 0 })
   const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 })
 
-  const stageRef = useRef(null)
+  const stageRef = useRef<Konva.Stage | null>(null)
 
   // Calculate the minimum zoom scale that fits the entire canvas in the viewport
   const getMinScale = useCallback(() => {
@@ -57,8 +115,8 @@ function Editor() {
 
   // Global Keyboard Shortcuts
   useEffect(() => {
-    const handleKeyDown = (e) => {
-      if ((e.key === 'Delete' || e.key === 'Backspace') && e.target.tagName !== 'INPUT') {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.key === 'Delete' || e.key === 'Backspace') && (e.target as HTMLElement).tagName !== 'INPUT') {
         if (selectedElementId) {
           updateElements(elements.filter(el => el.id !== selectedElementId));
           setSelectedElementId(null);
@@ -105,7 +163,7 @@ function Editor() {
   }, [project, fitToScreen])
 
   // Autosave
-  const saveProject = useCallback(async (newElements) => {
+  const saveProject = useCallback(async (newElements: EditorElement[]) => {
     setSaveStatus('Saving...')
     try {
       const token = localStorage.getItem('token')
@@ -136,7 +194,7 @@ function Editor() {
     return () => clearTimeout(timer)
   }, [elements, saveProject, project])
 
-  const updateElements = useCallback((newElements) => {
+  const updateElements = useCallback((newElements: EditorElement[]) => {
     setElements(newElements)
     const newHistory = history.slice(0, historyStep + 1)
     newHistory.push(newElements)
@@ -160,7 +218,7 @@ function Editor() {
     }
   }, [history, historyStep])
 
-  const handleZoom = useCallback((scaleBy) => {
+  const handleZoom = useCallback((scaleBy: number) => {
     const stage = stageRef.current
     if (!stage) return
     const oldScale = stage.scaleX()
@@ -242,8 +300,8 @@ function Editor() {
   }, [elements, selectedElementId, updateElements])
 
   useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.target.tagName === 'INPUT') return // ignore when typing in inputs
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.target as HTMLElement).tagName === 'INPUT') return // ignore when typing in inputs
 
       // Escape: Deselect
       if (e.key === 'Escape') {
@@ -288,7 +346,7 @@ function Editor() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [handleUndo, handleRedo, handleRotate, handleZoom, elements, selectedElementId, updateElements])
 
-  const snapToWallPoints = useCallback((x, y, elementsToSnap, threshold = 20) => {
+  const snapToWallPoints = useCallback((x: number, y: number, elementsToSnap: EditorElement[], threshold = 20) => {
     let minDistance = threshold;
     let snappedX = x;
     let snappedY = y;
@@ -307,12 +365,12 @@ function Editor() {
     return { x: snappedX, y: snappedY };
   }, []);
 
-  const snapToWallEdge = useCallback((x, y, elementsToSnap, threshold = 20) => {
+  const snapToWallEdge = useCallback((x: number, y: number, elementsToSnap: EditorElement[], threshold = 20) => {
     let minDistance = threshold;
     let snappedX = x;
     let snappedY = y;
-    let angle = null;
-    let wall = null;
+    let angle: number | null = null;
+    let wall: WallElement | null = null;
     for (const el of elementsToSnap) {
       if (el.type === 'wall') {
         const l2 = Math.pow(el.endX - el.startX, 2) + Math.pow(el.endY - el.startY, 2);
@@ -334,10 +392,11 @@ function Editor() {
     return { x: snappedX, y: snappedY, angle, wall };
   }, []);
 
-  const handleWheel = (e) => {
+  const handleWheel = (e: Konva.KonvaEventObject<WheelEvent>) => {
     e.evt.preventDefault()
 
     const stage = stageRef.current
+    if (!stage) return
     const oldScale = stage.scaleX()
 
     const pointer = stage.getPointerPosition()
@@ -365,9 +424,11 @@ function Editor() {
     setStagePosition(newPos)
   }
 
-  const handleMouseDown = (e) => {
+  const handleMouseDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
     const stage = e.target.getStage()
+    if (!stage) return
     const pos = stage.getPointerPosition()
+    if (!pos) return
     const scale = stage.scaleX()
 
     let logicalX = (pos.x - stage.x()) / scale
@@ -390,7 +451,7 @@ function Editor() {
     if (activeTool === 'wall') {
       setIsDrawing(true)
       const snap = snapToWallPoints(logicalX, logicalY, elements)
-      const newWall = {
+      const newWall: WallElement = {
         id: `wall_${Date.now()}`,
         type: 'wall',
         startX: snap.x,
@@ -403,7 +464,7 @@ function Editor() {
       setElements(newElements)
     } else if (activeTool === 'door') {
       const snap = snapToWallEdge(logicalX, logicalY, elements)
-      const newDoor = {
+      const newDoor: DoorElement = {
         id: `door_${Date.now()}`,
         type: 'door',
         x: snap.x,
@@ -421,7 +482,7 @@ function Editor() {
         const wallLen = Math.hypot(snap.wall.endX - snap.wall.startX, snap.wall.endY - snap.wall.startY) || 1
         curvature = snap.wall.curvature * Math.pow(1 / wallLen, 2)
       }
-      const newWindow = {
+      const newWindow: WindowElement = {
         id: `window_${Date.now()}`,
         type: 'window',
         x: snap.x,
@@ -436,7 +497,7 @@ function Editor() {
       }
       setElements([...elements, newWindow])
     } else if (activeTool === 'label') {
-      const newLabel = {
+      const newLabel: LabelElement = {
         id: `label_${Date.now()}`,
         type: 'label',
         x: logicalX,
@@ -448,9 +509,11 @@ function Editor() {
     }
   }
 
-  const handleMouseMove = (e) => {
+  const handleMouseMove = (e: Konva.KonvaEventObject<MouseEvent>) => {
     const stage = e.target.getStage()
+    if (!stage || !project) return
     const pos = stage.getPointerPosition()
+    if (!pos) return
     const scale = stage.scaleX()
 
     let logicalX = (pos.x - stage.x()) / scale
@@ -464,7 +527,7 @@ function Editor() {
     setCursorPos({ x: Math.round(logicalX), y: Math.round(logicalY) })
 
     if (selectionBox) {
-      setSelectionBox(prev => ({ ...prev, endX: logicalX, endY: logicalY }))
+      setSelectionBox({ ...selectionBox, endX: logicalX, endY: logicalY })
       return
     }
 
@@ -473,8 +536,8 @@ function Editor() {
     if (activeTool === 'window') {
       setElements(prevElements => {
         const newElements = [...prevElements]
-        const lastWindow = { ...newElements[newElements.length - 1] }
-        
+        const lastWindow = { ...newElements[newElements.length - 1] } as WindowElement
+
         const snap = snapToWallEdge(logicalX, logicalY, prevElements.slice(0, -1));
         const endX = snap.x;
         const endY = snap.y;
@@ -506,7 +569,7 @@ function Editor() {
 
     setElements(prevElements => {
       const newElements = [...prevElements]
-      const lastElement = { ...newElements[newElements.length - 1] }
+      const lastElement = { ...newElements[newElements.length - 1] } as WallElement
       let endX = logicalX
       let endY = logicalY
       
@@ -569,7 +632,7 @@ function Editor() {
     setIsDrawing(false)
   }
 
-  const handleElementClick = (id) => {
+  const handleElementClick = (id: string) => {
     if (activeTool === 'delete') {
       updateElements(elements.filter(el => el.id !== id))
     } else {

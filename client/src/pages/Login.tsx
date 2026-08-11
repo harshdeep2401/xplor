@@ -4,6 +4,7 @@ import { signInWithPopup } from 'firebase/auth'
 import { auth, provider } from '../firebase'
 import { loginRequest, googleLoginRequest } from '../services/authService'
 import { setSession } from '../services/session'
+import { getApiErrorMessage } from '../services/errors'
 import '../styles/auth.css'
 
 function Login() {
@@ -14,7 +15,7 @@ function Login() {
   })
   const [error, setError] = useState('')
 
-  const handleChange = (e) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setError('') // clear error on type
     setFormData({
       ...formData,
@@ -22,7 +23,7 @@ function Login() {
     })
   }
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError('')
 
@@ -34,7 +35,7 @@ function Login() {
       navigate('/dashboard')
     } catch (err) {
       console.log(err)
-      setError(err.response?.data?.message || 'Login failed. Please check your credentials.')
+      setError(getApiErrorMessage(err, 'Login failed. Please check your credentials.'))
     }
   }
 

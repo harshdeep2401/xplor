@@ -5,20 +5,27 @@
 const TOKEN_KEY = 'token'
 const USER_KEY = 'user'
 
-export function setSession(token, user) {
+export interface SessionUser {
+  id: string
+  name?: string
+  email?: string
+  profileImage?: string | null
+}
+
+export function setSession(token: string, user: SessionUser): void {
   localStorage.setItem(TOKEN_KEY, token)
   localStorage.setItem(USER_KEY, JSON.stringify(user))
 }
 
-export function getToken() {
+export function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY)
 }
 
-export function getUser() {
+export function getUser(): SessionUser | null {
   const raw = localStorage.getItem(USER_KEY)
   if (!raw) return null
   try {
-    return JSON.parse(raw)
+    return JSON.parse(raw) as SessionUser
   } catch {
     return null
   }
@@ -31,9 +38,9 @@ export function clearSession() {
 
 // Decode the `exp` claim (seconds since epoch) from a JWT without a library.
 // Returns null if the token is malformed.
-function getTokenExp(token) {
+function getTokenExp(token: string): number | null {
   try {
-    const payload = JSON.parse(atob(token.split('.')[1]))
+    const payload = JSON.parse(atob(token.split('.')[1])) as { exp?: number }
     return typeof payload.exp === 'number' ? payload.exp : null
   } catch {
     return null
@@ -42,7 +49,7 @@ function getTokenExp(token) {
 
 // True only when a non-expired token is present. An expired token is cleared
 // so the app treats the user as logged out instead of leaving a broken session.
-export function isAuthenticated() {
+export function isAuthenticated(): boolean {
   const token = getToken()
   if (!token) return false
 

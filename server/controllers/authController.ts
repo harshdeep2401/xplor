@@ -1,21 +1,22 @@
-const bcrypt = require('bcryptjs')
-const jwt = require('jsonwebtoken')
-const { prisma } = require('../config/db')
-const admin = require('../config/firebaseAdmin')
+import type { Request, Response } from 'express'
+import bcrypt from 'bcryptjs'
+import jwt from 'jsonwebtoken'
+import { prisma } from '../config/db'
+import admin from '../config/firebaseAdmin'
 
-const signAppToken = (user) =>
+const signAppToken = (user: { id: string; email: string }) =>
   jwt.sign(
     {
       id: user.id,
       email: user.email,
     },
-    process.env.JWT_SECRET,
+    process.env.JWT_SECRET as string,
     {
       expiresIn: '7d',
     }
   )
 
-const registerUser = async (req, res) => {
+const registerUser = async (req: Request, res: Response) => {
   const {
     name,
     email,
@@ -67,12 +68,12 @@ const registerUser = async (req, res) => {
     })
   } catch (error) {
     return res.status(500).json({
-      message: error.message,
+      message: (error as Error).message,
     })
   }
 }
 
-const googleLogin = async (req, res) => {
+const googleLogin = async (req: Request, res: Response) => {
   const { token } = req.body
 
   try {
@@ -95,8 +96,8 @@ const googleLogin = async (req, res) => {
     if (!user) {
       user = await prisma.user.create({
         data: {
-          name,
-          email,
+          name: name as string,
+          email: email as string,
           googleId: uid,
           profileImage: picture,
           authProvider: 'google',
@@ -105,7 +106,12 @@ const googleLogin = async (req, res) => {
 
       console.log('New Google user created:', user)
     } else {
-      const updates = {}
+      const updates: {
+        googleId?: string
+        profileImage?: string
+        name?: string
+        authProvider?: string
+      } = {}
 
       if (!user.googleId) {
         updates.googleId = uid
@@ -147,12 +153,12 @@ const googleLogin = async (req, res) => {
     console.log('Google Login Error:', error)
 
     return res.status(500).json({
-      message: error.message,
+      message: (error as Error).message,
     })
   }
 }
 
-const loginUser = async (req, res) => {
+const loginUser = async (req: Request, res: Response) => {
   const { email, password } = req.body
 
   try {
@@ -186,12 +192,12 @@ const loginUser = async (req, res) => {
     })
   } catch (error) {
     return res.status(500).json({
-      message: error.message,
+      message: (error as Error).message,
     })
   }
 }
 
-module.exports = {
+export {
   registerUser,
   googleLogin,
   loginUser,

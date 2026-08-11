@@ -1,17 +1,16 @@
-const express = require('express')
-const router = express.Router()
-
-const {
+import express from 'express'
+import {
   createProject,
   getProject,
   getProjects,
   saveProject,
   deleteProject,
   uploadFloorPlan,
-} = require('../controllers/projectController')
+} from '../controllers/projectController'
+import { protect } from '../middleware/authMiddleware'
+import { uploadFloorPlan as uploadFloorPlanMiddleware } from '../middleware/uploadMiddleware'
 
-const { protect } = require('../middleware/authMiddleware')
-const { uploadFloorPlan: uploadFloorPlanMiddleware } = require('../middleware/uploadMiddleware')
+const router = express.Router()
 
 router.use(protect)
 
@@ -22,4 +21,4 @@ router.put('/:id', saveProject)
 router.delete('/:id', deleteProject)
 router.post('/:id/upload-floor-plan', uploadFloorPlanMiddleware.single('floorPlan'), uploadFloorPlan)
 
-module.exports = router
+export default router

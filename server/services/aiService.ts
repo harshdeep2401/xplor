@@ -12,12 +12,31 @@ const AI_SERVICE_ENDPOINT =
   process.env.FASTAPI_WEBHOOK_URL || 'http://localhost:8000/process-floor-plan'
 const AI_SERVICE_TIMEOUT_MS = Number(process.env.AI_SERVICE_TIMEOUT_MS) || 30000
 
+interface ProcessFloorPlanArgs {
+  jobId: string
+  projectId: string
+  floorPlanUrl: string
+}
+
+// Shape of the FastAPI response. detection/metadata are passed straight through
+// to Prisma JSON columns, so they're left loose here.
+export interface FloorPlanResult {
+  status: string
+  detection?: any
+  metadata?: any
+  error?: string
+}
+
 // Throws only on transport-level problems (service unreachable, timeout,
 // non-2xx HTTP status). A *detection* failure (bad image, 404'd file) is
 // NOT thrown — it comes back as a normal { status: 'failed', error } object,
 // matching the FastAPI contract, so callers should check result.status
 // either way.
-const processFloorPlan = async ({ jobId, projectId, floorPlanUrl }) => {
+export const processFloorPlan = async ({
+  jobId,
+  projectId,
+  floorPlanUrl,
+}: ProcessFloorPlanArgs): Promise<FloorPlanResult> => {
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), AI_SERVICE_TIMEOUT_MS)
 
@@ -33,15 +52,14 @@ const processFloorPlan = async ({ jobId, projectId, floorPlanUrl }) => {
       throw new Error(`AI service returned HTTP ${response.status}`)
     }
 
-    return await response.json()
+    return (await response.json()) as FloorPlanResult
   } catch (error) {
-    if (error.name === 'AbortError') {
+    if (error instanceof Error && error.name === 'AbortError') {
       throw new Error(`AI service did not respond within ${AI_SERVICE_TIMEOUT_MS}ms`)
     }
-    throw new Error(`Could not reach AI service at ${AI_SERVICE_ENDPOINT}: ${error.message}`)
+    const message = error instanceof Error ? error.message : String(error)
+    throw new Error(`Could not reach AI service at ${AI_SERVICE_ENDPOINT}: ${message}`)
   } finally {
     clearTimeout(timeout)
   }
 }
-
-module.exports = { processFloorPlan }

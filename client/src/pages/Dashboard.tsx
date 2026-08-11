@@ -3,11 +3,13 @@ import { useNavigate, Link } from 'react-router-dom'
 import { auth } from '../firebase'
 import apiClient from '../services/apiClient'
 import { getUser, clearSession } from '../services/session'
+import type { SessionUser } from '../services/session'
+import type { Project } from '../types/api'
 import '../styles/dashboard.css'
 
 function Dashboard() {
   const navigate = useNavigate()
-  const [user, setUser] = useState(null)
+  const [user, setUser] = useState<SessionUser | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isModal3DOpen, setIsModal3DOpen] = useState(false)
   const [projectName, setProjectName] = useState('Untitled Floor Plan')
@@ -17,7 +19,7 @@ function Dashboard() {
   const [gridLength, setGridLength] = useState(10)
   const [gridHeight, setGridHeight] = useState(2.8)
   const [isCreating, setIsCreating] = useState(false)
-  const [projects, setProjects] = useState([])
+  const [projects, setProjects] = useState<Project[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
@@ -32,7 +34,7 @@ function Dashboard() {
     // Fetch user projects (apiClient attaches the token and handles 401)
     const fetchProjects = async () => {
       try {
-        const { data } = await apiClient.get('/projects')
+        const { data } = await apiClient.get<{ projects: Project[] }>('/projects')
         setProjects(data.projects || [])
       } catch (error) {
         console.error('Error fetching projects:', error)
@@ -68,7 +70,7 @@ function Dashboard() {
   const handleCreateProject = async () => {
     setIsCreating(true)
     try {
-      const { data } = await apiClient.post('/projects', {
+      const { data } = await apiClient.post<{ project: Project }>('/projects', {
         name: projectName,
         canvasWidth: Number(canvasWidth),
         canvasHeight: Number(canvasHeight),
@@ -85,7 +87,7 @@ function Dashboard() {
   const handleCreateProject3D = async () => {
     setIsCreating(true)
     try {
-      const { data } = await apiClient.post('/projects', {
+      const { data } = await apiClient.post<{ project: Project }>('/projects', {
         name: projectName,
         canvasWidth: Number(gridWidth),
         canvasHeight: Number(gridLength),
@@ -209,7 +211,7 @@ function Dashboard() {
                 <input 
                   type="number" 
                   value={canvasWidth} 
-                  onChange={e => setCanvasWidth(e.target.value)} 
+                  onChange={e => setCanvasWidth(Number(e.target.value))}
                 />
               </div>
               <div className="modal-field">
@@ -217,7 +219,7 @@ function Dashboard() {
                 <input 
                   type="number" 
                   value={canvasHeight} 
-                  onChange={e => setCanvasHeight(e.target.value)} 
+                  onChange={e => setCanvasHeight(Number(e.target.value))}
                 />
               </div>
             </div>
@@ -260,7 +262,7 @@ function Dashboard() {
                 <input 
                   type="number" 
                   value={gridWidth} 
-                  onChange={e => setGridWidth(e.target.value)} 
+                  onChange={e => setGridWidth(Number(e.target.value))}
                 />
               </div>
               <div className="modal-field">
@@ -268,7 +270,7 @@ function Dashboard() {
                 <input 
                   type="number" 
                   value={gridLength} 
-                  onChange={e => setGridLength(e.target.value)} 
+                  onChange={e => setGridLength(Number(e.target.value))}
                 />
               </div>
             </div>
@@ -277,7 +279,7 @@ function Dashboard() {
               <input 
                 type="number" 
                 value={gridHeight} 
-                onChange={e => setGridHeight(e.target.value)} 
+                onChange={e => setGridHeight(Number(e.target.value))} 
               />
             </div>
             <div className="modal-actions">

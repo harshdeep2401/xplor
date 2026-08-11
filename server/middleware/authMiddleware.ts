@@ -1,8 +1,14 @@
-const jwt = require('jsonwebtoken')
-const { prisma } = require('../config/db')
+import type { Request, Response, NextFunction } from 'express'
+import jwt from 'jsonwebtoken'
+import { prisma } from '../config/db'
 
-const protect = async (req, res, next) => {
-  let token
+interface AppTokenPayload {
+  id: string
+  email: string
+}
+
+export const protect = async (req: Request, res: Response, next: NextFunction) => {
+  let token: string | undefined
 
   if (
     req.headers.authorization &&
@@ -13,7 +19,10 @@ const protect = async (req, res, next) => {
       token = req.headers.authorization.split(' ')[1]
 
       // Verify token
-      const decoded = jwt.verify(token, process.env.JWT_SECRET)
+      const decoded = jwt.verify(
+        token,
+        process.env.JWT_SECRET as string
+      ) as AppTokenPayload
 
       // Get user from the token
       req.user = await prisma.user.findUnique({
@@ -24,7 +33,7 @@ const protect = async (req, res, next) => {
           email: true,
           profileImage: true,
         },
-      })
+      }) ?? undefined
 
       if (!req.user) {
         return res.status(401).json({ message: 'Not authorized, user not found' })
@@ -41,5 +50,3 @@ const protect = async (req, res, next) => {
     res.status(401).json({ message: 'Not authorized, no token' })
   }
 }
-
-module.exports = { protect }
