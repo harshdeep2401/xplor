@@ -78,7 +78,21 @@ const getProjects = async (req, res) => {
 const saveProject = async (req, res) => {
   try {
     const { canvas } = req.body
-    
+
+    // Verify the project exists and belongs to the caller before writing.
+    // Without this check any authenticated user could overwrite any project.
+    const existing = await prisma.project.findUnique({
+      where: { id: req.params.id }
+    })
+
+    if (!existing) {
+      return res.status(404).json({ message: 'Project not found' })
+    }
+
+    if (existing.userId !== req.user.id) {
+      return res.status(401).json({ message: 'Not authorized to modify this project' })
+    }
+
     const project = await prisma.project.update({
       where: { id: req.params.id },
       data: { canvas }

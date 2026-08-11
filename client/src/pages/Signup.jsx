@@ -4,6 +4,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import { signInWithPopup } from 'firebase/auth'
 import { auth, provider } from '../firebase'
 import { googleLoginRequest, registerRequest } from '../services/authService'
+import { setSession } from '../services/session'
 
 function Signup() {
   const navigate = useNavigate()
@@ -52,8 +53,7 @@ function Signup() {
         password: formData.password,
       })
 
-      localStorage.setItem('token', data.token)
-      localStorage.setItem('user', JSON.stringify(data.user))
+      setSession(data.token, data.user)
 
       navigate('/dashboard')
     } catch (err) {
@@ -71,8 +71,7 @@ function Signup() {
 
       const data = await googleLoginRequest(firebaseToken)
 
-      localStorage.setItem('token', data.token)
-      localStorage.setItem('user', JSON.stringify(data.user))
+      setSession(data.token, data.user)
 
       navigate('/dashboard')
     } catch (err) {

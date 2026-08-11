@@ -1,6 +1,6 @@
-import { useState, Suspense, lazy, useRef } from "react";
+import { useState, useEffect, useCallback, Suspense, lazy, useRef } from "react";
 import { Canvas } from "@react-three/fiber";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import * as THREE from "three";
 
 import Navbar from "../components/Editor/Navbar";
@@ -8,6 +8,7 @@ import Toolbar from "../components/Editor/Toolbar";
 import SceneList from "../components/Editor/SceneList";
 import PropertiesPanel from "../components/Editor/PropertiesPanel";
 import LightsFromObjects from "../components/Editor/LightsFromObjects";
+import apiClient from "../services/apiClient";
 
 const EditorCanvas = lazy(() => import("../components/Editor/EditorCanvas"));
 
@@ -22,6 +23,10 @@ import {
   updateTransform,
   updateObjectName,
   updateObjectColor,
+  serializeScene,
+  deserializeScene,
+  groundObject,
+  normalizeToScale,
 } from "../editor";
 import {
   updateLightIntensity,
@@ -31,22 +36,89 @@ import type { SceneObject } from "../types/scene";
 
 export default function EditorPage() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { projectId } = useParams();
   const clipboardRef = useRef<SceneObject | null>(null);
 
-  let gridWidth = 10;
-  let gridLength = 10;
-  let gridHeight = 2.8;
+  // Room dimensions live in state so a loaded project can update them.
+  // Initial values come from navigation state (set when the project is created).
+  const [room, setRoom] = useState(() => {
+    const s = (location.state ?? {}) as {
+      gridWidth?: number;
+      width?: number;
+      gridLength?: number;
+      length?: number;
+      height?: number;
+    };
+    return {
+      gridWidth: Number(s.gridWidth ?? s.width ?? 10),
+      gridLength: Number(s.gridLength ?? s.length ?? 10),
+      gridHeight: Number(s.height ?? 2.8),
+    };
+  });
+  const { gridWidth, gridLength, gridHeight } = room;
 
-  if (location.state) {
-    gridWidth = Number(location.state.gridWidth ?? location.state.width ?? 10);
-    gridLength = Number(
-      location.state.gridLength ?? location.state.length ?? 10,
-    );
-    gridHeight = Number(location.state.height ?? 2.8);
-  }
+  const [projectName, setProjectName] = useState("Untitled");
+  const [saveStatus, setSaveStatus] = useState<
+    "idle" | "saving" | "saved" | "error"
+  >("idle");
 
   const scene = useSceneState();
   const history = useHistory(scene.objects, scene.setObjects);
+
+  // Load this project's saved scene (and room dimensions) on mount.
+  useEffect(() => {
+    if (!projectId) return;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const { data } = await apiClient.get(`/projects/${projectId}`);
+        const project = data.project ?? {};
+        if (!cancelled && project.name) setProjectName(project.name);
+
+        const canvas = project.canvas ?? {};
+        if (!cancelled && canvas.room) {
+          setRoom({
+            gridWidth: Number(canvas.room.gridWidth ?? 10),
+            gridLength: Number(canvas.room.gridLength ?? 10),
+            gridHeight: Number(canvas.room.gridHeight ?? 2.8),
+          });
+        }
+        if (canvas.format === "gltf" && canvas.gltf) {
+          const objs = await deserializeScene(canvas.gltf);
+          if (!cancelled) scene.setObjects(objs);
+        }
+      } catch (e) {
+        console.error("Failed to load 3D project:", e);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId]);
+
+  // Serialize the scene (glTF JSON) + room dims and persist to the backend.
+  const handleSave = useCallback(async () => {
+    if (!projectId) return;
+    setSaveStatus("saving");
+    try {
+      const gltf = await serializeScene(scene.objectsRef.current);
+      await apiClient.put(`/projects/${projectId}`, {
+        canvas: {
+          format: "gltf",
+          gltf,
+          room: { gridWidth, gridLength, gridHeight },
+        },
+      });
+      setSaveStatus("saved");
+    } catch (e) {
+      console.error("Save to backend failed:", e);
+      setSaveStatus("error");
+    }
+  }, [projectId, gridWidth, gridLength, gridHeight, scene.objectsRef]);
 
   function clampToRoom(obj: THREE.Object3D) {
     const box = new THREE.Box3().setFromObject(obj);
@@ -166,6 +238,46 @@ export default function EditorPage() {
     scene.setObjects((prev) => [...prev, ...newObjects]);
   };
 
+  // Drop handler for the asset library: the dragged asset carries its model URL
+  // in the drag data. Imported assets are normalized to real-world scale
+  // (metres), grounded, and laid out inside the room so they land in-scale.
+  const handleAssetDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    const url = e.dataTransfer.getData("text/plain");
+    if (!url) return;
+
+    try {
+      const { importFromUrl } = await import(
+        "../editor/import/importFromUrl"
+      );
+      const imported = await importFromUrl(url);
+
+      const baseCount = scene.objectsRef.current.length;
+      imported.forEach((obj, i) => {
+        normalizeToScale(obj.object3d);
+        groundObject(obj.object3d);
+
+        // Simple grid layout so repeated drops don't stack on one spot.
+        const n = baseCount + i;
+        obj.object3d.position.x = THREE.MathUtils.clamp(
+          (n % 4) * 0.8 - 1.2,
+          -gridWidth / 2 + 0.5,
+          gridWidth / 2 - 0.5,
+        );
+        obj.object3d.position.z = THREE.MathUtils.clamp(
+          Math.floor(n / 4) * 0.8 - 1.2,
+          -gridLength / 2 + 0.5,
+          gridLength / 2 - 0.5,
+        );
+        obj.object3d.updateMatrixWorld(true);
+      });
+
+      scene.setObjects((prev) => [...prev, ...imported]);
+    } catch (err) {
+      console.error("Asset drop failed:", err);
+    }
+  };
+
   const handleTextureUpdate = async (id: string, file: File | null) => {
     const { applyTexture } = await import("../editor/import/applyTexture");
     const updated = await applyTexture(scene.objects, id, file);
@@ -187,8 +299,11 @@ export default function EditorPage() {
   return (
     <div className="flex flex-col h-screen bg-gray-700 text-white">
       <Navbar
-        projectName="MY PROJECT"
-        onSave={() => console.log("Save to backend")}
+        projectName={projectName}
+        subtitle={`${gridWidth} × ${gridLength} × ${gridHeight} m`}
+        saveStatus={saveStatus}
+        onBack={() => navigate("/dashboard")}
+        onSave={handleSave}
         onUndo={history.undo}
         onRedo={history.redo}
         onVrPreview={() => console.log("VR Preview")}
@@ -210,12 +325,16 @@ export default function EditorPage() {
           }}
           exportGLTF={handleExportGLTF}
           exportGLB={() => setShowExportModal(true)}
-          saveToBackend={() => console.log("Save")}
+          saveToBackend={handleSave}
           selectedId={scene.selectedId}
           onImportFromUrl={handleUrlImport}
         />
 
-        <div className="flex-1 relative">
+        <div
+          className="flex-1 relative"
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={handleAssetDrop}
+        >
           <Canvas
             shadows
             camera={{ position: [gridWidth, gridWidth, gridLength], fov: 50 }}

@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { auth } from '../firebase'
+import apiClient from '../services/apiClient'
+import { getUser, clearSession } from '../services/session'
 import '../styles/dashboard.css'
 
 function Dashboard() {
@@ -18,33 +20,20 @@ function Dashboard() {
   const [projects, setProjects] = useState([])
   const [isLoading, setIsLoading] = useState(true)
 
-  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api'
-
   useEffect(() => {
-    // Check if user is logged in
-    const token = localStorage.getItem('token')
-    const userData = localStorage.getItem('user')
-
-    if (!token || !userData) {
+    // Auth is already guaranteed by ProtectedRoute; just hydrate the user.
+    const currentUser = getUser()
+    if (!currentUser) {
       navigate('/login')
       return
     }
+    setUser(currentUser)
 
-    const parsedUser = JSON.parse(userData)
-    setUser(parsedUser)
-
-    // Fetch user projects
+    // Fetch user projects (apiClient attaches the token and handles 401)
     const fetchProjects = async () => {
       try {
-        const response = await fetch(`${API_URL}/projects`, {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        })
-        const data = await response.json()
-        if (response.ok) {
-          setProjects(data.projects || [])
-        }
+        const { data } = await apiClient.get('/projects')
+        setProjects(data.projects || [])
       } catch (error) {
         console.error('Error fetching projects:', error)
       } finally {
@@ -56,8 +45,7 @@ function Dashboard() {
   }, [navigate])
 
   const handleLogout = () => {
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
+    clearSession()
     auth.signOut()
     navigate('/')
   }
@@ -80,28 +68,13 @@ function Dashboard() {
   const handleCreateProject = async () => {
     setIsCreating(true)
     try {
-      const token = localStorage.getItem('token')
-      const response = await fetch(`${API_URL}/projects`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          name: projectName,
-          canvasWidth: Number(canvasWidth),
-          canvasHeight: Number(canvasHeight),
-          type: '2d',
-          userId: user.id
-        })
+      const { data } = await apiClient.post('/projects', {
+        name: projectName,
+        canvasWidth: Number(canvasWidth),
+        canvasHeight: Number(canvasHeight),
+        type: '2d',
       })
-      
-      const data = await response.json()
-      if (response.ok) {
-        navigate(`/editor/2d/${data.project._id}`)
-      } else {
-        console.error('Failed to create project:', data.message)
-      }
+      navigate(`/editor/2d/${data.project._id}`)
     } catch (error) {
       console.error('Error creating project:', error)
     } finally {
@@ -112,34 +85,19 @@ function Dashboard() {
   const handleCreateProject3D = async () => {
     setIsCreating(true)
     try {
-      const token = localStorage.getItem('token')
-      const response = await fetch(`${API_URL}/projects`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          name: projectName,
-          canvasWidth: Number(gridWidth),
-          canvasHeight: Number(gridLength),
-          type: '3d',
-          userId: user.id
-        })
+      const { data } = await apiClient.post('/projects', {
+        name: projectName,
+        canvasWidth: Number(gridWidth),
+        canvasHeight: Number(gridLength),
+        type: '3d',
       })
-      
-      const data = await response.json()
-      if (response.ok) {
-        navigate(`/editor/3d/${data.project._id}`, {
-          state: {
-            gridWidth: Number(gridWidth),
-            gridLength: Number(gridLength),
-            height: Number(gridHeight)
-          }
-        })
-      } else {
-        console.error('Failed to create 3D project:', data.message)
-      }
+      navigate(`/editor/3d/${data.project._id}`, {
+        state: {
+          gridWidth: Number(gridWidth),
+          gridLength: Number(gridLength),
+          height: Number(gridHeight),
+        },
+      })
     } catch (error) {
       console.error('Error creating 3D project:', error)
     } finally {

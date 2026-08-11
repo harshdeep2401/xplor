@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import { signInWithPopup } from 'firebase/auth'
 import { auth, provider } from '../firebase'
 import { loginRequest, googleLoginRequest } from '../services/authService'
+import { setSession } from '../services/session'
 import '../styles/auth.css'
 
 function Login() {
@@ -28,8 +29,7 @@ function Login() {
     try {
       const data = await loginRequest(formData.email, formData.password)
 
-      localStorage.setItem('token', data.token)
-      localStorage.setItem('user', JSON.stringify(data.user))
+      setSession(data.token, data.user)
 
       navigate('/dashboard')
     } catch (err) {
@@ -45,8 +45,7 @@ function Login() {
       const firebaseToken = await result.user.getIdToken()
       const data = await googleLoginRequest(firebaseToken)
 
-      localStorage.setItem('token', data.token)
-      localStorage.setItem('user', JSON.stringify(data.user))
+      setSession(data.token, data.user)
 
       navigate('/dashboard')
     } catch (err) {
