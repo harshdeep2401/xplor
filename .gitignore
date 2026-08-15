@@ -44,3 +44,6 @@ __MACOSX/
 __pycache__/
 *.pyc
 venv/
+
+# glb files generated during testing
+uploads/

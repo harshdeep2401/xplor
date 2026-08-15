@@ -1,0 +1,193 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://xplor.app/contracts/scene-v1.schema.json",
+  "title": "scene-v1",
+  "description": "The canonical 3D scene: the source of truth from which GLB/VR outputs are DERIVED and regenerable. All coordinates are in metres in a right-handed Y-up world (x = right, y = up, z = depth). The floor plane is y = 0; a canvas point (px_x, px_y) maps to floor (x, z) after dividing by scale.pixelsPerMetre. Produced deterministically from canvas-v2 by the converter (walls/openings), then enriched by the 3D editor (assets, lighting, materials). Room floor polygons are optional and may be empty when not detected.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "units", "walls"],
+  "properties": {
+    "version": {
+      "const": "scene-v1",
+      "description": "Contract version tag. Breaking changes bump this; the schema is never mutated in place."
+    },
+    "units": {
+      "const": "metre",
+      "description": "World unit. Fixed to metres to match the 3D editor (see client/src/editor/utils/scale.ts)."
+    },
+    "walls": {
+      "type": "array",
+      "description": "Extruded wall geometry — the deterministic core produced from canvas-v2 walls.",
+      "items": { "$ref": "#/$defs/wall" }
+    },
+    "rooms": {
+      "type": "array",
+      "description": "Enclosed floor areas (floor/ceiling polygons). Optional; empty when room detection is not run.",
+      "items": { "$ref": "#/$defs/room" }
+    },
+    "assets": {
+      "type": "array",
+      "description": "Placed 3D models (furniture, fixtures) from the 3D editor.",
+      "items": { "$ref": "#/$defs/asset" }
+    },
+    "lighting": { "$ref": "#/$defs/lighting" },
+    "materials": {
+      "type": "array",
+      "description": "Material palette referenced by walls, rooms, and assets via materialId.",
+      "items": { "$ref": "#/$defs/material" }
+    }
+  },
+  "$defs": {
+    "vec2": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "z"],
+      "description": "A point on the floor plane (metres). y is implied 0.",
+      "properties": {
+        "x": { "type": "number" },
+        "z": { "type": "number" }
+      }
+    },
+    "vec3": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y", "z"],
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "z": { "type": "number" }
+      }
+    },
+    "wall": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "start", "end", "thickness", "height"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "start": { "$ref": "#/$defs/vec2" },
+        "end": { "$ref": "#/$defs/vec2" },
+        "thickness": { "type": "number", "exclusiveMinimum": 0, "description": "Metres." },
+        "height": { "type": "number", "exclusiveMinimum": 0, "description": "Metres." },
+        "curvature": {
+          "type": "number",
+          "default": 0,
+          "description": "Perpendicular bulge (metres) of the quadratic Bezier control point. 0 = straight."
+        },
+        "openings": {
+          "type": "array",
+          "description": "Door/window cutouts in this wall, positioned parametrically along it.",
+          "items": { "$ref": "#/$defs/sceneOpening" }
+        },
+        "materialId": { "type": "string", "description": "Optional reference into the materials array." }
+      }
+    },
+    "sceneOpening": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "center", "width", "height"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "type": { "enum": ["door", "window"] },
+        "center": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Parametric position of the opening centre along the wall (0 = start, 1 = end)."
+        },
+        "width": { "type": "number", "exclusiveMinimum": 0, "description": "Width along the wall, in metres." },
+        "height": { "type": "number", "exclusiveMinimum": 0, "description": "Metres." },
+        "sillHeight": { "type": "number", "minimum": 0, "default": 0, "description": "Bottom edge above floor, in metres." }
+      }
+    },
+    "room": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "floorPolygon"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string" },
+        "floorPolygon": {
+          "type": "array",
+          "minItems": 3,
+          "description": "Ordered boundary vertices of the floor, in metres.",
+          "items": { "$ref": "#/$defs/vec2" }
+        },
+        "area": { "type": "number", "minimum": 0, "description": "Floor area in square metres (optional, derived)." },
+        "materialId": { "type": "string" }
+      }
+    },
+    "asset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "transform"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string" },
+        "source": { "type": "string", "description": "Asset origin (library id or model URL)." },
+        "transform": { "$ref": "#/$defs/transform" },
+        "materialId": { "type": "string" }
+      }
+    },
+    "transform": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["position", "rotation", "scale"],
+      "properties": {
+        "position": { "$ref": "#/$defs/vec3" },
+        "rotation": { "$ref": "#/$defs/vec3", "description": "Euler angles in radians (XYZ order)." },
+        "scale": { "$ref": "#/$defs/vec3" }
+      }
+    },
+    "lighting": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Scene lighting: a single ambient term plus discrete lights.",
+      "properties": {
+        "ambient": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["color", "intensity"],
+          "properties": {
+            "color": { "$ref": "#/$defs/color" },
+            "intensity": { "type": "number", "minimum": 0 }
+          }
+        },
+        "lights": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/light" }
+        }
+      }
+    },
+    "light": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "color", "intensity"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "type": { "enum": ["directional", "point", "spot"] },
+        "color": { "$ref": "#/$defs/color" },
+        "intensity": { "type": "number", "minimum": 0 },
+        "position": { "$ref": "#/$defs/vec3", "description": "Required for point/spot; direction origin for directional." },
+        "target": { "$ref": "#/$defs/vec3", "description": "Aim point for directional/spot lights." }
+      }
+    },
+    "material": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string" },
+        "color": { "$ref": "#/$defs/color" },
+        "roughness": { "type": "number", "minimum": 0, "maximum": 1 },
+        "metalness": { "type": "number", "minimum": 0, "maximum": 1 },
+        "textureUrl": { "type": "string" }
+      }
+    },
+    "color": {
+      "type": "string",
+      "pattern": "^#([0-9a-fA-F]{6})$",
+      "description": "Hex RGB colour, e.g. \"#ffffff\"."
+    }
+  }
+}

@@ -1,0 +1,135 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://xplor.app/contracts/canvas-v2.schema.json",
+  "title": "canvas-v2",
+  "description": "Structured 2D floor-plan input (the deterministic Path A source of truth). Plan coordinates are in canvas pixels; `scale.pixelsPerMetre` converts them to real-world metres. Vertical dimensions (wall/opening height, sill) have no pixel analogue and are given directly in metres. Doors and windows are PARAMETRIC: attached to a wall by id and positioned by a normalized offset along it, never by free x/y. This is the canonical target contract; the current editor still emits a bespoke flat `{elements:[]}` (see contracts/README.md) which the converter step migrates toward this shape.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "scale", "wallHeight", "walls"],
+  "properties": {
+    "version": {
+      "const": "canvas-v2",
+      "description": "Contract version tag. A breaking change bumps this; the schema is never mutated in place."
+    },
+    "scale": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["pixelsPerMetre"],
+      "description": "Maps canvas pixels to real-world metres. The single source of truth for how large the drawing is.",
+      "properties": {
+        "pixelsPerMetre": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "How many canvas pixels represent one metre. e.g. 50 => a 300px wall is 6 m long."
+        }
+      }
+    },
+    "wallHeight": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "description": "Default extrusion height for all walls, in metres. Per-wall override may be added in a later contract version."
+    },
+    "walls": {
+      "type": "array",
+      "description": "Wall segments. Straight by default; a non-zero `curvature` makes the segment a quadratic Bezier bulge.",
+      "items": { "$ref": "#/$defs/wall" }
+    },
+    "openings": {
+      "type": "array",
+      "description": "Doors and windows, each attached to a wall and positioned parametrically along it.",
+      "items": { "$ref": "#/$defs/opening" }
+    },
+    "labels": {
+      "type": "array",
+      "description": "Free-floating text annotations. Non-structural; ignored by the geometry converter.",
+      "items": { "$ref": "#/$defs/label" }
+    }
+  },
+  "$defs": {
+    "point": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y"],
+      "description": "A point in canvas pixels (origin top-left, +y downward, matching the 2D editor).",
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" }
+      }
+    },
+    "wall": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "start", "end", "thickness"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "start": { "$ref": "#/$defs/point" },
+        "end": { "$ref": "#/$defs/point" },
+        "thickness": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Wall thickness in canvas pixels (converted to metres via scale.pixelsPerMetre)."
+        },
+        "curvature": {
+          "type": "number",
+          "default": 0,
+          "description": "Perpendicular bulge of the quadratic Bezier control point, in pixels. 0 (or absent) = straight segment."
+        }
+      }
+    },
+    "opening": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "type", "wallId", "offset", "width", "height"],
+      "description": "A door or window cut into a wall.",
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "type": {
+          "enum": ["door", "window"],
+          "description": "Discriminates a door (sill at floor) from a window (raised sill)."
+        },
+        "wallId": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Id of the wall this opening is cut into. Must reference an existing wall."
+        },
+        "offset": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Parametric position of the opening's CENTRE along the wall: 0 = start, 1 = end."
+        },
+        "width": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Opening width measured along the wall, in canvas pixels (converted via scale)."
+        },
+        "height": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Vertical height of the opening, in metres."
+        },
+        "sillHeight": {
+          "type": "number",
+          "minimum": 0,
+          "default": 0,
+          "description": "Height of the opening's bottom edge above the floor, in metres. Typically 0 for doors, >0 for windows."
+        }
+      }
+    },
+    "label": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "position", "text"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "position": { "$ref": "#/$defs/point" },
+        "text": { "type": "string" },
+        "fontSize": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Font size in canvas pixels."
+        }
+      }
+    }
+  }
+}

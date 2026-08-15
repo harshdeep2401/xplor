@@ -32,7 +32,22 @@ import {
   updateLightIntensity,
   updateLightColor,
 } from "../editor/lights/updateLight";
+import {
+  buildSceneObjectsFromSceneV1,
+  planBoundsFromSceneV1,
+} from "../editor/scene/buildFromSceneV1";
 import type { SceneObject } from "../types/scene";
+
+// Rule 3 (grid-fit) tuning: metres of breathing room around the plan, and the
+// smallest grid we'll ever show so tiny plans still have a usable floor.
+const GRID_MARGIN_M = 2;
+const MIN_GRID_M = 4;
+
+// Grid size (metres) for a plan of the given extent: extent + margin, floored at
+// a minimum, rounded up to a whole metre for a tidy grid.
+function fitGrid(extentM: number): number {
+  return Math.max(MIN_GRID_M, Math.ceil(extentM + GRID_MARGIN_M));
+}
 
 export default function EditorPage() {
   const location = useLocation();
@@ -58,6 +73,11 @@ export default function EditorPage() {
   });
   const { gridWidth, gridLength, gridHeight } = room;
 
+  // Bumped when a scene is loaded so the canvas frames the camera around it once.
+  const [frameKey, setFrameKey] = useState(0);
+  // Version of the active canonical Scene we loaded, for optimistic save (→ 409).
+  const [sceneVersion, setSceneVersion] = useState(0);
+
   const [projectName, setProjectName] = useState("Untitled");
   const [saveStatus, setSaveStatus] = useState<
     "idle" | "saving" | "saved" | "error"
@@ -77,17 +97,65 @@ export default function EditorPage() {
         const project = data.project ?? {};
         if (!cancelled && project.name) setProjectName(project.name);
 
-        const canvas = project.canvas ?? {};
-        if (!cancelled && canvas.room) {
-          setRoom({
-            gridWidth: Number(canvas.room.gridWidth ?? 10),
-            gridLength: Number(canvas.room.gridLength ?? 10),
-            gridHeight: Number(canvas.room.gridHeight ?? 2.8),
-          });
-        }
-        if (canvas.format === "gltf" && canvas.gltf) {
-          const objs = await deserializeScene(canvas.gltf);
-          if (!cancelled) scene.setObjects(objs);
+        // The canonical 3D scene lives in the Scene table now — NOT project.canvas
+        // (which holds only the 2D canvas). The active scene is either a converted
+        // scene-v1 (walls/floors) or the user's saved 3D edits (glTF wrapper).
+        try {
+          const { data: sceneRes } = await apiClient.get(
+            `/projects/${projectId}/scene`,
+          );
+          const sd = sceneRes.scene?.sceneData;
+          if (!cancelled) setSceneVersion(sceneRes.scene?.version ?? 0);
+
+          if (sd?.format === "gltf" && sd.gltf) {
+            // User's saved 3D edits.
+            const objs = await deserializeScene(sd.gltf);
+            if (!cancelled) {
+              scene.setObjects(objs);
+              if (sd.room) {
+                setRoom({
+                  gridWidth: Number(sd.room.gridWidth ?? 10),
+                  gridLength: Number(sd.room.gridLength ?? 10),
+                  gridHeight: Number(sd.room.gridHeight ?? 2.8),
+                });
+              }
+            }
+          } else {
+            // Converted scene-v1 (the "draw 2D → Convert → see 3D" path).
+            const objs = buildSceneObjectsFromSceneV1(sd);
+            if (!cancelled && objs.length) {
+              scene.setObjects(objs);
+              // Rule 3: size the grid/room to the converted plan.
+              const bounds = planBoundsFromSceneV1(sd);
+              if (bounds) {
+                setRoom({
+                  gridWidth: fitGrid(bounds.width),
+                  gridLength: fitGrid(bounds.length),
+                  gridHeight: bounds.height,
+                });
+              }
+              // Rule 4: frame the camera around the freshly loaded plan.
+              setFrameKey((k) => k + 1);
+            }
+          }
+        } catch {
+          // No canonical scene yet (404). Legacy fallback: pre-Scene projects that
+          // stored glTF in project.canvas — load read-only so old 3D work isn't lost.
+          const canvas = project.canvas ?? {};
+          if (canvas.format === "gltf" && canvas.gltf) {
+            const objs = await deserializeScene(canvas.gltf);
+            if (!cancelled) {
+              scene.setObjects(objs);
+              if (canvas.room) {
+                setRoom({
+                  gridWidth: Number(canvas.room.gridWidth ?? 10),
+                  gridLength: Number(canvas.room.gridLength ?? 10),
+                  gridHeight: Number(canvas.room.gridHeight ?? 2.8),
+                });
+              }
+            }
+          }
+          // else: nothing converted yet → empty scene.
         }
       } catch (e) {
         console.error("Failed to load 3D project:", e);
@@ -100,25 +168,46 @@ export default function EditorPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
 
-  // Serialize the scene (glTF JSON) + room dims and persist to the backend.
+  // Serialize the scene (glTF JSON) + room dims and persist to the canonical
+  // Scene table — NOT project.canvas (which holds the 2D drawing). Optimistic:
+  // sends the loaded version; a stale save (someone re-converted or edited) → 409.
   const handleSave = useCallback(async () => {
     if (!projectId) return;
     setSaveStatus("saving");
     try {
       const gltf = await serializeScene(scene.objectsRef.current);
-      await apiClient.put(`/projects/${projectId}`, {
-        canvas: {
+      const { data } = await apiClient.put(`/projects/${projectId}/scene`, {
+        sceneData: {
           format: "gltf",
           gltf,
           room: { gridWidth, gridLength, gridHeight },
         },
+        baseVersion: sceneVersion,
       });
+      if (data?.scene?.version) setSceneVersion(data.scene.version);
       setSaveStatus("saved");
+
+      // Auto-store a GLB snapshot of the saved scene (best-effort; the server keeps
+      // only the newest few). Failure here must not fail the save.
+      try {
+        const { buildGlbBlob } = await import("../editor/export/exportGLB");
+        const blob = await buildGlbBlob(scene.objectsRef.current);
+        const form = new FormData();
+        form.append("glb", blob, "scene.glb");
+        await apiClient.post(`/projects/${projectId}/glb`, form);
+      } catch (glbErr) {
+        console.warn("GLB auto-store failed (non-blocking):", glbErr);
+      }
     } catch (e) {
-      console.error("Save to backend failed:", e);
+      const status = (e as { response?: { status?: number } })?.response?.status;
+      if (status === 409) {
+        console.warn("Scene changed since load — reload before saving.");
+      } else {
+        console.error("Save to backend failed:", e);
+      }
       setSaveStatus("error");
     }
-  }, [projectId, gridWidth, gridLength, gridHeight, scene.objectsRef]);
+  }, [projectId, gridWidth, gridLength, gridHeight, sceneVersion, scene.objectsRef]);
 
   function clampToRoom(obj: THREE.Object3D) {
     const box = new THREE.Box3().setFromObject(obj);
@@ -351,6 +440,7 @@ export default function EditorPage() {
                 gridLength={gridLength}
                 gridHeight={gridHeight}
                 hasRoom={scene.objects.some((o) => o.name === "Room")}
+                frameKey={frameKey}
               />
             </Suspense>
 

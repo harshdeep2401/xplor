@@ -2,6 +2,7 @@ import type { Request, Response } from 'express'
 import { Prisma } from '@prisma/client'
 import { prisma } from '../config/db'
 import { processFloorPlan } from '../services/aiService'
+import { putObject, floorPlanKey } from '../services/storage'
 
 const createProject = async (req: Request, res: Response) => {
   try {
@@ -168,9 +169,13 @@ const uploadFloorPlan = async (req: Request<{ id: string }>, res: Response) => {
       return res.status(401).json({ message: 'Not authorized to modify this project' })
     }
 
-    // Local-disk URL for now — served statically from /uploads (see server.js).
-    // Once storage moves to S3/R2, this becomes the bucket URL instead.
-    const floorPlanUrl = `/uploads/floor-plans/${req.user!.id}/${req.file.filename}`
+    // Persist the buffered upload via the storage module and get its public URL.
+    // Local disk today → R2/S3 later, without touching this controller.
+    const floorPlanUrl = await putObject({
+      key: floorPlanKey(req.user!.id, req.file.originalname),
+      body: req.file.buffer,
+      contentType: req.file.mimetype,
+    })
 
     const updatedProject = await prisma.project.update({
       where: { id: project.id },

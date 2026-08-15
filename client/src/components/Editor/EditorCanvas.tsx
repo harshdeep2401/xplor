@@ -68,6 +68,23 @@ function createRectGridCenterLinesGeometry(width: number, length: number) {
   return geometry;
 }
 
+// Position an orbit-style camera so `box` fits in view: pull back along a fixed
+// diagonal by a distance proportional to the box's largest dimension, and aim at
+// its centre. Shared by single-object focus and whole-scene frame-on-load.
+function frameCameraOnBox(camera: THREE.Camera, box: THREE.Box3) {
+  if (box.isEmpty()) return;
+  const center = new THREE.Vector3();
+  box.getCenter(center);
+  const size = new THREE.Vector3();
+  box.getSize(size);
+  const maxDim = Math.max(size.x, size.y, size.z, 1);
+  const distance = maxDim * 1.2 + 2;
+  const offset = new THREE.Vector3(distance, distance * 0.6, distance);
+  camera.position.copy(center.clone().add(offset));
+  camera.lookAt(center);
+  (camera as THREE.PerspectiveCamera).updateProjectionMatrix?.();
+}
+
 interface EditorCanvasProps {
   objects: SceneObject[];
   onSelect: (id: string | null) => void;
@@ -79,6 +96,9 @@ interface EditorCanvasProps {
   gridHeight?: number;
   hasRoom?: boolean;
   initialFocusId?: string;
+  // Bumped by the parent when a scene is (re)loaded; triggers a one-shot camera
+  // frame around all objects. Rule 4: converted plans open fully in view.
+  frameKey?: number;
 }
 
 const EditorCanvas: React.FC<EditorCanvasProps> = ({
@@ -92,6 +112,7 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
   gridHeight = 2.8,
   hasRoom = false,
   initialFocusId,
+  frameKey,
 }) => {
   const { gl, camera } = useThree();
   // Auto-focus camera ONCE per focus target (prevents camera jumping on every object update).
@@ -110,22 +131,23 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
     if (!focusObj) return;
 
     const box = new THREE.Box3().setFromObject(focusObj.object3d);
-    const center = new THREE.Vector3();
-    box.getCenter(center);
-    const size = new THREE.Vector3();
-    box.getSize(size);
-
-    // Position camera at center + a distance based on largest dimension
-    const maxDim = Math.max(size.x, size.y, size.z, 1);
-    const distance = maxDim * 1.2 + 2;
-    const offset = new THREE.Vector3(distance, distance * 0.6, distance);
-    camera.position.copy(center.clone().add(offset));
-    camera.lookAt(center);
-    // Ensure the renderer updates the camera matrix
-    camera.updateProjectionMatrix?.();
+    frameCameraOnBox(camera, box);
 
     lastAutoFocusIdRef.current = focusId;
   }, [focusId, objects, camera]);
+
+  // Rule 4: frame the whole scene when it's (re)loaded. Runs once per frameKey
+  // change (a discrete load event), not on every object edit, so the user's own
+  // camera moves aren't undone. Used for the "Convert → land in 3D" path, where
+  // there's no single focus object.
+  useEffect(() => {
+    if (!frameKey) return;
+    if (objects.length === 0) return;
+    const box = new THREE.Box3();
+    for (const o of objects) box.expandByObject(o.object3d);
+    frameCameraOnBox(camera, box);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [frameKey]);
 
   // Use gridWidth and gridLength for grid size
   const gridBounds = {

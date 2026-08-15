@@ -2,6 +2,21 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import Konva from 'konva'
 import { Stage, Layer, Line, Rect, Text, Group, Arc, Label, Tag, Shape } from 'react-konva'
+import apiClient from '../services/apiClient'
+import type {
+  EditorElement,
+  WallElement,
+  DoorElement,
+  WindowElement,
+  LabelElement,
+} from '../editor/canvas/elements'
+import {
+  toCanvasV2,
+  fromCanvasV2,
+  isCanvasV2,
+  DEFAULT_PIXELS_PER_METRE,
+  DEFAULT_WALL_HEIGHT_M,
+} from '../editor/canvas/canvasV2'
 import '../styles/editor.css'
 
 // Fix for trackpads interpreting tiny finger movements as drags instead of clicks
@@ -9,53 +24,17 @@ Konva.dragDistance = 5;
 
 type Tool = 'select' | 'wall' | 'door' | 'window' | 'label' | 'delete' | 'pan'
 
-interface WallElement {
-  id: string
-  type: 'wall'
-  startX: number
-  startY: number
-  endX: number
-  endY: number
-  thickness: number
-  curvature?: number
-}
-interface DoorElement {
-  id: string
-  type: 'door'
-  x: number
-  y: number
-  width: number
-  height: number
-  rotation: number
-}
-interface WindowElement {
-  id: string
-  type: 'window'
-  x: number
-  y: number
-  startX: number
-  startY: number
-  width: number
-  height: number
-  rotation: number
-  curvature: number
-  attachedWallId: string | null
-}
-interface LabelElement {
-  id: string
-  type: 'label'
-  x: number
-  y: number
-  text: string
-  fontSize: number
-}
-type EditorElement = WallElement | DoorElement | WindowElement | LabelElement
-
 interface Editor2DProject {
   name: string
   canvasWidth: number
   canvasHeight: number
-  canvas: { elements?: EditorElement[] }
+  // Stored canvas is either the canvas-v2 contract or a legacy { elements: [] }
+  // payload; resolved in fetchProject. Kept loose here on purpose.
+  canvas: unknown
+  // Canonical per-project metrics (DB columns). Used as fallback scale/height for
+  // legacy canvases that don't carry their own.
+  scalePixelsPerMeter?: number
+  defaultWallHeightM?: number
 }
 
 interface SelectionBox {
@@ -81,6 +60,12 @@ function Editor() {
   const [selectionBox, setSelectionBox] = useState<SelectionBox | null>(null)
   const [isDrawing, setIsDrawing] = useState(false)
   const [saveStatus, setSaveStatus] = useState('Saved')
+
+  // Project scale + wall height — the real-world metrics the canvas-v2 contract
+  // needs (px→metre factor and ceiling height). Persisted with the drawing so the
+  // 2D→3D converter uses real values instead of guessed defaults.
+  const [pixelsPerMetre, setPixelsPerMetre] = useState(DEFAULT_PIXELS_PER_METRE)
+  const [wallHeight, setWallHeight] = useState(DEFAULT_WALL_HEIGHT_M)
 
   // Canvas View State
   const [stageScale, setStageScale] = useState(1)
@@ -134,20 +119,31 @@ function Editor() {
   useEffect(() => {
     const fetchProject = async () => {
       try {
-        const token = localStorage.getItem('token')
-        const response = await fetch(`http://localhost:5001/api/projects/${projectId}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        })
-        const data = await response.json()
-        if (response.ok) {
-          setProject(data.project)
-          const loadedElements = data.project.canvas.elements || []
-          setElements(loadedElements)
-          setHistory([loadedElements])
-          setHistoryStep(0)
+        const { data } = await apiClient.get<{ project: Editor2DProject }>(
+          `/projects/${projectId}`
+        )
+        setProject(data.project)
+
+        // The stored canvas is either the canvas-v2 contract or the legacy
+        // { elements: [] } shape (older projects). Resolve both.
+        const raw = data.project.canvas
+        let loadedElements: EditorElement[]
+        if (isCanvasV2(raw)) {
+          const loaded = fromCanvasV2(raw)
+          loadedElements = loaded.elements
+          setPixelsPerMetre(loaded.pixelsPerMetre)
+          setWallHeight(loaded.wallHeight)
         } else {
-          console.error('Failed to load project')
+          loadedElements =
+            (raw as { elements?: EditorElement[] } | null)?.elements || []
+          // Legacy canvas carries no scale/height — fall back to the project's
+          // canonical columns (or the built-in defaults).
+          setPixelsPerMetre(data.project.scalePixelsPerMeter ?? DEFAULT_PIXELS_PER_METRE)
+          setWallHeight(data.project.defaultWallHeightM ?? DEFAULT_WALL_HEIGHT_M)
         }
+        setElements(loadedElements)
+        setHistory([loadedElements])
+        setHistoryStep(0)
       } catch (error) {
         console.error('Error fetching project:', error)
       }
@@ -162,37 +158,44 @@ function Editor() {
     }
   }, [project, fitToScreen])
 
-  // Autosave
+  // Autosave — persist as the canvas-v2 contract (walls/parametric openings +
+  // real scale & wall height), not the legacy element list.
   const saveProject = useCallback(async (newElements: EditorElement[]) => {
     setSaveStatus('Saving...')
     try {
-      const token = localStorage.getItem('token')
-      const response = await fetch(`http://localhost:5001/api/projects/${projectId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ canvas: { elements: newElements } })
+      await apiClient.put(`/projects/${projectId}`, {
+        canvas: toCanvasV2(newElements, pixelsPerMetre, wallHeight),
       })
-      if (response.ok) {
-        setSaveStatus('Saved')
-      } else {
-        setSaveStatus('Error saving')
-      }
+      setSaveStatus('Saved')
     } catch (error) {
       setSaveStatus('Error saving')
     }
-  }, [projectId])
+  }, [projectId, pixelsPerMetre, wallHeight])
 
-  // Save debounce
+  // Save debounce. Editing scale/wallHeight also persists (they ride along in the
+  // canvas-v2 payload), so they're part of the trigger.
   useEffect(() => {
     if (!project || historyStep < 0) return // skip initial render load
     const timer = setTimeout(() => {
       saveProject(elements)
     }, 1500)
     return () => clearTimeout(timer)
-  }, [elements, saveProject, project])
+  }, [elements, saveProject, project, historyStep])
+
+  // Convert the current 2D plan → canonical 3D scene, then open the 3D editor.
+  // Flush a save first so the backend converts the latest drawing (not a stale
+  // debounced one).
+  const handleConvertTo3D = useCallback(async () => {
+    setSaveStatus('Converting…')
+    try {
+      await saveProject(elements)
+      await apiClient.post(`/projects/${projectId}/convert`)
+      navigate(`/editor/3d/${projectId}`)
+    } catch (error) {
+      setSaveStatus('Convert failed')
+      console.error('Convert to 3D failed:', error)
+    }
+  }, [projectId, elements, saveProject, navigate])
 
   const updateElements = useCallback((newElements: EditorElement[]) => {
     setElements(newElements)
@@ -657,6 +660,27 @@ function Editor() {
           <div className="save-status">{saveStatus}</div>
         </div>
         <div className="topbar-right">
+          {/* Project scale + wall height → persisted into the canvas-v2 contract. */}
+          <label className="scale-field" title="Canvas pixels per real-world metre">
+            px/m
+            <input
+              type="number"
+              min={1}
+              step={1}
+              value={pixelsPerMetre}
+              onChange={(e) => setPixelsPerMetre(Math.max(1, Number(e.target.value) || 1))}
+            />
+          </label>
+          <label className="scale-field" title="Wall height in metres (3D extrusion)">
+            wall h (m)
+            <input
+              type="number"
+              min={0.1}
+              step={0.1}
+              value={wallHeight}
+              onChange={(e) => setWallHeight(Math.max(0.1, Number(e.target.value) || 0.1))}
+            />
+          </label>
           <button className="topbar-btn" onClick={handleUndo} disabled={historyStep <= 0}>Undo</button>
           <button className="topbar-btn" onClick={handleRedo} disabled={historyStep >= history.length - 1}>Redo</button>
           <button className="topbar-btn" onClick={() => handleZoom(1.2)}>Zoom In</button>
@@ -664,6 +688,7 @@ function Editor() {
           <button className="topbar-btn" onClick={fitToScreen}>Fit</button>
           <span className="zoom-label">{Math.round(stageScale * 100)}%</span>
           <button className="topbar-btn export-btn" onClick={handleExport}>Export</button>
+          <button className="topbar-btn export-btn" onClick={handleConvertTo3D}>Convert to 3D</button>
         </div>
       </div>
 

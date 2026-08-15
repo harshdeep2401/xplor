@@ -1,0 +1,57 @@
+# Local parity stack for the XPLOR backend: Express API + FastAPI AI service.
+#
+# The client is NOT here — it's a static Vite build (Vercel / CF Pages) and stays
+# on `vite dev` for daily work (see docs/06 Phase 1). Docker is for parity/deploy,
+# not the inner loop; keep using tsx/vite day to day.
+#
+# Usage:
+#   cp server/.env.example server/.env        # fill in DATABASE_URL, JWT_SECRET, Firebase…
+#   cp Ai-service/.env.example Ai-service/.env  # optional; defaults work
+#   docker compose up --build
+#
+# Service-to-service URLs are wired to the compose network names below, so they
+# override whatever localhost values sit in the .env files.
+
+services:
+  server:
+    build: ./server
+    ports:
+      - "5001:5001"
+    env_file:
+      - path: ./server/.env
+        required: true
+    environment:
+      PORT: "5001"
+      # Reach the AI service by its compose service name, not localhost.
+      FASTAPI_WEBHOOK_URL: "http://ai-service:8000/process-floor-plan"
+    volumes:
+      # Persist uploads across restarts (local-disk storage seam; becomes R2 later).
+      - uploads:/app/uploads
+    depends_on:
+      - ai-service
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:5001/live').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  ai-service:
+    build: ./Ai-service
+    ports:
+      - "8000:8000"
+    env_file:
+      - path: ./Ai-service/.env
+        required: false
+    environment:
+      # Node serves /uploads; resolve relative floorPlanUrl paths against the API service.
+      NODE_UPLOADS_BASE_URL: "http://server:5001"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  uploads:
