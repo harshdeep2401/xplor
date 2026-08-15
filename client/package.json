@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "preview": "vite preview"
   },
@@ -13,12 +14,15 @@
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.6.0",
     "axios": "^1.15.0",
+    "firebase": "^12.12.1",
     "framer-motion": "^12.38.0",
     "gsap": "^3.15.0",
+    "konva": "^10.2.5",
     "lucide-react": "^1.8.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-icons": "^5.6.0",
+    "react-konva": "^19.2.3",
     "react-router-dom": "^7.14.1",
     "three": "^0.184.0"
   },
@@ -26,11 +30,16 @@
     "@eslint/js": "^9.39.4",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "@types/three": "^0.184.1",
     "@vitejs/plugin-react": "^6.0.1",
+    "autoprefixer": "^10.4.19",
     "eslint": "^9.39.4",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.4.0",
+    "postcss": "^8.4.38",
+    "tailwindcss": "^3.4.4",
+    "typescript": "^5.9.3",
     "vite": "^8.0.4"
   }
 }

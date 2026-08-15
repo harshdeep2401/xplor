@@ -1,0 +1,208 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id             String             @id @default(cuid())
+  name           String
+  email          String             @unique
+  countryCode    String?            @default("")
+  phone          String?            @default("")
+  password       String?            @default("")
+  googleId       String?            @default("")
+  profileImage   String?            @default("")
+  authProvider   String?            @default("email")
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+  isActive       Boolean            @default(true)
+  lastLogin      DateTime?
+  planId         String?
+  auditLogs      AuditLog[]
+  editorSessions EditorSession[]
+  jobs           Job[]
+  projects       Project[]
+  plan           SubscriptionPlan?  @relation(fields: [planId], references: [id])
+  userAssets     UserAsset[]
+  subscriptions  UserSubscription[]
+}
+
+model SubscriptionPlan {
+  id             String             @id @default(cuid())
+  name           String
+  jobsPerMonth   Int
+  adminLimit     Int
+  screenLimit    Int
+  furnitureLimit Int
+  priceMonthly   Decimal?           @db.Decimal(10, 2)
+  priceYearly    Decimal?           @db.Decimal(10, 2)
+  features       Json?
+  createdAt      DateTime           @default(now())
+  users          User[]
+  subscriptions  UserSubscription[]
+}
+
+model UserSubscription {
+  id                 String           @id @default(cuid())
+  userId             String
+  planId             String
+  status             String           @default("active")
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  jobsUsedThisPeriod Int              @default(0)
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  plan               SubscriptionPlan @relation(fields: [planId], references: [id])
+  user               User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Project {
+  id                  String          @id @default(cuid())
+  name                String
+  description         String?
+  userId              String
+  type                String          @default("2d")
+  status              String          @default("draft")
+  canvasWidth         Int             @default(2000)
+  canvasHeight        Int             @default(2000)
+  canvas              Json            @default("{\"elements\": []}")
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  floorPlanUrl        String?
+  lastAccessed        DateTime?
+  thumbnailUrl        String?
+  scalePixelsPerMeter Float           @default(100)
+  defaultWallHeightM  Float           @default(2.8)
+  editorSessions      EditorSession[]
+  jobs                Job[]
+  user                User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scenes              Scene[]
+  vrOutputs           VrOutput[]
+
+  @@index([userId])
+}
+
+model Scene {
+  id          String   @id @default(cuid())
+  projectId   String
+  version     Int      @default(1)
+  sceneData   Json     @default("{}")
+  metadata    Json?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  sourceJobId String?  @unique
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, version])
+  @@index([projectId])
+}
+
+model Job {
+  id              String          @id @default(cuid())
+  userId          String
+  projectId       String
+  jobType         String
+  status          String          @default("pending")
+  startedAt       DateTime?       @default(now())
+  completedAt     DateTime?
+  errorMessage    String?
+  metadata        Json?
+  createdAt       DateTime        @default(now())
+  durationMinutes Int?
+  updatedAt       DateTime        @updatedAt
+  input           Json?
+  result          Json?
+  progress        Int             @default(0)
+  attempts        Int             @default(0)
+  maxAttempts     Int             @default(3)
+  availableAt     DateTime        @default(now())
+  lockedAt        DateTime?
+  lockExpiresAt   DateTime?
+  lockedBy        String?
+  errorCode       String?
+  errorDetails    Json?
+  editorSessions  EditorSession[]
+  project         Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vrOutputs       VrOutput[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([lockExpiresAt])
+  @@index([status, availableAt])
+}
+
+model EditorSession {
+  id             String    @id @default(cuid())
+  userId         String
+  projectId      String
+  jobId          String?
+  startedAt      DateTime  @default(now())
+  lastActivity   DateTime  @default(now())
+  endedAt        DateTime?
+  isActive       Boolean   @default(true)
+  autoSavedState Json?
+  job            Job?      @relation(fields: [jobId], references: [id])
+  project        Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, projectId])
+}
+
+model Asset {
+  id           String      @id @default(cuid())
+  name         String
+  category     String?
+  subcategory  String?
+  fileUrl      String
+  thumbnailUrl String?
+  metadata     Json?
+  isPremium    Boolean     @default(false)
+  createdAt    DateTime    @default(now())
+  usageCount   Int         @default(0)
+  userAssets   UserAsset[]
+}
+
+model UserAsset {
+  id            String   @id @default(cuid())
+  userId        String
+  assetId       String?
+  isCustom      Boolean  @default(false)
+  customFileUrl String?
+  createdAt     DateTime @default(now())
+  asset         Asset?   @relation(fields: [assetId], references: [id])
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VrOutput {
+  id         String   @id @default(cuid())
+  projectId  String
+  jobId      String?
+  outputUrl  String
+  format     String?
+  fileSizeMb Decimal? @db.Decimal(10, 2)
+  createdAt  DateTime @default(now())
+  job        Job?     @relation(fields: [jobId], references: [id])
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  action     String
+  entityType String?
+  entityId   String?
+  metadata   Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+  user       User?    @relation(fields: [userId], references: [id])
+}

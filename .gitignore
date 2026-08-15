@@ -33,3 +33,17 @@ server/.env
 dist/
 build/
 .next/
+
+# macOS system files
+.DS_Store
+__MACOSX/
+
+
+# virtual env for ai service
+.venv/
+__pycache__/
+*.pyc
+venv/
+
+# glb files generated during testing
+uploads/
