@@ -4,6 +4,17 @@
 > design every contributor builds toward. It is **timeless**: it does not track what is implemented.
 > For implementation status, see `docs/status-reports/`.
 
+> **Capstone reconciliation (2026-08-15).** Two parts of the *original* target design are now adjusted; the
+> rest of this document stands:
+> - **Billing / metering / plan enforcement is deferred** — monetization is dropped for the capstone.
+>   Wherever this doc mentions `billing`, `SubscriptionPlan`/`UserSubscription` enforcement,
+>   `checkPlanLimits`, `/editor/activity` metering, or the `/billing` API surface, treat it as **retained
+>   design, not built**. `Job` remains as the async work/observability unit, minus the metering role.
+> - **The FastAPI service currently implements Path B *detection*, not the GLB renderer.** Today it exposes
+>   `POST /process-floor-plan` (image → detection), and **GLB is produced client-side** (no `/v1/render-glb`
+>   worker yet). The detection boundary is being formalized as a stable, swappable contract
+>   (`contracts/detection-v1`). The render-service design below (Module 4 / §6) remains the eventual target.
+
 ---
 
 ## 1. Technology Stack

@@ -23,10 +23,14 @@ collapses the timeline to minutes, and drives the cost of VR creation toward zer
 - Built for non-technical users.
 
 ### 1.4 Strategic Insight
-XPLOR is a **spatial pipeline automation system**. The moat is **speed, simplicity, and reliability** —
-not UI polish or editor breadth. The product is built **reliability-first**: a *deterministic* pipeline
-is the foundation, and probabilistic AI is layered on top only once the deterministic plumbing is
-proven.
+XPLOR is a **spatial pipeline automation system** built **reliability-first**: a *deterministic* pipeline
+is the foundation, and probabilistic AI is layered on top only once the deterministic plumbing is proven.
+The core moat is **speed, simplicity, and reliability**.
+
+> *Capstone note:* in the current capstone phase, **a cohesive UI, strong UX, and smart assistive features
+> (e.g. a furniture suggestion engine) are explicitly in scope** — see `06-roadmap.md`. This does not
+> change the ordering: the deterministic core is proven first, and polish + smart features build on top of
+> it, not instead of it.
 
 ---
 
@@ -38,7 +42,7 @@ representation** and the same downstream renderer, editor, and VR pipeline.
 | Path | Input | How the structured plan is produced | Nature |
 |------|-------|-------------------------------------|--------|
 | **A — Structured Editor** (foundational) | User draws the layout | The native 2D editor emits a structured canvas directly | **Deterministic** |
-| **B — Image Detection** (future) | User uploads a floor-plan image | A computer-vision service detects walls/rooms and emits the same structured canvas | **Probabilistic** |
+| **B — Image Detection** (now in scope) | User uploads a floor-plan image | A computer-vision service detects walls/rooms and emits the same structured canvas | **Probabilistic** |
 
 **Design rule:** Path B is *additive*. It produces the same structured canvas contract that Path A
 produces, so everything downstream (conversion → 3D → VR) is shared and unaware of which path was used.
@@ -79,12 +83,14 @@ artifacts** — always regenerable from the scene. The formal JSON Schemas for t
 
 ## 5. Definition of a "Job"
 
-A **Job** is the unit of metered work. A Job is any one of:
-1. A **1-hour session** in the 3D editor.
-2. A full **2D → VR** conversion.
-3. A **3D editor → VR** conversion.
+A **Job** is a **tracked unit of asynchronous work** — something the backend records, runs, and lets the
+client poll to completion. Examples: **floor-plan image processing** (Path B detection) and a
+**`canvas → scene` conversion**. Each Job moves through `pending → processing → completed | failed` and
+carries its input, result, progress, and any error, so the UI can show progress and a terminal outcome.
 
-Jobs are the unit of plan enforcement (see §7).
+> *Capstone note:* Jobs were originally **also** the unit of metered/billable work tied to plan limits.
+> **Monetization is deferred for the capstone** (see §7), so Jobs today are purely a processing and
+> observability mechanism — not a billing one.
 
 ---
 
@@ -94,7 +100,8 @@ XPLOR is composed of four cooperating parts. Each is specified in detail in
 `02-backend-architecture.md`.
 
 - **Frontend** — the web application: landing, auth, dashboard, the 2D editor, and the 3D editor.
-- **Main API** — authentication, project management, scene/versioning, job tracking, billing.
+- **Main API** — authentication, project management, scene/versioning, and job tracking. *(Billing is
+  deferred — see §7.)*
 - **Render / AI service** — a stateless service that (a) renders a `scene` to a GLB mesh, and
   (b, future) detects structure from a floor-plan image.
 - **Data & storage** — a relational database (canonical records, JSONB scenes, the job queue) and blob
@@ -102,18 +109,16 @@ XPLOR is composed of four cooperating parts. Each is specified in detail in
 
 ---
 
-## 7. Pricing & Plans
+## 7. Pricing & Plans — *Deferred (out of scope for the capstone)*
 
-The platform enforces, **per plan**, the following limits at the backend level:
-**jobs per month, admin limit, screen limit, furniture limit**, and add-on pricing.
+> **Monetization is not part of the current capstone build.** This section is retained for historical
+> context and a possible future commercial version. None of it is enforced today, and the metering /
+> plan-limit features it implied have been **descoped** (see `04-feature-specification.md`, E8/FP).
 
-Plans:
-- **Neo** — entry tier
-- **Addonno** — mid tier
-- **Apice** — premium tier
-
-Detailed pricing values are defined separately and enforced in the Main API (see the billing module in
-`02-backend-architecture.md` and the metering features in `04-feature-specification.md`).
+The original commercial design enforced, **per plan**, limits on **jobs per month, admin, screens, and
+furniture**, plus add-on pricing, across three tiers (**Neo** / **Addonno** / **Apice**). If XPLOR is ever
+taken commercial, this is where that model would be reintroduced — layered on top of the Job model in §5,
+which already records the work that would be metered.
 
 ---
 
@@ -132,10 +137,18 @@ core.
 
 ---
 
-## 9. Future Enhancements
+## 9. Enhancements Beyond the Core Pipeline
 
-- **Image-based floor-plan detection** (Path B) — the probabilistic input path.
-- **Smart Asset Suggestion Engine** — context-based recommendations (vector search).
+**Now in scope (capstone):**
+- **Image-based floor-plan detection** (Path B) — the probabilistic input path. The current heuristic
+  detector ships behind a **stable, swappable seam** (a fixed detection contract) so a stronger model can
+  replace it without any downstream change.
+- **Smart Asset Suggestion Engine** — a **scene-aware furniture recommender**: it reads the scene (room
+  size + the objects already present) and recommends assets to place. Starts as a light rule/ML model
+  behind a swappable interface (not necessarily vector search).
+
+**Later:**
+- **VR walkthrough** — the namesake experience; a stub button exists and the feature is deferred.
 - **Template-based generation** — pre-built layouts for faster onboarding.
 - **Assisted editing** — constraint-based, guided editing.
 - **AI 3D Copilot (long term)** — natural-language, context-aware design actions.
