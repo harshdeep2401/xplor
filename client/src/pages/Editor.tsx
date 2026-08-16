@@ -68,7 +68,7 @@ export default function EditorPage() {
     return {
       gridWidth: Number(s.gridWidth ?? s.width ?? 10),
       gridLength: Number(s.gridLength ?? s.length ?? 10),
-      gridHeight: Number(s.height ?? 2.8),
+      gridHeight: Number(s.height ?? 1.0),
     };
   });
   const { gridWidth, gridLength, gridHeight } = room;
@@ -116,7 +116,7 @@ export default function EditorPage() {
                 setRoom({
                   gridWidth: Number(sd.room.gridWidth ?? 10),
                   gridLength: Number(sd.room.gridLength ?? 10),
-                  gridHeight: Number(sd.room.gridHeight ?? 2.8),
+                  gridHeight: Number(sd.room.gridHeight ?? 1.0),
                 });
               }
             }
@@ -150,7 +150,7 @@ export default function EditorPage() {
                 setRoom({
                   gridWidth: Number(canvas.room.gridWidth ?? 10),
                   gridLength: Number(canvas.room.gridLength ?? 10),
-                  gridHeight: Number(canvas.room.gridHeight ?? 2.8),
+                  gridHeight: Number(canvas.room.gridHeight ?? 1.0),
                 });
               }
             }

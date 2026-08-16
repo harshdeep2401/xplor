@@ -55,10 +55,10 @@ export const WINDOW_HEIGHT_M = 1.2
 export const WINDOW_SILL_HEIGHT_M = 0.9
 
 // Project defaults when a canvas has no recorded scale/height (e.g. a brand-new
-// project). 100 px = 1 m, 2.8 m ceilings — matches the DB canonical defaults
+// project). 40 px = 1 m, 1.0 m ceilings — matches the DB canonical defaults
 // (Project.scalePixelsPerMeter / defaultWallHeightM) and the server converter.
-export const DEFAULT_PIXELS_PER_METRE = 100
-export const DEFAULT_WALL_HEIGHT_M = 2.8
+export const DEFAULT_PIXELS_PER_METRE = 40
+export const DEFAULT_WALL_HEIGHT_M = 1.0
 
 // 2D glyph size (px) used when reconstructing an opening element from the
 // parametric contract on load. Cosmetic only; the interactive door/window rework

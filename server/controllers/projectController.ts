@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '../config/db'
 import { processFloorPlan } from '../services/aiService'
 import { putObject, floorPlanKey } from '../services/storage'
+import { convertCanvasToScene } from '../services/converter'
 
 const createProject = async (req: Request, res: Response) => {
   try {
@@ -219,13 +220,58 @@ const uploadFloorPlan = async (req: Request<{ id: string }>, res: Response) => {
         floorPlanUrl,
       })
 
-      if (result.status === 'completed') {
-        await prisma.scene.create({
-          data: {
-            projectId: project.id,
-            sceneData: result.detection,
-            metadata: result.metadata,
-          },
+      if (result.status === 'completed' && result.detection) {
+        // Calculate appropriate scale pixels per meter (default 40)
+        let ppm = project.scalePixelsPerMeter || 40
+        if (result.metadata?.imageWidth && result.metadata.imageWidth > 2500) {
+          ppm = Math.round(result.metadata.imageWidth / 25)
+        }
+        const wallHeight = project.defaultWallHeightM || 1.0
+
+        const walls = (result.detection.walls ?? []).map((w: any) => ({
+          id: w.id || `wall_${Math.random().toString(36).substring(2, 10)}`,
+          start: { x: Number(w.startX), y: Number(w.startY) },
+          end: { x: Number(w.endX), y: Number(w.endY) },
+          thickness: 20, // 20px on 2D canvas -> 0.2m (20cm) realistic wall thickness in 3D
+        }))
+
+        const canvasV2 = {
+          version: 'canvas-v2',
+          scale: { pixelsPerMetre: ppm },
+          wallHeight: wallHeight,
+          walls,
+          openings: [],
+          labels: [],
+        }
+
+        // Store canvas-v2 to project so 2D editor can load and edit the layout
+        await prisma.project.update({
+          where: { id: project.id },
+          data: { canvas: canvasV2 as unknown as Prisma.InputJsonValue },
+        })
+
+        // Convert canvas-v2 to canonical scene-v1 (proper meters scaling for 3D editor)
+        const scene = convertCanvasToScene(canvasV2, {
+          pixelsPerMetre: ppm,
+          wallHeight: wallHeight,
+        })
+
+        // Deactivate previous active scenes and save the newly converted scene-v1
+        await prisma.$transaction(async (tx) => {
+          await tx.scene.updateMany({
+            where: { projectId: project.id, isActive: true },
+            data: { isActive: false },
+          })
+          await tx.scene.create({
+            data: {
+              projectId: project.id,
+              version: 1,
+              sceneData: scene as unknown as Prisma.InputJsonValue,
+              metadata: result.metadata,
+              isActive: true,
+              sourceJobId: job.id,
+            },
+          })
         })
 
         job = await prisma.job.update({

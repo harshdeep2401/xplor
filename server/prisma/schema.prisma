@@ -77,8 +77,8 @@ model Project {
   floorPlanUrl        String?
   lastAccessed        DateTime?
   thumbnailUrl        String?
-  scalePixelsPerMeter Float           @default(100)
-  defaultWallHeightM  Float           @default(2.8)
+  scalePixelsPerMeter Float           @default(40)
+  defaultWallHeightM  Float           @default(1.0)
   editorSessions      EditorSession[]
   jobs                Job[]
   user                User            @relation(fields: [userId], references: [id], onDelete: Cascade)

@@ -109,7 +109,7 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
   onTransform,
   gridWidth = 10,
   gridLength = 10,
-  gridHeight = 2.8,
+  gridHeight = 1.0,
   hasRoom = false,
   initialFocusId,
   frameKey,

@@ -7,11 +7,11 @@
 // px -> metre factor assumed for legacy drawings with no recorded scale.
 // Matches the DB canonical default (Project.scalePixelsPerMeter). Callers should
 // pass the project's real value as an override where available.
-export const DEFAULT_PIXELS_PER_METRE = 100
+export const DEFAULT_PIXELS_PER_METRE = 40
 
 // Vertical dimensions (metres) — canvas-v1 has no z axis at all.
 // Matches the DB canonical default (Project.defaultWallHeightM).
-export const DEFAULT_WALL_HEIGHT_M = 2.8
+export const DEFAULT_WALL_HEIGHT_M = 1.0
 export const DOOR_HEIGHT_M = 2.1
 export const WINDOW_HEIGHT_M = 1.2
 export const WINDOW_SILL_HEIGHT_M = 0.9

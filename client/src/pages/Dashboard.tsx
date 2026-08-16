@@ -17,7 +17,7 @@ function Dashboard() {
   const [canvasHeight, setCanvasHeight] = useState(2000)
   const [gridWidth, setGridWidth] = useState(10)
   const [gridLength, setGridLength] = useState(10)
-  const [gridHeight, setGridHeight] = useState(2.8)
+  const [gridHeight, setGridHeight] = useState(1.0)
   const [isCreating, setIsCreating] = useState(false)
   const [projects, setProjects] = useState<Project[]>([])
   const [isLoading, setIsLoading] = useState(true)
