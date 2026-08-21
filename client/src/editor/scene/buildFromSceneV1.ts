@@ -24,6 +24,7 @@ interface SceneV1Wall {
   end: SceneV1Vec2
   thickness: number
   height: number
+  curvature?: number // metres – perpendicular bulge from the chord midpoint
   openings?: SceneV1Opening[]
 }
 interface SceneV1Material {
@@ -56,6 +57,15 @@ export function buildSceneObjectsFromSceneV1(scene: unknown): SceneObject[] {
   const centre = planCentre(walls)
 
   const wallObjects: SceneObject[] = walls.map((wall) => {
+    const material = new THREE.MeshStandardMaterial({ color: wallColor })
+
+    // If the wall has a non-zero curvature (arc bulge in metres), build an
+    // arc-extruded mesh instead of a flat box so the 3D view matches the 2D plan.
+    if (wall.curvature && Math.abs(wall.curvature) > 0.001) {
+      const group = buildCurvedWallGroup(wall, material, centre)
+      return { id: wall.id, name: `Wall ${wall.id}`, object3d: group }
+    }
+
     const dx = wall.end.x - wall.start.x
     const dz = wall.end.z - wall.start.z
     const length = Math.hypot(dx, dz)
@@ -68,7 +78,6 @@ export function buildSceneObjectsFromSceneV1(scene: unknown): SceneObject[] {
     group.position.set(wall.start.x - centre.x, 0, wall.start.z - centre.z)
     group.rotation.y = -Math.atan2(dz, dx)
 
-    const material = new THREE.MeshStandardMaterial({ color: wallColor })
     const pieces = computeWallPieces({
       length,
       height: wall.height,
@@ -97,6 +106,79 @@ export function buildSceneObjectsFromSceneV1(scene: unknown): SceneObject[] {
     .filter((o): o is SceneObject => o !== null)
 
   return [...wallObjects, ...floorObjects]
+}
+
+// ---------------------------------------------------------------------------
+// Curved wall builder
+// ---------------------------------------------------------------------------
+// Builds a Group containing an arc-extruded wall mesh. The curvature value is
+// the perpendicular bulge (metres) at the chord midpoint — positive bulges to
+// the left of the chord direction (start → end), matching the 2D canvas convention.
+//
+// Strategy: sample a QuadraticBezierCurve3 at N points to get the centreline,
+// then at each sample build a thin box segment aligned to the local tangent.
+// This gives a smooth curved appearance without needing a custom BufferGeometry.
+function buildCurvedWallGroup(
+  wall: SceneV1Wall,
+  material: THREE.MeshStandardMaterial,
+  centre: { x: number; z: number },
+): THREE.Group {
+  const SEGMENTS = 32
+
+  const sx = wall.start.x - centre.x
+  const sz = wall.start.z - centre.z
+  const ex = wall.end.x - centre.x
+  const ez = wall.end.z - centre.z
+
+  // Midpoint of the chord
+  const mx = (sx + ex) / 2
+  const mz = (sz + ez) / 2
+
+  // Perpendicular unit vector (left of start→end in the XZ plane)
+  const dx = ex - sx
+  const dz = ez - sz
+  const chordLen = Math.hypot(dx, dz)
+  const perpX = -dz / (chordLen || 1)
+  const perpZ = dx / (chordLen || 1)
+
+  // Quadratic Bezier control point: chord midpoint + curvature offset
+  // (curvature is already converted to metres by the backend converter)
+  const curv = wall.curvature ?? 0
+  const cpx = mx + perpX * curv
+  const cpz = mz + perpZ * curv
+
+  // Build the arc as a quadratic Bezier in the XZ plane (Y is always 0/wall height)
+  const startPt = new THREE.Vector3(sx, 0, sz)
+  const ctrlPt = new THREE.Vector3(cpx, 0, cpz)
+  const endPt = new THREE.Vector3(ex, 0, ez)
+  const curve = new THREE.QuadraticBezierCurve3(startPt, ctrlPt, endPt)
+
+  const pts = curve.getPoints(SEGMENTS) // SEGMENTS+1 points
+
+  const group = new THREE.Group()
+  const h = wall.height
+  const t = wall.thickness
+
+  for (let i = 0; i < pts.length - 1; i++) {
+    const a = pts[i]
+    const b = pts[i + 1]
+    const segDx = b.x - a.x
+    const segDz = b.z - a.z
+    const segLen = Math.hypot(segDx, segDz)
+    if (segLen < 1e-6) continue
+
+    const mesh = new THREE.Mesh(
+      new THREE.BoxGeometry(segLen, h, t),
+      material,
+    )
+    // Centre of segment, at half wall height
+    mesh.position.set((a.x + b.x) / 2, h / 2, (a.z + b.z) / 2)
+    // Rotate each box to align with the segment direction in XZ
+    mesh.rotation.y = -Math.atan2(segDz, segDx)
+    group.add(mesh)
+  }
+
+  return group
 }
 
 function buildFloor(room: SceneV1Room, centre: { x: number; z: number }): SceneObject | null {
