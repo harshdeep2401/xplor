@@ -19,6 +19,11 @@ RUN npm ci
 # App source (tsx runs the .ts entrypoint directly — see package.json "start").
 COPY . .
 
+# Shared JSON-Schema contracts, from the compose `contracts` build context.
+# validate.ts resolves them three levels above services/converter → /contracts.
+# Standalone: docker build --build-context contracts=./contracts server
+COPY --from=contracts . /contracts
+
 # Matches PORT below and docs; overridable via env.
 ENV PORT=5001
 EXPOSE 5001

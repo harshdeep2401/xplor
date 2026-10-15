@@ -1,7 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import Ajv2020, { type ValidateFunction, type ErrorObject } from 'ajv/dist/2020'
-import type { CanvasV2, SceneV1 } from './types'
+import type { CanvasV2, SceneV1, DetectionV1 } from './types'
 
 // Runtime validation against the JSON Schema contracts — the schemas in
 // /contracts are the single source of truth; we compile them here rather than
@@ -24,6 +24,10 @@ export const validateCanvasV2: ValidateFunction<CanvasV2> = ajv.compile<CanvasV2
 )
 export const validateSceneV1: ValidateFunction<SceneV1> = ajv.compile<SceneV1>(
   loadSchema('scene-v1.schema.json'),
+)
+// The AI service's detector output (Path B), checked before the bridge maps it.
+export const validateDetectionV1: ValidateFunction<DetectionV1> = ajv.compile<DetectionV1>(
+  loadSchema('detection-v1.schema.json'),
 )
 
 // Compact, human-readable summary of ajv errors for error messages/logs.

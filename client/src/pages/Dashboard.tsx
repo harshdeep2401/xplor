@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { auth } from '../firebase'
 import apiClient from '../services/apiClient'
+import { getApiErrorMessage } from '../services/errors'
 import { getUser, clearSession } from '../services/session'
 import type { SessionUser } from '../services/session'
-import type { Project } from '../types/api'
+import type { Project, FloorPlanUploadResponse, ImportResult } from '../types/api'
 import '../styles/dashboard.css'
 
 function Dashboard() {
@@ -19,6 +20,9 @@ function Dashboard() {
   const [gridLength, setGridLength] = useState(10)
   const [gridHeight, setGridHeight] = useState(2.8)
   const [isCreating, setIsCreating] = useState(false)
+  const [isImportOpen, setIsImportOpen] = useState(false)
+  const [importFile, setImportFile] = useState<File | null>(null)
+  const [importError, setImportError] = useState<string | null>(null)
   const [projects, setProjects] = useState<Project[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
@@ -107,6 +111,49 @@ function Dashboard() {
     }
   }
 
+  // Path B: create a 2D project, upload the plan image, and open the editor. The
+  // server runs detection synchronously, so the response already carries the
+  // finished job. A failed detection still opens the editor: the image is
+  // stored, so the user can trace it by hand.
+  const handleImportFloorPlan = async () => {
+    if (!importFile) {
+      setImportError('Choose a floor-plan image first.')
+      return
+    }
+    setIsCreating(true)
+    setImportError(null)
+    let projectId: string | null = null
+    try {
+      const { data: created } = await apiClient.post<{ project: Project }>('/projects', {
+        name: projectName,
+        type: '2d',
+      })
+      projectId = created.project._id || created.project.id
+
+      const form = new FormData()
+      form.append('floorPlan', importFile)
+      const { data } = await apiClient.post<FloorPlanUploadResponse>(
+        `/projects/${projectId}/upload-floor-plan`,
+        form,
+      )
+
+      const importResult: ImportResult =
+        data.job.status === 'completed'
+          ? { status: 'completed', wallCount: data.job.metadata?.wallCount ?? 0 }
+          : { status: 'failed', error: data.job.errorMessage || 'Detection failed' }
+      navigate(`/editor/2d/${projectId}`, { state: { importResult } })
+    } catch (error) {
+      // The upload itself was rejected (bad file type, too large…): don't leave
+      // an empty project behind.
+      if (projectId) {
+        await apiClient.delete(`/projects/${projectId}`).catch(() => {})
+      }
+      setImportError(getApiErrorMessage(error, 'Upload failed. Please try again.'))
+    } finally {
+      setIsCreating(false)
+    }
+  }
+
   if (!user) return null
 
   return (
@@ -145,6 +192,14 @@ function Dashboard() {
             </div>
             <h3>Create New 2D Project</h3>
             <p>Draft smart, precise 2D floor plans and architectural layouts.</p>
+          </div>
+
+          <div className="action-card action-card-import" onClick={() => setIsImportOpen(true)}>
+            <div className="action-icon icon-import">
+              <span>🖼</span>
+            </div>
+            <h3>Import Floor Plan</h3>
+            <p>Upload a floor-plan image and we'll detect the walls for you.</p>
           </div>
         </div>
 
@@ -237,6 +292,56 @@ function Dashboard() {
                 disabled={isCreating}
               >
                 {isCreating ? 'Creating...' : 'Create Project'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Import Floor Plan Modal */}
+      {isImportOpen && (
+        <div className="create-project-modal-overlay">
+          <div className="create-project-modal">
+            <h2>Import Floor Plan</h2>
+            <div className="modal-field">
+              <label>Project Name</label>
+              <input
+                type="text"
+                value={projectName}
+                onChange={e => setProjectName(e.target.value)}
+              />
+            </div>
+            <div className="modal-field">
+              <label>Floor-plan image (PNG, JPG or WEBP, max 15 MB)</label>
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                onChange={e => {
+                  setImportFile(e.target.files?.[0] ?? null)
+                  setImportError(null)
+                }}
+              />
+            </div>
+            {importError && <p className="modal-error">{importError}</p>}
+            {isCreating && <p className="modal-hint">Detecting walls… this can take up to 30 seconds.</p>}
+            <div className="modal-actions">
+              <button
+                className="modal-cancel-btn"
+                onClick={() => {
+                  setIsImportOpen(false)
+                  setImportFile(null)
+                  setImportError(null)
+                }}
+                disabled={isCreating}
+              >
+                Cancel
+              </button>
+              <button
+                className="modal-create-btn"
+                onClick={handleImportFloorPlan}
+                disabled={isCreating || !importFile}
+              >
+                {isCreating ? 'Importing...' : 'Import'}
               </button>
             </div>
           </div>

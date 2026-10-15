@@ -135,7 +135,12 @@ chore(deps): bump prisma to 6.4.1
 
 ## 8. Dependencies
 
-- **Commit lockfiles** (`package-lock.json`, etc.) — reproducible installs matter.
+- **Commit lockfiles** (`package-lock.json`, `Ai-service/uv.lock`) — reproducible installs matter.
+- **Python deps are managed with [uv](https://docs.astral.sh/uv/)**, not pip: `Ai-service/pyproject.toml`
+  lists direct dependencies, `uv.lock` pins everything, `.python-version` pins the interpreter (3.12,
+  matching the Docker image). Add a dependency with `uv add <pkg>` (updates both files); never
+  hand-maintain a `requirements.txt`. CI and the Dockerfile install with `uv sync --frozen`, so a stale
+  lockfile fails the build.
 - **Add dependencies deliberately.** Prefer the standard library / existing tools; justify new deps in
   the PR. Remove unused ones.
 - Keep dependency bumps in their own `chore(deps):` commits/PRs.
@@ -156,7 +161,31 @@ chore(deps): bump prisma to 6.4.1
 
 ---
 
-## 10. Where Things Live
+## 10. Local Environment & Cross-Platform Development
+
+The stack must work the same on macOS, Windows and Linux (CI and containers are Linux).
+
+- **Set up from scratch on each machine** — never copy `node_modules/` or `.venv/` between machines or
+  OSes (they contain platform-specific binaries). Run `npm ci` in `client/` and `server/`, and `uv sync`
+  in `Ai-service/`.
+- **Secrets travel by hand, not git:** `server/.env`, `client/.env` (and optionally `Ai-service/.env`)
+  are gitignored; copy them securely or recreate them from the `.env.example` files.
+- **Local uploads are machine-local:** `server/uploads/` (floor plans, GLBs) is not in git, so projects
+  created on one machine show missing images/GLBs on another until storage moves to R2.
+- **Run commands:** API `npm run dev` (port 5001), client `npm run dev`, AI service
+  `uv run uvicorn app.main:app --port 8000`, or everything backend via `docker compose up --build`.
+- **npm scripts must be shell-neutral.** npm runs scripts with `cmd.exe` on Windows, so POSIX shell syntax
+  (`$(…)`, `find`, `rm -rf`, `VAR=x cmd`) breaks there. Prefer Node-native flags or cross-platform tools.
+  *Known exception:* `server`'s `npm test` uses `$(find …)`; on Windows run it from Git Bash or WSL until
+  it is made portable.
+- **Casing and line endings:** keep import casing exact (see §4); let git normalize line endings rather
+  than committing CRLF churn.
+- **Docker on Windows** uses Docker Desktop (WSL 2 backend). Compose must be ≥ 2.17 for the server's
+  `additional_contexts` (see `03` §3).
+
+---
+
+## 11. Where Things Live
 
 - **Foundational docs** (`docs/01`–`05`) describe the intended product, architecture, deployment,
   features, and process. They are **timeless** — no build status inside them.

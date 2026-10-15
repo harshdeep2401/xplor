@@ -10,15 +10,15 @@ class Settings(BaseSettings):
     into a fetchable absolute URL. Node currently stores relative paths on
     Project.floorPlanUrl, so this service needs to know where "home" is.
 
-    Example: NODE_UPLOADS_BASE_URL=http://localhost:5000
+    Example: NODE_UPLOADS_BASE_URL=http://localhost:5001
     -> "/uploads/floor-plans/u1/plan.png" becomes
-       "http://localhost:5000/uploads/floor-plans/u1/plan.png"
+       "http://localhost:5001/uploads/floor-plans/u1/plan.png"
 
     If floorPlanUrl is already absolute (http:// or https://, e.g. once R2
     is introduced), it's used as-is and this setting is ignored.
     """
 
-    node_uploads_base_url: str = "http://localhost:5000"
+    node_uploads_base_url: str = "http://localhost:5001"
     max_image_fetch_bytes: int = 20 * 1024 * 1024  # 20MB safety cap
     request_timeout_seconds: float = 15.0
 

@@ -1,0 +1,20 @@
+[project]
+name = "xplor-ai-service"
+version = "0.1.0"
+description = "XPLOR floor-plan detection service: 2D image -> detection-v1 JSON (FastAPI)."
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi==0.115.6",
+    "uvicorn[standard]==0.34.0",
+    "pydantic==2.10.4",
+    # Also pulls in python-dotenv, which it uses for Settings(env_file=".env").
+    "pydantic-settings==2.7.1",
+    "httpx==0.28.1",
+    "opencv-python-headless==4.10.0.84",
+    "numpy==2.2.1",
+]
+
+[tool.uv]
+# A deployable app, not an installable library: `uv sync` installs only the
+# dependencies, and `uv run` works from this directory.
+package = false

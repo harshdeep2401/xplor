@@ -323,3 +323,65 @@
 .capitalize {
   text-transform: capitalize;
 }
+
+/* ── Floor-plan import: trace layer controls, banner, calibration ── */
+.trace-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.trace-toggle {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #aaa;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.trace-controls input[type='range'] {
+  width: 70px;
+}
+
+/* Floats over the canvas so it doesn't shift the fixed-height stage. */
+.import-banner {
+  position: absolute;
+  top: 64px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: min(720px, calc(100vw - 32px));
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 14px;
+  background: rgba(20, 184, 166, 0.15);
+  border: 1px solid rgba(20, 184, 166, 0.4);
+  border-radius: 8px;
+  color: #e2e8f0;
+  font-size: 13px;
+  line-height: 1.45;
+  backdrop-filter: blur(8px);
+  z-index: 100;
+}
+.import-banner-error {
+  background: rgba(248, 113, 113, 0.15);
+  border-color: rgba(248, 113, 113, 0.4);
+}
+.import-banner-close {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.calibrate-help {
+  color: #94a3b8;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.calibrate-apply:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

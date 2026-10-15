@@ -17,6 +17,8 @@ class FloorPlanRequest(BaseModel):
 
 # ---------------------------------------------------------------------------
 # Response (FastAPI -> Node)
+# DetectionResult + DetectionMetadata are the detection-v1 contract
+# (contracts/detection-v1.schema.json) — change both together.
 # ---------------------------------------------------------------------------
 
 class Wall(BaseModel):

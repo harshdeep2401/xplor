@@ -4,14 +4,16 @@
 > next, in phases**. Unlike the timeless foundational docs (`01`–`05`), this doc has a time dimension and
 > will be updated as phases complete. Detailed point-in-time progress lives in
 > [`status-reports/`](./status-reports); the newest is
-> [`STATUS-REPORT-2026-08-15-pivot.md`](./status-reports/STATUS-REPORT-2026-08-15-pivot.md).
+> [`STATUS-REPORT-2026-10-16-phase3.md`](./status-reports/STATUS-REPORT-2026-10-16-phase3.md).
 
-- **Last updated:** 2026-08-15
-- **Nature of this update:** **Capstone pivot.** Monetization is dropped; the goal is a **polished, fully
-  working product** around the core loop (**upload image → 2D editor → 3D model**), plus a **scene-aware
-  furniture suggestion engine**. This replaces the old Phase 3 (metering) and Phase 4 (growth).
-- **Phase status:** Phase 0 ✅ · Phase 1 ✅ · Phase 2 ✅ (deterministic draw→3D pipeline) ·
-  **next: Phase 3** — close the image→2D→3D core loop.
+- **Last updated:** 2026-10-16
+- **Nature of this update:** **Phase 3 complete** — the image → 2D → 3D core loop works end-to-end
+  (manually verified). Detection *quality* is now the weak link, so a parallel **Phase 3b (detection
+  quality)** is added for the trained U-Net. Development moves to a Windows machine (GPU + Docker).
+  *(Previous update, 2026-08-15: capstone pivot — monetization dropped, core loop + polish + furniture
+  engine.)*
+- **Phase status:** Phase 0 ✅ · Phase 1 ✅ · Phase 2 ✅ · **Phase 3 ✅** (image→2D→3D loop) ·
+  **active: Phase 3b** (detection quality, in parallel) · **next: Phase 4** (UX foundation).
 
 ---
 
@@ -29,8 +31,8 @@ sequence in which development should proceed, and (c) the reasoning behind that 
 XPLOR is now a **capstone project**. The plan is reframed around three goals, in priority order:
 
 1. **Make the core loop actually work end-to-end.** The headline is
-   **upload a floor-plan image → it populates the 2D editor → convert to a 3D model.** The draw→3D half is
-   done; the image→2D half is ~70% wired and needs finishing.
+   **upload a floor-plan image → it populates the 2D editor → convert to a 3D model.** Done in Phase 3
+   (2026-10-16); detection accuracy is being improved in Phase 3b.
 2. **Polish.** Beautify the UI into one cohesive identity, fix the UX (real error feedback, loading/empty
    states, responsiveness), and add the obvious missing editor features.
 3. **A smart feature.** A **scene-aware furniture suggestion engine** that reads the scene JSON (room size
@@ -47,11 +49,11 @@ foundational docs as *deferred*, not deleted. **VR** stays a deferred stub. See 
 
 | Layer | State | Notes |
 |-------|-------|-------|
-| **Frontend** | Working, **100% TypeScript (strict)** | React 19 + Vite; 2D Konva editor + 3D R3F editor; build gates on `tsc`. **UI is split-brain** (plain-CSS pages vs Tailwind 3D editor) and has **no notification surface**. |
+| **Frontend** | Working, **100% TypeScript (strict)** | React 19 + Vite; 2D Konva editor + 3D R3F editor; build gates on `tsc`. **Import Floor Plan** flow, trace layer and Calibrate tool added (Phase 3). **UI is split-brain** (plain-CSS pages vs Tailwind 3D editor) and has **no notification surface** beyond the import banner. |
 | **Backend API** | Working, **100% TypeScript (strict)**, runs on `tsx` | Express 5 + Prisma; auth, projects, jobs, convert, scene versioning, GLB retention. Verified against Neon + Firebase. |
-| **AI service** | **Built, real detector, runtime-unproven** | FastAPI OpenCV detector (`POST /process-floor-plan`); server↔AI wiring is contract-correct; **no client UI + a shape/storage mismatch** keep it dead-ended (see §2.3). |
+| **AI service** | **Working, runtime-verified; detection quality low** | FastAPI OpenCV heuristic (`POST /process-floor-plan`) emitting `detection-v1`; managed with **uv** (`pyproject.toml` + `uv.lock`, Python 3.12). Misses walls and picks up text/symbols as walls; a trained **U-Net** is in training to replace it (Phase 3b). |
 | **Database** | Working | Neon Postgres; `Asset`/`UserAsset`/`Scene`/`Job` tables present. Migration-history baseline outstanding (§8). |
-| **Infra** | Foundation in place | Docker (server + AI) + compose + CI (Phase 1); storage seam + health endpoints + env config (Phase 0). Uploads still local-disk behind the seam. |
+| **Infra** | Foundation in place; **Docker stack unverified since Phase 2** | Docker (server + AI) + compose + CI (Phase 1); storage seam + health endpoints + env config (Phase 0). The server image was missing `contracts/` (fixed via a compose build context, 2026-10-16) but has not been rebuilt yet. Uploads still local-disk behind the seam. |
 
 ### 2.2 What works (the deterministic draw→3D spine)
 
@@ -67,12 +69,16 @@ foundational docs as *deferred*, not deleted. **VR** stays a deferred stub. See 
   color + texture; undo/redo, copy/paste, delete, nudge; **Save** (new version) + **auto-store GLB**
   (retention-capped) + Export GLB/GLTF.
 - Dashboard lists projects with 2D/3D differentiation.
+- **Image import (Path B)**: Dashboard **Import Floor Plan** → upload → OpenCV detection → `detection-v1`
+  validated → bridge (wall welding + opening attachment) → `canvas-v2` in `project.canvas` → 2D editor
+  with the image as a **trace layer** (toggle/opacity) → **Calibrate** sets real-world scale → Convert to 3D
+  with rooms/floors. Detection failure still opens the editor with the image to trace by hand.
 
 ### 2.3 The honest gaps (what this roadmap targets)
 
-1. **Image→2D loop is unfinished.** The detector + server endpoint + job wiring exist, but there's **no
-   client upload UI**, and detection is written as raw `DetectionResult` into a `Scene` row while the 2D
-   editor reads `canvas-v2` from `project.canvas` — the two never meet. *(Phase 3.)*
+1. **Detection quality is poor.** The heuristic misses walls and turns text, dimension lines and furniture
+   symbols into walls; doors/windows are never detected. Users can fix everything in the editor, but it is
+   slow. *(Phase 3b.)*
 2. **UI is split-brain and gives no feedback.** Two visual identities, no shared primitives, and **every
    failure is a silent `console.error`** (no toast system). *(Phase 4.)*
 3. **Obvious editor features missing.** 2D shows **pixels not metres**, and multi-select can only be
@@ -80,8 +86,8 @@ foundational docs as *deferred*, not deleted. **VR** stays a deferred stub. See 
    *(Phase 5.)*
 4. **Furniture is manual and lossy.** Placement is a naive grid; assets are baked to an opaque glTF blob on
    save (no structured round-trip), rooms have no type, and there's no recommender. *(Phase 6.)*
-5. **AI service unproven at runtime**; must be booted and verified.
-6. **Merge-cleanup + migration baseline** outstanding (§8).
+5. **Docker stack not rebuilt** since the converter started loading `contracts/` (fix applied, unverified).
+6. **Migration baseline** outstanding (§8a).
 
 ---
 
@@ -114,9 +120,18 @@ Canonical contracts (`contracts/canvas-v2` + `scene-v1`); deterministic `server/
 
 ---
 
-### Phase 3 — Close the Image → 2D → 3D Core Loop  ⟵ **NEXT (highest value)**
+### Phase 3 — Close the Image → 2D → 3D Core Loop  ✅ **DONE (2026-10-16)**
 **Goal:** upload an image → detected walls appear in the 2D editor → user cleans up → Convert to 3D
 (existing pipeline) → 3D scene. Both input paths converge on `canvas-v2`.
+
+**Delivered:** AI service booted + verified; `contracts/detection-v1.schema.json` (validated by Ajv and
+Python `jsonschema` against real detector output); server bridge `detectionToCanvas.ts` + `weldWalls.ts`
+(closes corners/T-junctions so rooms form) writing `canvas-v2` to `project.canvas`, canvas sized to the
+image, 409 on non-empty projects; Dashboard **Import Floor Plan** flow (no polling needed: detection is
+synchronous); editor **trace layer** + **Calibrate** tool + import banner; AI-service port default fixed
+(5000 → 5001); AI service moved from `requirements.txt` to **uv**. Exit criteria met: `/health` 200,
+golden `DetectionResult → canvas-v2` test, server `tsc` + `npm test` green (20 tests), manual end-to-end
+import → 3D confirmed. *(Original plan below, kept for reference.)*
 
 | # | Step | Key files |
 |---|------|-----------|
@@ -129,6 +144,20 @@ Canonical contracts (`contracts/canvas-v2` + `scene-v1`); deterministic `server/
 **Exit criteria:** AI `/health` 200; a sample image yields detected walls loaded from `project.canvas`;
 Convert to 3D produces a scene; a golden `DetectionResult → canvas-v2` unit test passes; server
 `tsc --noEmit` + `npm test` green.
+
+### Phase 3b — Detection Quality  ⟵ **ACTIVE (parallel with Phase 4)**
+**Goal:** make imports need little cleanup, and *prove* it with numbers. Everything stays behind
+`detection-v1`, so no downstream change is needed.
+
+| # | Step | Notes |
+|---|------|-------|
+| 3b.1 | **Evaluation script** — run a detector over a fixed CubiCasa5K sample and score it against the ground-truth vectors (wall precision/recall, endpoint error, % rooms closed) | Do this first: it decides whether a model beats the heuristic, and gives the capstone a measurable result |
+| 3b.2 | **Integrate the trained U-Net** — export to **ONNX**, run with `onnxruntime` on CPU in the AI service; add **mask → vector** post-processing (threshold → skeletonize → fit segments; door centres from connected components) to emit `detection-v1` | Trained on the Windows GPU machine; inference is CPU-friendly (seconds per plan), so it runs in Docker on any OS |
+| 3b.3 | **Detector selection by config** — `DETECTOR` = `opencv` / `unet` / `hybrid` (e.g. model walls + model doors, heuristic fallback) | Switch detectors without code changes; A/B with 3b.1 |
+| 3b.4 | *(Optional)* **Heuristic improvements** — mask text/dimension lines before Hough, estimate wall thickness, drop isolated short segments | Only if the model is delayed |
+
+**Exit criteria:** the evaluation script runs in CI or locally; the chosen detector beats the heuristic on
+it; `detect()` returns valid `detection-v1`; typical imports form closed rooms without manual welding.
 
 ### Phase 4 — UX Foundation & Visual Unification  *(polish, structural first)*
 **Goal:** the app feels like one finished product, and every failure is visible.
@@ -181,17 +210,26 @@ VR/WebXR preview (keep the stub), template-based generation, AI copilot. Revisit
 - **VR deferred** — keep the stub button, decide later.
 - **Codebase is TypeScript-first** (client + server strict; AI service stays Python).
 - (From earlier) storage abstracted now, R2 wired at deploy time; no live deploy yet.
+- **Scale comes from user calibration** in the 2D editor (drag a known length) — not from a guess at upload
+  time. OCR of dimension text may automate it later.
+- **The uploaded image stays visible as a trace layer**, 1:1 with canvas pixels (canvas sized to the image).
+- **Wall welding happens in the bridge, not the detector**, so every detector benefits.
+- **Model inference runs on CPU via ONNX** in the AI-service container; the GPU is for training only.
+- **Python tooling is uv** (`pyproject.toml` + `uv.lock`), not pip/requirements.txt.
+- **Development continues on Windows** (GPU for training + Docker Desktop) as of 2026-10-16.
 
 ---
 
 ## 6. Immediate Next Step
 
-**Phase 3.1 → 3.2:** boot and verify the AI service, then formalize `contracts/detection-v1` and build the
-**detection → canvas-v2 bridge** (reusing `normalizeCanvas`) so an uploaded image populates the 2D editor
-via `project.canvas`. Then add the client upload UI + job polling (3.4) and verify end-to-end (3.5).
+1. **Set up the Windows machine** (`05` §10): move the uncommitted Phase 3 work over, `npm ci` / `uv sync`,
+   copy the `.env` files, then **verify the Docker stack** (`docker compose up --build`) and repeat the
+   import checklist against the containers.
+2. **Commit Phase 3** (and the uv migration + docs) once verified.
+3. **Phase 3b.1 → 3b.2:** build the evaluation script, then integrate the U-Net (ONNX + mask → vector).
+4. **Phase 4** in parallel: toast system first.
 
-**Before that, two housekeeping items (§8):** commit the merge-cleanup deletions, and keep the
-migration-baseline caveat in mind (no `prisma migrate dev` reset).
+Keep the migration-baseline caveat in mind (§8a — never accept a `prisma migrate dev` reset).
 
 ---
 
@@ -210,8 +248,15 @@ migration-baseline caveat in mind (no `prisma migrate dev` reset).
 
 ## 8. Risks & Honest Flags
 
-- **Merge-cleanup not yet committed.** The 18-file deletion that fixes the stale `.jsx`/`.js` shadowing is
-  staged in the working tree but uncommitted — `main` stays broken until it's committed + pushed.
+- ~~**Merge-cleanup not yet committed.**~~ Resolved (`2909750`). Three harmless leftovers remain to delete:
+  `client/src/firebase.js` (identical to `firebase.ts`, but Vite resolves it first),
+  `client/src/services/authservice.js` and `client/src/components/AuthVisual.jsx` (both unused).
+- **Phase 3 is uncommitted** and exists only on the Mac working tree; it must be moved to the Windows
+  machine deliberately (copy the tree or push a branch) before work continues there.
+- **Docker unverified.** The `contracts/` build-context fix has never been built; the server image would
+  have crashed at startup since Phase 2.
+- **`server` `npm test` is POSIX-only** (`$(find …)`); it fails under Windows `cmd.exe`. Use Git Bash/WSL or
+  make it portable (e.g. Node ≥ 21 `--test` globs, if CI moves off Node 20).
 - **Detection is rough.** The heuristic detector will misfire; the deterministic 2D editor is the cleanup
   surface. Keep the seam clean so a better model is a drop-in.
 - **Structured-asset persistence is a real refactor.** Today 3D saves bake to a glTF blob; making furniture

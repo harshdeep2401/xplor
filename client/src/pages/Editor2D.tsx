@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import Konva from 'konva'
-import { Stage, Layer, Line, Rect, Text, Group, Arc, Label, Tag, Shape } from 'react-konva'
+import { Stage, Layer, Line, Rect, Text, Group, Arc, Label, Tag, Shape, Circle, Image as KonvaImage } from 'react-konva'
 import apiClient from '../services/apiClient'
+import type { ImportResult } from '../types/api'
 import type {
   EditorElement,
   WallElement,
@@ -22,7 +23,7 @@ import '../styles/editor.css'
 // Fix for trackpads interpreting tiny finger movements as drags instead of clicks
 Konva.dragDistance = 5;
 
-type Tool = 'select' | 'wall' | 'door' | 'window' | 'label' | 'delete' | 'pan'
+type Tool = 'select' | 'wall' | 'door' | 'window' | 'label' | 'delete' | 'pan' | 'calibrate'
 
 interface Editor2DProject {
   name: string
@@ -35,6 +36,42 @@ interface Editor2DProject {
   // legacy canvases that don't carry their own.
   scalePixelsPerMeter?: number
   defaultWallHeightM?: number
+  // Uploaded floor-plan image (Path B), shown as a trace layer under the drawing.
+  floorPlanUrl?: string | null
+}
+
+// A two-point reference line drawn with the Calibrate tool, in canvas pixels.
+interface CalibrationLine {
+  startX: number
+  startY: number
+  endX: number
+  endY: number
+}
+
+// Uploads are served from the API's origin (e.g. http://localhost:5001/uploads/…),
+// while VITE_API_URL carries the /api prefix. Absolute URLs (R2 later) pass through.
+function resolveUploadUrl(url: string): string {
+  if (/^https?:\/\//.test(url)) return url
+  return new URL(url, import.meta.env.VITE_API_URL).toString()
+}
+
+// Load an image for Konva. crossOrigin keeps the stage exportable (an untainted
+// canvas) — the server's CORS middleware also covers /uploads.
+function useTraceImage(url: string | null | undefined): HTMLImageElement | null {
+  const [image, setImage] = useState<HTMLImageElement | null>(null)
+  useEffect(() => {
+    if (!url) return
+    const img = new window.Image()
+    img.crossOrigin = 'anonymous'
+    img.onload = () => setImage(img)
+    img.onerror = () => console.error('Could not load floor-plan image:', url)
+    img.src = resolveUploadUrl(url)
+    return () => {
+      img.onload = null
+      img.onerror = null
+    }
+  }, [url])
+  return image
 }
 
 interface SelectionBox {
@@ -47,6 +84,10 @@ interface SelectionBox {
 function Editor() {
   const { projectId } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
+  const [importResult, setImportResult] = useState<ImportResult | null>(
+    (location.state as { importResult?: ImportResult } | null)?.importResult ?? null,
+  )
   const [project, setProject] = useState<Editor2DProject | null>(null)
 
   // Editor State
@@ -66,6 +107,13 @@ function Editor() {
   // 2D→3D converter uses real values instead of guessed defaults.
   const [pixelsPerMetre, setPixelsPerMetre] = useState(DEFAULT_PIXELS_PER_METRE)
   const [wallHeight, setWallHeight] = useState(DEFAULT_WALL_HEIGHT_M)
+
+  // Trace layer (uploaded floor plan) + scale calibration.
+  const traceImage = useTraceImage(project?.floorPlanUrl)
+  const [showTrace, setShowTrace] = useState(true)
+  const [traceOpacity, setTraceOpacity] = useState(0.5)
+  const [calibration, setCalibration] = useState<CalibrationLine | null>(null)
+  const [calibrationMetres, setCalibrationMetres] = useState('')
 
   // Canvas View State
   const [stageScale, setStageScale] = useState(1)
@@ -264,9 +312,11 @@ function Editor() {
     // Clear selection so handles/colors don't export
     setSelectedElementId(null)
     
-    // Reset view for export
+    // Reset view for export; the trace image is reference only, not part of the plan.
     stage.scale({ x: 1, y: 1 })
     stage.position({ x: 0, y: 0 })
+    const trace = stage.findOne('.trace-image')
+    trace?.hide()
     
     try {
       const dataURL = stage.toDataURL({
@@ -285,6 +335,7 @@ function Editor() {
       document.body.removeChild(link)
     } finally {
       // Restore state
+      trace?.show()
       stage.scale({ x: oldScale, y: oldScale })
       stage.position(oldPosition)
       setSelectedElementId(oldSelected)
@@ -451,6 +502,13 @@ function Editor() {
       return
     }
 
+    if (activeTool === 'calibrate') {
+      setIsDrawing(true)
+      const snap = snapToWallPoints(logicalX, logicalY, elements)
+      setCalibration({ startX: snap.x, startY: snap.y, endX: snap.x, endY: snap.y })
+      return
+    }
+
     if (activeTool === 'wall') {
       setIsDrawing(true)
       const snap = snapToWallPoints(logicalX, logicalY, elements)
@@ -531,6 +589,12 @@ function Editor() {
 
     if (selectionBox) {
       setSelectionBox({ ...selectionBox, endX: logicalX, endY: logicalY })
+      return
+    }
+
+    if (isDrawing && activeTool === 'calibrate') {
+      const snap = snapToWallPoints(logicalX, logicalY, elements)
+      setCalibration(prev => (prev ? { ...prev, endX: snap.x, endY: snap.y } : prev))
       return
     }
 
@@ -635,6 +699,31 @@ function Editor() {
     setIsDrawing(false)
   }
 
+  const calibrationPx = calibration
+    ? Math.hypot(calibration.endX - calibration.startX, calibration.endY - calibration.startY)
+    : 0
+  const calibrationValue = Number(calibrationMetres)
+  const canApplyCalibration = calibrationPx >= 1 && calibrationValue > 0
+
+  const clearCalibration = () => {
+    setCalibration(null)
+    setCalibrationMetres('')
+  }
+
+  // Scale = measured pixels / real metres. Changing pixelsPerMetre triggers the
+  // canvas-v2 autosave, so the new scale is persisted with the drawing.
+  const applyCalibration = () => {
+    if (!canApplyCalibration) return
+    setPixelsPerMetre(Math.round((calibrationPx / calibrationValue) * 100) / 100)
+    clearCalibration()
+    setActiveTool('select')
+  }
+
+  const selectTool = (tool: Tool) => {
+    if (tool !== 'calibrate') clearCalibration()
+    setActiveTool(tool)
+  }
+
   const handleElementClick = (id: string) => {
     if (activeTool === 'delete') {
       updateElements(elements.filter(el => el.id !== id))
@@ -681,6 +770,24 @@ function Editor() {
               onChange={(e) => setWallHeight(Math.max(0.1, Number(e.target.value) || 0.1))}
             />
           </label>
+          {project.floorPlanUrl && (
+            <div className="trace-controls" title="Uploaded floor plan shown under the drawing">
+              <label className="trace-toggle">
+                <input type="checkbox" checked={showTrace} onChange={(e) => setShowTrace(e.target.checked)} />
+                Trace
+              </label>
+              <input
+                type="range"
+                min={0.1}
+                max={1}
+                step={0.05}
+                value={traceOpacity}
+                disabled={!showTrace}
+                onChange={(e) => setTraceOpacity(Number(e.target.value))}
+                aria-label="Trace image opacity"
+              />
+            </div>
+          )}
           <button className="topbar-btn" onClick={handleUndo} disabled={historyStep <= 0}>Undo</button>
           <button className="topbar-btn" onClick={handleRedo} disabled={historyStep >= history.length - 1}>Redo</button>
           <button className="topbar-btn" onClick={() => handleZoom(1.2)}>Zoom In</button>
@@ -692,15 +799,27 @@ function Editor() {
         </div>
       </div>
 
+      {importResult && (
+        <div className={`import-banner ${importResult.status === 'failed' ? 'import-banner-error' : ''}`}>
+          <span>
+            {importResult.status === 'completed'
+              ? `Detected ${importResult.wallCount} wall${importResult.wallCount === 1 ? '' : 's'} from your floor plan. Fix any mistakes against the trace image, add doors and windows, then use 📏 Calibrate to set the real-world scale.`
+              : `Wall detection failed (${importResult.error}). Your image is loaded as a trace layer, so you can draw over it.`}
+          </span>
+          <button className="import-banner-close" onClick={() => setImportResult(null)} aria-label="Dismiss">×</button>
+        </div>
+      )}
+
       <div className="editor-main">
         {/* Left Sidebar - Tools */}
         <div className="editor-sidebar left-sidebar">
-          <button className={`tool-btn ${activeTool === 'select' ? 'active' : ''}`} onClick={() => setActiveTool('select')}>🖱 Select</button>
-          <button className={`tool-btn ${activeTool === 'wall' ? 'active' : ''}`} onClick={() => setActiveTool('wall')}>🧱 Wall</button>
-          <button className={`tool-btn ${activeTool === 'door' ? 'active' : ''}`} onClick={() => setActiveTool('door')}>🚪 Door</button>
-          <button className={`tool-btn ${activeTool === 'window' ? 'active' : ''}`} onClick={() => setActiveTool('window')}>🪟 Window</button>
-          <button className={`tool-btn ${activeTool === 'label' ? 'active' : ''}`} onClick={() => setActiveTool('label')}>🏷 Label</button>
-          <button className={`tool-btn ${activeTool === 'delete' ? 'active' : ''}`} onClick={() => setActiveTool('delete')}>🗑 Delete</button>
+          <button className={`tool-btn ${activeTool === 'select' ? 'active' : ''}`} onClick={() => selectTool('select')}>🖱 Select</button>
+          <button className={`tool-btn ${activeTool === 'wall' ? 'active' : ''}`} onClick={() => selectTool('wall')}>🧱 Wall</button>
+          <button className={`tool-btn ${activeTool === 'door' ? 'active' : ''}`} onClick={() => selectTool('door')}>🚪 Door</button>
+          <button className={`tool-btn ${activeTool === 'window' ? 'active' : ''}`} onClick={() => selectTool('window')}>🪟 Window</button>
+          <button className={`tool-btn ${activeTool === 'label' ? 'active' : ''}`} onClick={() => selectTool('label')}>🏷 Label</button>
+          <button className={`tool-btn ${activeTool === 'delete' ? 'active' : ''}`} onClick={() => selectTool('delete')}>🗑 Delete</button>
+          <button className={`tool-btn ${activeTool === 'calibrate' ? 'active' : ''}`} onClick={() => selectTool('calibrate')} title="Set the real-world scale from a known length">📏 Calibrate</button>
         </div>
 
         {/* Center Canvas */}
@@ -773,6 +892,21 @@ function Editor() {
                 }
                 return gridLines
               })()}
+
+              {/* Uploaded floor plan, 1:1 with canvas pixels (reference only) */}
+              {traceImage && (
+                <KonvaImage
+                  name="trace-image"
+                  image={traceImage}
+                  x={0}
+                  y={0}
+                  width={traceImage.naturalWidth}
+                  height={traceImage.naturalHeight}
+                  opacity={traceOpacity}
+                  visible={showTrace}
+                  listening={false}
+                />
+              )}
 
               {/* Canvas border */}
               <Rect
@@ -1150,6 +1284,24 @@ function Editor() {
                 return null
               })}
 
+              {/* Calibration reference line */}
+              {calibration && activeTool === 'calibrate' && (
+                <Group listening={false}>
+                  <Line
+                    points={[calibration.startX, calibration.startY, calibration.endX, calibration.endY]}
+                    stroke="#f59e0b"
+                    strokeWidth={3}
+                    dash={[10, 6]}
+                  />
+                  <Circle x={calibration.startX} y={calibration.startY} radius={6} fill="#f59e0b" />
+                  <Circle x={calibration.endX} y={calibration.endY} radius={6} fill="#f59e0b" />
+                  <Label x={(calibration.startX + calibration.endX) / 2} y={(calibration.startY + calibration.endY) / 2 - 30}>
+                    <Tag fill="#f59e0b" cornerRadius={4} />
+                    <Text text={`${Math.round(calibrationPx)} px`} fontSize={14} padding={4} fill="#ffffff" />
+                  </Label>
+                </Group>
+              )}
+
               {/* Marquee Selection Box */}
               {selectionBox && (
                 <Rect
@@ -1169,8 +1321,45 @@ function Editor() {
 
         {/* Right Sidebar - Properties */}
         <div className="editor-sidebar right-sidebar">
-          <h3>Properties</h3>
-          {selectedElement ? (
+          <h3>{activeTool === 'calibrate' ? 'Calibrate Scale' : 'Properties'}</h3>
+          {activeTool === 'calibrate' ? (
+            <div className="properties-panel">
+              <p className="calibrate-help">
+                Drag along something whose real length you know (e.g. a wall with a dimension on the plan), then enter that length.
+              </p>
+              <div className="prop-row">
+                <span>Measured</span>
+                <span>{calibrationPx >= 1 ? `${Math.round(calibrationPx)} px` : '—'}</span>
+              </div>
+              <div className="prop-row">
+                <label>Real length (m)</label>
+                <input
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  value={calibrationMetres}
+                  disabled={calibrationPx < 1}
+                  onChange={(e) => setCalibrationMetres(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') applyCalibration()
+                  }}
+                />
+              </div>
+              {canApplyCalibration && (
+                <div className="prop-row">
+                  <span>New scale</span>
+                  <span>{(calibrationPx / calibrationValue).toFixed(2)} px/m</span>
+                </div>
+              )}
+              <button className="topbar-btn export-btn calibrate-apply" onClick={applyCalibration} disabled={!canApplyCalibration}>
+                Apply scale
+              </button>
+              <div className="prop-row">
+                <span>Current scale</span>
+                <span>{pixelsPerMetre} px/m</span>
+              </div>
+            </div>
+          ) : selectedElement ? (
             <div className="properties-panel">
               <div className="prop-row">
                 <span>ID:</span>

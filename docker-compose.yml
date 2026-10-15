@@ -14,7 +14,12 @@
 
 services:
   server:
-    build: ./server
+    build:
+      context: ./server
+      # The converter loads the JSON Schemas in /contracts at startup
+      # (services/converter/validate.ts); they live outside ./server.
+      additional_contexts:
+        contracts: ./contracts
     ports:
       - "5001:5001"
     env_file:

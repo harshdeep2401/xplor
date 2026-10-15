@@ -42,16 +42,25 @@ hatch.
 
 ---
 
-## 3. Image Detection Compute *(Path B — future)*
+## 3. Image Detection Compute *(Path B)*
 
-The GPU cost only appears when image detection ships. Until then, everything runs CPU-only on the free
-tier above.
+**Training and inference have different needs.** Training a detection model needs a GPU (a local NVIDIA
+machine). **Inference** on one floor plan at a time is light: a U-Net-class model runs in roughly seconds
+on CPU, so the default is to **run detection CPU-only inside the AI-service container**, preferably by
+exporting the model to **ONNX** and serving it with `onnxruntime` (small image, same file on every OS).
+The current OpenCV heuristic is CPU-only already. A GPU host is only needed if CPU latency proves too slow
+for the synchronous upload call (see `02` Module 5):
 
 - **Platform:** local NVIDIA GPU + Docker + **Cloudflare Tunnels** (`cloudflared`).
 - **Why:** cloud GPU (e.g. EC2 G4/G5) costs hundreds/month; a tunnel exposes owned hardware securely.
 - **Workflow:** the FastAPI detection service loads CV models into local VRAM → `cloudflared` opens a
-  secure outbound tunnel → the Express backend calls it → results (a `canvas` payload) are written back
-  and any artifacts uploaded to R2.
+  secure outbound tunnel → the Express backend calls it → results (a `detection-v1` payload, bridged to
+  `canvas-v2` by the API) are written back and any artifacts uploaded to R2.
+
+**Container build note.** The API image needs the shared `contracts/` JSON Schemas at runtime (the
+converter loads them on startup). They sit outside `./server`, so `docker-compose.yml` passes them as an
+extra build context (`additional_contexts: contracts`, Compose ≥ 2.17) and the Dockerfile copies them to
+`/contracts`. A standalone build needs `docker build --build-context contracts=./contracts server`.
 
 ---
 

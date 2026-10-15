@@ -3,6 +3,12 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '../config/db'
 import { processFloorPlan } from '../services/aiService'
 import { putObject, floorPlanKey } from '../services/storage'
+import {
+  detectionToCanvas,
+  validateCanvasV2,
+  validateDetectionV1,
+  formatErrors,
+} from '../services/converter'
 
 const createProject = async (req: Request, res: Response) => {
   try {
@@ -145,12 +151,13 @@ const deleteProject = async (req: Request<{ id: string }>, res: Response) => {
 }
 
 // POST /api/projects/:id/upload-floor-plan
-// multer (uploadMiddleware) has already written the file to disk by the
-// time this runs and populated req.file. This handler just:
-//   1. verifies the project exists and belongs to the caller
-//   2. records where the file landed (floorPlanUrl)
-//   3. creates a Job row (status: 'pending') that will later be picked up
-//      and sent to the FastAPI AI service
+// multer (uploadMiddleware) has buffered the file and populated req.file.
+// This handler:
+//   1. verifies the project exists, belongs to the caller, and is still empty
+//   2. stores the image (floorPlanUrl) and creates a Job
+//   3. calls the AI service; on success, validates the detection-v1 result and
+//      bridges it to canvas-v2 in project.canvas (sized to the image, so the
+//      2D editor can show the upload as a 1:1 trace layer)
 const uploadFloorPlan = async (req: Request<{ id: string }>, res: Response) => {
   try {
     if (!req.file) {
@@ -169,6 +176,13 @@ const uploadFloorPlan = async (req: Request<{ id: string }>, res: Response) => {
       return res.status(401).json({ message: 'Not authorized to modify this project' })
     }
 
+    // Detection replaces the whole canvas, so never run it over existing work.
+    if (hasDrawing(project.canvas)) {
+      return res.status(409).json({
+        message: 'Project already has a drawing. Import a floor plan into a new project instead.',
+      })
+    }
+
     // Persist the buffered upload via the storage module and get its public URL.
     // Local disk today → R2/S3 later, without touching this controller.
     const floorPlanUrl = await putObject({
@@ -177,7 +191,7 @@ const uploadFloorPlan = async (req: Request<{ id: string }>, res: Response) => {
       contentType: req.file.mimetype,
     })
 
-    const updatedProject = await prisma.project.update({
+    let updatedProject = await prisma.project.update({
       where: { id: project.id },
       data: { floorPlanUrl }
     })
@@ -196,8 +210,6 @@ const uploadFloorPlan = async (req: Request<{ id: string }>, res: Response) => {
         },
       }
     })
-
-    const responseProject = { ...updatedProject, _id: updatedProject.id }
 
     // Call the AI service synchronously and fold the result into the job
     // before responding. See ai-service/README.md for why this is sync
@@ -219,12 +231,29 @@ const uploadFloorPlan = async (req: Request<{ id: string }>, res: Response) => {
         floorPlanUrl,
       })
 
+      if (result.status === 'completed' && !validateDetectionV1(result.detection)) {
+        throw new Error(
+          `AI service returned invalid detection-v1: ${formatErrors(validateDetectionV1.errors)}`,
+        )
+      }
+
       if (result.status === 'completed') {
-        await prisma.scene.create({
+        const canvas = detectionToCanvas(result.detection, {
+          pixelsPerMetre: project.scalePixelsPerMeter,
+          wallHeight: project.defaultWallHeightM,
+        })
+        if (!validateCanvasV2(canvas)) {
+          throw new Error(`Bridged canvas failed canvas-v2: ${formatErrors(validateCanvasV2.errors)}`)
+        }
+
+        updatedProject = await prisma.project.update({
+          where: { id: project.id },
           data: {
-            projectId: project.id,
-            sceneData: result.detection,
-            metadata: result.metadata,
+            canvas: canvas as unknown as Prisma.InputJsonValue,
+            // Image pixels map 1:1 to canvas pixels.
+            ...(result.metadata?.imageWidth && result.metadata?.imageHeight
+              ? { canvasWidth: result.metadata.imageWidth, canvasHeight: result.metadata.imageHeight }
+              : {}),
           },
         })
 
@@ -250,8 +279,8 @@ const uploadFloorPlan = async (req: Request<{ id: string }>, res: Response) => {
         })
       }
     } catch (aiError) {
-      // Transport-level failure (service down, timeout, etc.) — same
-      // handling as a reported "failed" result above.
+      // Transport-level failure (service down, timeout, etc.) or an invalid
+      // detection — same handling as a reported "failed" result above.
       job = await prisma.job.update({
         where: { id: job.id },
         data: {
@@ -264,7 +293,7 @@ const uploadFloorPlan = async (req: Request<{ id: string }>, res: Response) => {
 
     res.status(201).json({
       message: 'Floor plan uploaded, job created',
-      project: responseProject,
+      project: { ...updatedProject, _id: updatedProject.id },
       job,
     })
   } catch (error) {
@@ -272,6 +301,15 @@ const uploadFloorPlan = async (req: Request<{ id: string }>, res: Response) => {
       message: (error as Error).message,
     })
   }
+}
+
+// True if a stored canvas (legacy {elements} or canvas-v2) has any content.
+function hasDrawing(canvas: unknown): boolean {
+  if (typeof canvas !== 'object' || canvas === null) return false
+  const c = canvas as Record<string, unknown>
+  return ['elements', 'walls', 'openings', 'labels'].some(
+    (key) => Array.isArray(c[key]) && (c[key] as unknown[]).length > 0,
+  )
 }
 
 export {

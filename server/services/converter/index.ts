@@ -6,7 +6,8 @@ import { validateCanvasV2, validateSceneV1, formatErrors } from './validate'
 export * from './types'
 export { normalizeCanvas, type CanvasDefaults } from './normalizeCanvas'
 export { convertToScene } from './convertToScene'
-export { validateCanvasV2, validateSceneV1 } from './validate'
+export { validateCanvasV2, validateSceneV1, validateDetectionV1, formatErrors } from './validate'
+export { detectionToCanvas } from './detectionToCanvas'
 
 // Thrown when the canvas going in or the scene coming out fails schema validation.
 export class ConverterError extends Error {

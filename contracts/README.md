@@ -12,13 +12,16 @@ read and write:
 |------|-------------------|-------------|-------------|
 | [`canvas-v2.schema.json`](./canvas-v2.schema.json) | Structured 2D floor-plan input (Path A) | 2D editor | the converter |
 | [`scene-v1.schema.json`](./scene-v1.schema.json) | Canonical 3D scene (source of truth) | the converter + 3D editor | GLB/VR render, storage |
+| [`detection-v1.schema.json`](./detection-v1.schema.json) | Walls/rooms/doors/windows detected in a floor-plan image (Path B) | AI service (`POST /process-floor-plan`) | the detection → canvas-v2 bridge |
 
 ## The pipeline these contracts sit in
 
 ```
-2D editor ──► canvas-v2 ──►  converter  ──► scene-v1 ──► GLB / VR (derived, regenerable)
-                          (deterministic)        ▲
-                                    3D editor ────┘  (enriches assets / lighting / materials)
+floor-plan image ──► detector ──► detection-v1 ──► bridge ──┐
+                  (AI service)                              ▼
+2D editor ───────────────────────────────────────────► canvas-v2 ──►  converter  ──► scene-v1 ──► GLB / VR (derived, regenerable)
+                                                                   (deterministic)        ▲
+                                                                             3D editor ────┘  (enriches assets / lighting / materials)
 ```
 
 The **scene is canonical; GLB and VR are derived** and can always be regenerated from it
@@ -34,14 +37,19 @@ version tag (`canvas-v2` → `canvas-v3`), never mutate a schema in place.
 - **scene-v1** — everything is in **metres**, right-handed **Y-up** (x = right, y = up,
   z = depth). The floor is `y = 0`. A canvas point `(px_x, px_y)` maps to floor
   `(px_x / pixelsPerMetre, px_y / pixelsPerMetre)` as `(x, z)`.
+- **detection-v1** — everything is in **source-image pixels** (origin top-left, +y
+  downward). No real-world scale is applied; the bridge supplies it when producing
+  canvas-v2. Walls are **centre-line segments** (two endpoints + `thickness`), never
+  bounding boxes. Doors/windows are a **centre point** + `width` and get snapped to the
+  nearest wall within 60 px; anything farther is dropped.
 - Doors and windows are **parametric**: attached to a wall by id and positioned by a
   normalized offset along it (0 = start, 1 = end) — never free x/y. This is what makes the
   2D→3D conversion well-defined.
 
-## Relationship to what the editor emits *today* (important)
+## Legacy canvas-v1 (still accepted on read)
 
-The current 2D editor does **not** yet emit `canvas-v2`. It persists a bespoke flat shape —
-call it *canvas-v1* — inside `project.canvas`:
+The 2D editor **emits `canvas-v2`** (autosave via `client/src/editor/canvas/canvasV2.ts`). Older projects
+may still hold the original flat shape — *canvas-v1* — in `project.canvas`:
 
 ```jsonc
 { "elements": [
@@ -52,23 +60,26 @@ call it *canvas-v1* — inside `project.canvas`:
 ] }
 ```
 
-Key gaps `canvas-v2` closes, and which the **converter / editor-migration step (roadmap 2.2)**
-is responsible for bridging:
+`normalizeCanvas` (server converter) migrates it to `canvas-v2` — filling in the project's scale/wall
+height and snapping free-xy doors/windows to the nearest wall — and passes `canvas-v2` through unchanged.
+The detection bridge reuses the same path. 3D edits are saved as versioned `scene-v1` rows.
 
-- **no `scale`** — canvas-v1 has no px→metre factor; the editor must start capturing it.
-- **no `wallHeight`** — there is no 3D height anywhere in canvas-v1.
-- **free-xy openings** — doors carry raw `x/y/rotation` and only windows carry an
-  `attachedWallId`; `canvas-v2` makes *both* parametric (`wallId` + `offset`).
+## Validation
 
-Until that migration lands, `canvas-v2` is the **target** these live behind, not the wire
-format in the database. Don't assume stored `project.canvas` validates against `canvas-v2` yet.
+- **Node API** — Ajv (draft 2020-12) in `server/services/converter/validate.ts` compiles these files
+  directly: `canvas-v2` and `scene-v1` at both converter boundaries, and `detection-v1` on every AI-service
+  response before the bridge runs.
+- **Python AI service** — produces `detection-v1` through the Pydantic models in `Ai-service/app/schemas.py`;
+  the schema can be checked there with `jsonschema` (e.g. in tests or when integrating a new detector).
 
-Likewise, today's 3D "Save to Backend" stores glTF JSON inside `project.canvas` — a pragmatic
-shortcut that the versioned `scene-v1` supersedes in roadmap 2.3.
+These files are the single source; consumers load them rather than redefining the shape.
 
-## Validation (to be wired in the converter step)
+## detection-v1: the swappable detector seam
 
-- **Node API** — validate with a Zod-wrapped schema check (or Ajv) at every boundary.
-- **Python AI service** — validate with `jsonschema` against these same files.
-
-These files are the single source; both services load them rather than redefining the shape.
+`detection-v1` is the plug-and-play boundary for image detection. Any detector, whether the
+current OpenCV heuristic (`Ai-service/app/services/detector.py`) or a future trained
+model, must return this shape from `detect(image_bytes)`. Nothing downstream changes when
+the detector is swapped. The schema mirrors the Pydantic `DetectionResult` in
+`Ai-service/app/schemas.py`, and the two must be changed together. The companion
+`metadata` envelope (`method`, image size, timings, counts) is defined under
+`$defs/metadata`; set `method` to the detector's name.

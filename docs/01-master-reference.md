@@ -71,7 +71,7 @@ artifacts** — always regenerable from the scene. The formal JSON Schemas for t
 |------|-------|--------------|
 | 1 | **Entry** | User logs in → Dashboard. |
 | 2 | **Project Creation** | User creates a project. |
-| 3 | **2D Design** | User draws the layout in the native 2D editor **(Path A)** — or uploads a floor-plan image for detection **(Path B, future)**. Either way the result is a structured `canvas`. |
+| 3 | **2D Design** | User draws the layout in the native 2D editor **(Path A)** — or uploads a floor-plan image for detection **(Path B)**, then cleans up the detected walls over the uploaded image. Either way the result is a structured `canvas`. |
 | 4 | **Conversion** | The `canvas` is deterministically converted to a versioned `scene`. |
 | 5 | **3D Rendering** | The `scene` is rendered to a GLB mesh and loaded into the 3D editor. |
 | 6 | **3D Editing** | Add/remove furniture, move/scale/rotate, edit materials/colors, add lighting, use the asset library, get recommendations. |
@@ -103,7 +103,7 @@ XPLOR is composed of four cooperating parts. Each is specified in detail in
 - **Main API** — authentication, project management, scene/versioning, and job tracking. *(Billing is
   deferred — see §7.)*
 - **Render / AI service** — a stateless service that (a) renders a `scene` to a GLB mesh, and
-  (b, future) detects structure from a floor-plan image.
+  (b) detects structure from a floor-plan image.
 - **Data & storage** — a relational database (canonical records, JSONB scenes, the job queue) and blob
   storage (images, GLB meshes, VR outputs, asset files).
 

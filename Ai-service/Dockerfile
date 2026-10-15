@@ -8,9 +8,13 @@ RUN apt-get update \
 
 WORKDIR /app
 
-# Deps first for layer caching.
-COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+# uv (pinned) installs the exact locked dependency set.
+COPY --from=ghcr.io/astral-sh/uv:0.9.21 /uv /usr/local/bin/uv
+
+# Deps first for layer caching. --frozen fails the build if uv.lock is stale.
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-cache
+ENV PATH="/app/.venv/bin:$PATH"
 
 COPY app ./app
 

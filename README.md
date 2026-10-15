@@ -24,8 +24,9 @@ on top only once the deterministic core is solid.
 xplor/
 ├── client/       React 19 + Vite — 2D editor (Konva) and 3D editor (Three.js / React Three Fiber)
 ├── server/       Express 5 + Prisma — auth, projects, jobs; PostgreSQL (Neon)
-├── Ai-service/   FastAPI — floor-plan image detection (OpenCV)
-└── docs/         Foundational docs (01–05) + status-reports/
+├── Ai-service/   FastAPI — floor-plan image detection (OpenCV today; trained model planned), managed with uv
+├── contracts/    JSON Schemas shared by all services: canvas-v2, scene-v1, detection-v1
+└── docs/         Foundational docs (01–05), roadmap (06), status-reports/, reports/
 ```
 
 ## Tech stack
@@ -36,15 +37,17 @@ xplor/
 | Main API     | Node 20+, Express 5, Prisma |
 | Database     | PostgreSQL (Neon) |
 | Auth         | Firebase Authentication + Firebase Admin + application JWT + bcrypt |
-| AI service   | FastAPI, OpenCV, NumPy |
+| AI service   | Python 3.12, FastAPI, OpenCV, NumPy (deps via uv) |
 | Blob storage | Local disk today; Cloudflare R2 planned (see `docs/03`) |
 
 ---
 
 ## Getting started
 
-Each service is run independently. You need **Node 20+**, **Python 3.10+**, and access to a PostgreSQL
-database (Neon or local). None of the `.env` files are committed — create them from the notes below
+Each service is run independently. You need **Node 20+**, **[uv](https://docs.astral.sh/uv/)** (it
+installs Python 3.12 for you), and access to a PostgreSQL database (Neon or local). Works on macOS,
+Windows and Linux — see `docs/05-development-guidelines.md` §10 for cross-platform notes (on Windows, run
+`server`'s `npm test` from Git Bash or WSL). None of the `.env` files are committed — create them from the notes below
 (and from `Ai-service/.env.example`).
 
 ### 1. Database (Prisma / Neon)
@@ -95,15 +98,27 @@ npm run dev                 # Vite → http://localhost:5173
 npm run build               # production build
 ```
 
-### 4. AI service (`Ai-service/`) — optional for the core flow
+### 4. AI service (`Ai-service/`) — needed for Import Floor Plan
 
 ```bash
 cd Ai-service
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env        # then edit as needed
-uvicorn app.main:app --reload --port 8000   # health check: GET /health
+uv sync                     # creates .venv (Python 3.12) from pyproject.toml + uv.lock
+cp .env.example .env        # optional; defaults work for local dev
+uv run uvicorn app.main:app --reload --port 8000   # health check: GET /health
+# add a dependency: uv add <package>   (updates pyproject.toml + uv.lock)
 ```
+
+The draw → 3D flow works without it; the dashboard's **Import Floor Plan** needs it running.
+
+### 5. Or run the backend in Docker
+
+```bash
+docker compose up --build   # API on :5001 + AI service on :8000; reads server/.env
+docker compose ps           # both should be healthy
+```
+
+Run the client on the host (`cd client && npm run dev`). Needs Docker Compose ≥ 2.17 (the API image
+pulls `contracts/` in through an extra build context — see `docs/03` §3).
 
 ---
 
