@@ -10,10 +10,10 @@
 - **Nature of this update:** **Phase 3b largely done** — the trained MiT-B3 U-Net replaces the OpenCV
   heuristic (PyTorch on the GPU machine, mask → vector post-processing), with an evaluation script that
   scores it far above the heuristic. Plan change: **no ONNX**; the model runs in PyTorch on the team's GPU
-  PC, which will serve it to the cloud-hosted API **through a tunnel** (3b.5, next). All development is
-  now on Windows. *(Previous update, earlier 2026-10-16: Phase 3 complete.)*
-- **Phase status:** Phase 0 ✅ · Phase 1 ✅ · Phase 2 ✅ · Phase 3 ✅ · **Phase 3b 🟡** (model integrated
-  + evaluated; tunnel + GPU Docker remaining) · **next: Phase 4** (UX foundation).
+  PC and is served to a cloud-hosted API **through a Cloudflare Tunnel** with a shared secret (3b.5,
+  verified end to end). All development is now on Windows. *(Previous update, earlier 2026-10-16: Phase 3 complete.)*
+- **Phase status:** Phase 0 ✅ · Phase 1 ✅ · Phase 2 ✅ · Phase 3 ✅ · **Phase 3b 🟡** (model integrated,
+  evaluated, and remotely hostable; real-world images later) · **next: Phase 4** (UX foundation).
 
 ---
 
@@ -51,9 +51,9 @@ foundational docs as *deferred*, not deleted. **VR** stays a deferred stub. See 
 |-------|-------|-------|
 | **Frontend** | Working, **100% TypeScript (strict)** | React 19 + Vite; 2D Konva editor + 3D R3F editor; build gates on `tsc`. **Import Floor Plan** flow, trace layer and Calibrate tool added (Phase 3). **UI is split-brain** (plain-CSS pages vs Tailwind 3D editor) and has **no notification surface** beyond the import banner. |
 | **Backend API** | Working, **100% TypeScript (strict)**, runs on `tsx` | Express 5 + Prisma; auth, projects, jobs, convert, scene versioning, GLB retention. Verified against Neon + Firebase. |
-| **AI service** | **Working, trained model, runtime-verified** | FastAPI (`POST /process-floor-plan`) emitting `detection-v1` from the **trained MiT-B3 U-Net** (PyTorch, CUDA 12.6 build; ~0.25 s per plan on the GPU incl. vectorization) — walls, doors, windows, rooms. 503 with a reason when the model can't load (no fallback). Managed with **uv**; 11 pytest tests. Not yet reachable remotely (tunnel: 3b.5). |
+| **AI service** | **Working, trained model, runtime-verified** | FastAPI (`POST /process-floor-plan`) emitting `detection-v1` from the **trained MiT-B3 U-Net** (PyTorch, CUDA 12.6 build; ~0.25 s per plan on the GPU incl. vectorization) — walls, doors, windows, rooms. 503 with a reason when the model can't load (no fallback). Takes the image in the request (multipart) and requires `Authorization: Bearer <FASTAPI_SECRET>`. Managed with **uv**; 20 pytest tests. Hostable from the GPU PC via `Ai-service/compose.host.yml` (GPU container + Cloudflare quick tunnel), verified end to end. |
 | **Database** | Working | Neon Postgres; `Asset`/`UserAsset`/`Scene`/`Job` tables present. Migration-history baseline outstanding (§8). |
-| **Infra** | Foundation in place; **Docker stack unverified since Phase 2** | Docker (server + AI) + compose + CI (Phase 1); storage seam + health endpoints + env config (Phase 0). The server image was missing `contracts/` (fixed via a compose build context) but has not been rebuilt yet; the AI image now carries PyTorch and needs a GPU variant + mounted weights (3b.5). CI now runs the AI tests too. Uploads still local-disk behind the seam. |
+| **Infra** | Foundation in place; **Docker stack unverified since Phase 2** | Docker (server + AI) + compose + CI (Phase 1); storage seam + health endpoints + env config (Phase 0). The server image was missing `contracts/` (fixed via a compose build context) but has not been rebuilt yet; the AI image (PyTorch + CUDA, ~11 GB, weights mounted, non-root) is built and verified on the GPU via `compose.host.yml`; the root `docker-compose.yml` stack (server + AI) is still to be run end to end. CI now runs the AI tests too. Uploads still local-disk behind the seam. |
 
 ### 2.2 What works (the deterministic draw→3D spine)
 
@@ -76,10 +76,10 @@ foundational docs as *deferred*, not deleted. **VR** stays a deferred stub. See 
 
 ### 2.3 The honest gaps (what this roadmap targets)
 
-1. **Detection is good but not remote-ready.** The trained model finds walls, doors and windows (see the
-   Phase 3b report for scores); remaining errors are model-level (balcony railings as walls/wide windows,
-   occasional furniture outlines as walls). The AI service can't yet be reached securely from a cloud API.
-   *(Phase 3b.5.)*
+1. **Detection is good; hosting is single-PC.** The trained model finds walls, doors and windows (see
+   the Phase 3b report for scores); remaining errors are model-level (balcony railings as walls/wide
+   windows, occasional furniture outlines as walls). It is served from one PC through a quick tunnel whose
+   URL changes on restart until a domain + named tunnel exist. *(Phase 3b.5/3b.6.)*
 2. **UI is split-brain and gives no feedback.** Two visual identities, no shared primitives, and **every
    failure is a silent `console.error`** (no toast system). *(Phase 4.)*
 3. **Obvious editor features missing.** 2D shows **pixels not metres**, and multi-select can only be
@@ -156,7 +156,7 @@ Convert to 3D produces a scene; a golden `DetectionResult → canvas-v2` unit te
 | 3b.2 | **Integrate the trained U-Net** — **PyTorch** (not ONNX) in the AI service + **mask → vector** post-processing | ✅ `segmenter.py` (MiT-B3 U-Net, same preprocessing as training, GPU when available) + `vectorize.py` (skeleton graph → straight, connected, axis-snapped walls with measured thickness; door/window centres + widths; room polygons). |
 | 3b.3 | **Detector selection by config** — `DETECTOR=unet` (default) / `opencv` | ✅ No `hybrid` and **no automatic fallback**: if the model can't load, the service answers 503 with the reason. |
 | 3b.4 | ~~Heuristic improvements~~ | Dropped — the model replaced the heuristic. |
-| 3b.5 | **Remote AI host** — serve the model from the GPU PC to a cloud API through a Cloudflare Tunnel | ⏳ Next: shared-secret auth on the AI service; Node **sends the image bytes** instead of the AI service fetching a URL; GPU Docker image (weights mounted, not baked) with `cloudflared` alongside and the AI port not published; quick tunnel now, named tunnel once a domain exists; step-by-step setup doc. |
+| 3b.5 | **Remote AI host** — serve the model from the GPU PC to a cloud API through a Cloudflare Tunnel | ✅ Shared-secret auth (middleware, before the body is read; 401/413/503); Node **sends the image bytes** (multipart) — the AI service no longer fetches URLs; GPU Docker image (weights mounted, non-root, no published port) + `cloudflared` in `Ai-service/compose.host.yml`; quick tunnel now, named tunnel switchable via `COMPOSE_PROFILES` + `TUNNEL_TOKEN`; guide `docs/guides/ai-hosting.md`. Verified through a live quick tunnel. |
 | 3b.6 | *(Later)* **Real-world test images** — non-CubiCasa plans and real phone photos | The model was only scored on CubiCasa5K (Finnish plans, simulated photos). |
 
 **Result (400 test plans):** wall F1 **0.953** vs 0.470 for the heuristic; door / window F1 **0.92 /
@@ -164,7 +164,7 @@ Convert to 3D produces a scene; a golden `DetectionResult → canvas-v2` unit te
 
 **Exit criteria:** ✅ the evaluation script runs locally; ✅ the model beats the heuristic on it;
 ✅ `detect()` returns valid `detection-v1`; ✅ typical imports form closed rooms without manual welding;
-⏳ a cloud-hosted API can use the model securely over the tunnel.
+✅ a remote API can use the model securely over the tunnel.
 
 ### Phase 4 — UX Foundation & Visual Unification  *(polish, structural first)*
 **Goal:** the app feels like one finished product, and every failure is visible.
@@ -237,9 +237,9 @@ VR/WebXR preview (keep the stub), template-based generation, AI copilot. Revisit
 
 ## 6. Immediate Next Step
 
-1. **Phase 3b.5 — remote AI host:** shared-secret auth, image bytes sent by Node, GPU Docker image +
-   `cloudflared`, verify the Docker stack end to end, and write the tunnel setup guide.
-2. **Phase 4** in parallel: toast system first.
+1. **Phase 4:** toast system first.
+2. Run the root `docker-compose.yml` stack (server + AI) end to end; deploy the server and point it at the
+   tunnel; get a domain for a permanent (named) tunnel.
 3. Later: real-world test images (3b.6); tune the vectorizer where the evaluation shows losses (rooms that
    don't close even from ground truth).
 

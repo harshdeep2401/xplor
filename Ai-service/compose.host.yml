@@ -1,0 +1,69 @@
+# Serve the AI service from THIS PC to a cloud-hosted API, through a
+# Cloudflare Tunnel. Step-by-step guide: docs/guides/ai-hosting.md
+#
+#   cd Ai-service
+#   docker compose -f compose.host.yml up -d --build      # start (and on every boot, automatically)
+#   docker compose -f compose.host.yml logs tunnel        # find the https://….trycloudflare.com URL
+#   docker compose -f compose.host.yml ps                 # both should be "healthy" / "running"
+#   docker compose -f compose.host.yml down               # stop
+#
+# Security:
+#   - The AI service publishes NO port: the only way in is the tunnel.
+#   - Every detection request must carry FASTAPI_SECRET (Ai-service/.env).
+#   - The API docs (/docs) are turned off.
+#   - Weights are mounted read-only; the container runs as a non-root user.
+
+name: xplor-ai-host
+
+services:
+  ai-service:
+    build: .
+    env_file:
+      - path: ./.env
+        required: true
+    environment:
+      ENABLE_DOCS: "false"
+    volumes:
+      - ./Model:/app/Model:ro
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    restart: unless-stopped
+    healthcheck:
+      # 503 (model or secret missing) counts as unhealthy.
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+
+  # Which tunnel runs is chosen by COMPOSE_PROFILES in Ai-service/.env:
+  #   quick-tunnel  no Cloudflare account needed, but the URL changes every
+  #                 time the container restarts (then update
+  #                 FASTAPI_WEBHOOK_URL on the server)
+  #   named-tunnel  a fixed URL on your own domain; needs TUNNEL_TOKEN
+  #                 (docs/guides/ai-hosting.md, "Permanent URL")
+  tunnel:
+    profiles: ["quick-tunnel"]
+    image: cloudflare/cloudflared:2026.9.3
+    command: tunnel --no-autoupdate --url http://ai-service:8000
+    restart: unless-stopped
+    depends_on:
+      ai-service:
+        condition: service_healthy
+
+  named-tunnel:
+    profiles: ["named-tunnel"]
+    image: cloudflare/cloudflared:2026.9.3
+    command: tunnel --no-autoupdate run
+    environment:
+      # From Ai-service/.env (compose reads it for ${...} values).
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN:-}
+    restart: unless-stopped
+    depends_on:
+      ai-service:
+        condition: service_healthy

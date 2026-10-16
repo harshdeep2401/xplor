@@ -4,7 +4,7 @@ Detector entry point: image bytes -> (detection-v1 result, metadata).
 DETECTOR picks the implementation (app/config.py):
   - "unet": the trained segmenter (segmenter.py) + mask vectorization
     (vectorize.py). The default.
-  - "opencv": the classical heuristic (opencv_detector.py), for comparison.
+  - "opencv": the classical heuristic (opencv_detecter.py), for comparison.
 
 Callers (the router) check ready() first and turn ModelUnavailable into
 HTTP 503; there is deliberately no automatic fallback between detectors.
@@ -17,7 +17,7 @@ import numpy as np
 
 from app.config import settings
 from app.schemas import DetectionMetadata, DetectionResult
-from app.services import opencv_detector
+from app.services import opencv_detecter
 from app.services.errors import ModelUnavailable  # noqa: F401  (re-exported for the router)
 
 if settings.detector == "unet":
@@ -68,7 +68,7 @@ def decode_image(image_bytes: bytes) -> np.ndarray:
 def detect(image_bytes: bytes) -> tuple[DetectionResult, DetectionMetadata]:
     img = decode_image(image_bytes)
     if settings.detector == "opencv":
-        return opencv_detector.detect(img)
+        return opencv_detecter.detect(img)
     return _detect_unet(img)
 
 

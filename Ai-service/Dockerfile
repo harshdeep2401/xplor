@@ -1,4 +1,9 @@
 # XPLOR AI service (FastAPI floor-plan detection), served by uvicorn.
+#
+# Includes PyTorch with CUDA 12.6 (from uv.lock): uses an NVIDIA GPU when the
+# container is given one (compose.host.yml / docker-compose.gpu.yml), the CPU
+# otherwise. The model weights are NOT in the image: mount them at
+# /app/Model (compose does this from Ai-service/Model).
 FROM python:3.12-slim
 
 # opencv-python-headless still links libglib at import time.
@@ -6,6 +11,8 @@ RUN apt-get update \
   && apt-get install -y --no-install-recommends libglib2.0-0 \
   && rm -rf /var/lib/apt/lists/*
 
+# Run as an unprivileged user, not root.
+RUN useradd --create-home --uid 10001 app
 WORKDIR /app
 
 # uv (pinned) installs the exact locked dependency set.
@@ -18,6 +25,8 @@ RUN uv sync --frozen --no-dev --no-cache
 ENV PATH="/app/.venv/bin:$PATH"
 
 COPY app ./app
+RUN mkdir -p /app/Model && chown -R app:app /app/Model
+USER app
 
 EXPOSE 8000
 

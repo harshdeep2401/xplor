@@ -1,10 +1,11 @@
 import logging
+from typing import Annotated, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from starlette.concurrency import run_in_threadpool
 
-from app.schemas import FloorPlanRequest, FloorPlanResponse
-from app.services.image_fetcher import fetch_image_bytes, ImageFetchError
+from app.config import settings
+from app.schemas import FloorPlanResponse
 from app.services import detector
 
 logger = logging.getLogger("xplor.ai_service")
@@ -13,10 +14,18 @@ router = APIRouter()
 
 
 @router.post("/process-floor-plan", response_model=FloorPlanResponse)
-async def process_floor_plan(payload: FloorPlanRequest) -> FloorPlanResponse:
+async def process_floor_plan(
+    jobId: Annotated[str, Form()],
+    image: Annotated[UploadFile, File(description="The floor-plan image (PNG/JPG/WEBP)")],
+    projectId: Annotated[Optional[str], Form()] = None,
+) -> FloorPlanResponse:
     """
-    Sync contract: Node sends {jobId, floorPlanUrl, projectId?} and awaits
-    this response directly (no queue/webhook yet — see README for why).
+    Sync contract: Node sends multipart/form-data {jobId, projectId?, image}
+    with "Authorization: Bearer <FASTAPI_SECRET>" (checked by
+    app.security before this runs) and awaits this response directly.
+
+    The image travels in the request, so this service never needs to reach
+    the Node server (it can sit behind a tunnel on another machine).
 
     On success: status="completed", detection populated.
     On failure: status="failed", error populated, detection=None.
@@ -28,11 +37,14 @@ async def process_floor_plan(payload: FloorPlanRequest) -> FloorPlanResponse:
     if not ready:
         raise HTTPException(status_code=503, detail=f"Floor-plan detection is unavailable: {error}")
 
-    try:
-        image_bytes = await fetch_image_bytes(payload.floorPlanUrl)
-    except ImageFetchError as exc:
-        logger.warning("Job %s: image fetch failed: %s", payload.jobId, exc)
-        return FloorPlanResponse(jobId=payload.jobId, status="failed", error=str(exc))
+    image_bytes = await image.read(settings.max_image_bytes + 1)
+    if not image_bytes:
+        return FloorPlanResponse(jobId=jobId, status="failed", error="Uploaded image is empty")
+    if len(image_bytes) > settings.max_image_bytes:
+        return FloorPlanResponse(
+            jobId=jobId, status="failed",
+            error=f"Image is larger than {settings.max_image_bytes:,} bytes",
+        )
 
     try:
         # Model inference and vectorization are CPU/GPU-bound; run them off
@@ -41,16 +53,16 @@ async def process_floor_plan(payload: FloorPlanRequest) -> FloorPlanResponse:
     except detector.ModelUnavailable as exc:
         raise HTTPException(status_code=503, detail=f"Floor-plan detection is unavailable: {exc}")
     except ValueError as exc:
-        logger.warning("Job %s: detection failed: %s", payload.jobId, exc)
-        return FloorPlanResponse(jobId=payload.jobId, status="failed", error=str(exc))
+        logger.warning("Job %s: detection failed: %s", jobId, exc)
+        return FloorPlanResponse(jobId=jobId, status="failed", error=str(exc))
 
     logger.info(
         "Job %s: detected %d walls, %d rooms in %dms",
-        payload.jobId, metadata.wallCount, metadata.roomCount, metadata.processingTimeMs,
+        jobId, metadata.wallCount, metadata.roomCount, metadata.processingTimeMs,
     )
 
     return FloorPlanResponse(
-        jobId=payload.jobId,
+        jobId=jobId,
         status="completed",
         detection=result,
         metadata=metadata,

@@ -78,7 +78,7 @@ These files are the single source; consumers load them rather than redefining th
 
 `detection-v1` is the plug-and-play boundary for image detection. Any detector, whether the
 trained segmentation model (`Ai-service/app/services/segmenter.py` + `vectorize.py`) or the
-OpenCV heuristic (`opencv_detector.py`), must return this shape from `detect(image_bytes)`. Nothing downstream changes when
+OpenCV heuristic (`opencv_detecter.py`), must return this shape from `detect(image_bytes)`. Nothing downstream changes when
 the detector is swapped. The schema mirrors the Pydantic `DetectionResult` in
 `Ai-service/app/schemas.py`, and the two must be changed together. The companion
 `metadata` envelope (`method`, image size, timings, counts) is defined under

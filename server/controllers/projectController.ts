@@ -228,7 +228,9 @@ const uploadFloorPlan = async (req: Request<{ id: string }>, res: Response) => {
       const result = await processFloorPlan({
         jobId: job.id,
         projectId: project.id,
-        floorPlanUrl,
+        image: req.file.buffer,
+        filename: req.file.originalname,
+        mimeType: req.file.mimetype,
       })
 
       if (result.status === 'completed' && !validateDetectionV1(result.detection)) {

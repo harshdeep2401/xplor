@@ -9,7 +9,7 @@
   **Not covered:** a browser click-through of the import flow with the new model, the Docker stack, CI
   (nothing pushed yet), real-world photos.
 - **Git state:** branch `AIservice` @ `fde4080` + **uncommitted** changes described below (the developer
-  commits; the old `detector.py` → `opencv_detector.py` rename is already staged via `git mv`).
+  commits).
 
 ---
 
@@ -24,7 +24,8 @@ downstream change was needed. Doors and windows are detected for the first time.
 On the CubiCasa5K test split the model is far ahead of the heuristic on every measure (§3). It runs in
 **PyTorch on the GPU** (~80 ms for the network, ~0.25 s per plan including vectorization).
 
-**Overall:** 🟢 detection quality · 🟡 remote hosting (tunnel) not built yet · ⚪ Docker unverified.
+**Overall:** 🟢 detection quality · 🟢 remote hosting over a tunnel (verified) · 🟡 root Docker stack
+not yet run end to end.
 
 ---
 
@@ -44,7 +45,7 @@ On the CubiCasa5K test split the model is far ahead of the heuristic on every me
   Thresholds scale with the measured wall thickness.
 - **`app/services/detector.py`** — decodes the image (transparent PNGs flattened on white, EXIF
   orientation applied, 50 MP cap against decompression bombs) and dispatches on `DETECTOR`
-  (`unet` default, `opencv` for comparison). The heuristic moved to `opencv_detector.py`.
+  (`unet` default, `opencv` for comparison). The heuristic moved to `opencv_detecter.py`.
 - **Availability:** if the model can't load, `/health` and `/process-floor-plan` return **503** with the
   reason — no fallback. Error text avoids local paths (it may travel over the tunnel later).
   Detection runs in a worker thread so `/health` stays responsive.
@@ -60,7 +61,30 @@ On the CubiCasa5K test split the model is far ahead of the heuristic on every me
 
 ### CI / infra
 - CI: server job on Node 22; AI-service job uses uv 0.12.24 and runs `pytest` (downloads CUDA torch).
-- AI `Dockerfile`: uv 0.12.24, `--no-dev`. GPU variant + mounted weights still to do (roadmap 3b.5).
+- AI `Dockerfile`: uv 0.12.24, `--no-dev`, non-root user, weights **mounted** at `/app/Model` (not in
+  the image; `.dockerignore` excludes `Model/`). Image ~11 GB (CUDA PyTorch); first build ~25 min.
+- Root `docker-compose.yml`: AI weights mounted, `FASTAPI_SECRET` from both `.env` files, ports bound to
+  `127.0.0.1`; `docker-compose.gpu.yml` add-on gives the AI service the GPU.
+
+### Remote hosting (roadmap 3b.5)
+- **Auth:** `app/security.py` — every request except `/` and `/health` needs
+  `Authorization: Bearer <FASTAPI_SECRET>` (≥ 32 chars, constant-time compare), checked in middleware
+  **before the body is read**; oversized uploads refused from `Content-Length` (413); no/weak secret →
+  503. CORS middleware removed (server-to-server only). `ENABLE_DOCS` turns `/docs` off for hosting.
+- **Image in the request:** `/process-floor-plan` now takes `multipart/form-data` (`jobId`, `projectId`,
+  `image`); `image_fetcher.py` and `NODE_UPLOADS_BASE_URL` are gone, so the AI service never calls the
+  API. `httpx` moved to dev dependencies; `python-multipart` added. Old `.env` keys are ignored.
+- **Server:** `aiService.ts` uploads the buffered file with the secret; errors stored on the Job never
+  include the AI service URL. `server/.env.example` documents `FASTAPI_SECRET` + `AI_SERVICE_TIMEOUT_MS`.
+  A new 43-character secret was generated into `server/.env` and `Ai-service/.env` on this PC.
+- **Hosting stack:** `Ai-service/compose.host.yml` — the AI container on the GPU (no published port,
+  `restart: unless-stopped`) + `cloudflared` 2026.9.3; `COMPOSE_PROFILES=quick-tunnel` (random
+  `*.trycloudflare.com` URL) or `named-tunnel` (+ `TUNNEL_TOKEN`). Guide: `docs/guides/ai-hosting.md`.
+- **Verified through a live quick tunnel:** `/health` 200 with `device: cuda`; no / wrong secret → 401;
+  `/docs` blocked; detection with the secret 200 in ~1.3 s round trip (~0.3 s on the PC); the server's
+  real `aiService.ts` called through the tunnel → `completed`, and → "HTTP 401: Missing or wrong API
+  key" with a wrong secret. The stack was stopped afterwards.
+- Tests: AI service **20** (auth, multipart upload, size limit, 503 cases added); server 20, `tsc` clean.
 
 ### Docs
 - `README.md` (model setup, `/health` states, Node 22+), `docs/01`–`05`, `contracts/README.md` updated for
@@ -109,8 +133,9 @@ Per-plan results: `Ai-service/eval/results/per_plan.csv` (gitignored; rerun to r
 
 | Item | Severity | Notes |
 |------|----------|-------|
-| Remote hosting (tunnel) | High | Roadmap 3b.5: shared secret, Node sends image bytes, GPU Docker + `cloudflared`, setup guide. Until then the AI service only works next to the API. |
-| Docker stack unverified | High | Unchanged since Phase 3; the AI image now also needs a GPU variant. |
+| Quick-tunnel URL changes on restart | Medium | Update the server's `FASTAPI_WEBHOOK_URL` after each restart until a domain + named tunnel exist. |
+| Root Docker stack not run end to end | Medium | The AI image is verified (`compose.host.yml`); `docker compose up` with the server image (contracts fix) still to run — needs the dev servers on :5001/:8000 stopped first. |
+| Dev services need a restart | Medium | The new `FASTAPI_SECRET` is only picked up when the API and AI dev servers restart. |
 | Browser check of import with the model | Medium | Pipeline verified via HTTP + the server bridge, not yet clicked through in the UI. |
 | Model-level errors | Medium | Balcony railings → walls or very wide windows; some furniture outlines → short walls. Fixable in the editor. |
 | Untested domains | Medium | Only CubiCasa5K (Finnish plans, simulated photos) scored; real photos later (3b.6). |
@@ -122,5 +147,5 @@ Per-plan results: `Ai-service/eval/results/per_plan.csv` (gitignored; rerun to r
 
 ## 5. Next
 
-Phase 3b.5 (remote AI host over a Cloudflare Tunnel) in parallel with Phase 4 (toast system → design
-tokens/shared primitives). See `docs/06-roadmap.md`.
+Phase 4 (toast system → design tokens/shared primitives); run the root Docker stack end to end; deploy
+the server against the tunnel. See `docs/06-roadmap.md`.

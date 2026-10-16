@@ -41,7 +41,7 @@ from PIL import Image
 SERVICE_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SERVICE_ROOT))
 
-from app.services import opencv_detector, segmenter, vectorize  # noqa: E402
+from app.services import opencv_detecter, segmenter, vectorize  # noqa: E402
 from app.services.detector import _detect_unet  # noqa: E402
 from app.services.vectorize import DOOR, ROOM, WALL, WINDOW  # noqa: E402
 
@@ -158,7 +158,7 @@ def main() -> None:
         for name in detectors:
             t0 = time.monotonic()
             if name == "opencv":
-                result, _ = opencv_detector.detect(img)
+                result, _ = opencv_detecter.detect(img)
             elif name == "unet":
                 result, _ = _detect_unet(img)
             else:

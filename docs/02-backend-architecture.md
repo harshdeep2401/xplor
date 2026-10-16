@@ -154,6 +154,14 @@ in place.
 - `POST /projects/:id/upload-floor-plan` stores the image, creates a `Job`, and calls the FastAPI service
   (`POST /process-floor-plan`), which returns a **`detection-v1`** result in image pixels. The call is
   synchronous today (bounded by `AI_SERVICE_TIMEOUT_MS`); it moves to the DB queue if detection gets slow.
+- **The image travels in the request** (`multipart/form-data`: `jobId`, `projectId`, `image`), so the AI
+  service never calls back into the API. It can therefore run on another machine — the GPU PC, behind a
+  Cloudflare Tunnel (`03` §3) — and needs no access to blob storage.
+- **Every call is authenticated** with a shared secret: `Authorization: Bearer <FASTAPI_SECRET>`, the same
+  value (≥ 32 characters) in both services' env. The AI service checks it (constant-time) in middleware
+  **before reading the body**, and refuses oversized uploads from their `Content-Length`; only `/` and
+  `/health` are public. Without a valid secret configured it reports 503. Error messages stored on the Job
+  never include the AI service's URL.
 - The Node API validates the result against `detection-v1`, then a deterministic **bridge**
   (`services/converter/detectionToCanvas.ts`) produces the **same `canvas-v2` contract** the 2D editor
   produces, so it plugs into Module 4 unchanged:
@@ -173,7 +181,7 @@ in place.
     traced into a graph of centre-line segments (spurs pruned, collinear pieces merged, near-axis walls
     snapped exactly horizontal/vertical, thickness from the distance transform); each door/window blob
     becomes a centre + width; each room region becomes a polygon.
-  - `opencv`: the classical heuristic (`opencv_detector.py`), for comparison runs only.
+  - `opencv`: the classical heuristic (`opencv_detecter.py`), for comparison runs only.
 - **Availability:** the model loads once at startup. If it can't (weights missing, GPU/driver problem),
   `/health` and `/process-floor-plan` answer **503** with the reason, and the import is recorded as failed
   with that message. There is **no silent fallback** to the heuristic.

@@ -2,17 +2,8 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 
-# ---------------------------------------------------------------------------
-# Request (Node -> FastAPI)
-# ---------------------------------------------------------------------------
-
-class FloorPlanRequest(BaseModel):
-    jobId: str
-    projectId: Optional[str] = None
-    # Either a relative path ("/uploads/floor-plans/...") or a full URL
-    # (once R2/S3 is introduced). See app/config.py for how relative paths
-    # are resolved.
-    floorPlanUrl: str
+# Request (Node -> FastAPI): multipart/form-data {jobId, projectId?, image},
+# declared as form fields on the route in app/routers/floor_plan.py.
 
 
 # ---------------------------------------------------------------------------

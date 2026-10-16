@@ -72,6 +72,7 @@ FIREBASE_PROJECT_ID=...                  # + the other FIREBASE_* admin vars
 FIREBASE_PRIVATE_KEY=...
 FIREBASE_CLIENT_EMAIL=...
 FASTAPI_WEBHOOK_URL=http://127.0.0.1:8000/process-floor-plan
+FASTAPI_SECRET=...                       # shared secret with the AI service (step 4)
 ```
 
 ```bash
@@ -108,17 +109,25 @@ The service runs the trained floor-plan model (card: `Ai-service/Model/ModelInfo
 ```bash
 cd Ai-service
 uv sync                     # creates .venv (Python 3.12); first run downloads PyTorch (~2.5 GB)
-cp .env.example .env        # optional; defaults work for local dev
+cp .env.example .env        # then set FASTAPI_SECRET (below)
 uv run uvicorn app.main:app --reload --port 8000
 uv run pytest               # tests (no weights needed)
 # add a dependency: uv add <package>   (updates pyproject.toml + uv.lock)
 ```
 
+**Shared secret (required).** The server authenticates every call to the AI service. Generate a value
+once and put the **same** string in `FASTAPI_SECRET` in both `Ai-service/.env` and `server/.env`
+(at least 32 characters), then restart both:
+
+```bash
+uv run python -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
 Check it at http://localhost:8000/health:
 - `{"status":"ok","device":"cuda"}` — ready, on the NVIDIA GPU (~0.1 s per plan).
 - `"device":"cpu"` — ready, no usable GPU (~1 s per plan). Fine for development.
-- HTTP **503** `"status":"unavailable"` — the model didn't load; `error` says why (usually the
-  weights file is missing). Imports then fail with that message; there is no silent fallback.
+- HTTP **503** `"status":"unavailable"` — `error` says why: usually the weights file is missing, or
+  `FASTAPI_SECRET` is unset/too short. Imports then fail with that message; there is no silent fallback.
 
 PyTorch is installed from the CUDA 12.6 build, which supports GPUs from the GTX 10xx / Pascal generation
 up to RTX 40xx and also runs on machines without an NVIDIA GPU. RTX 50xx cards need a newer CUDA build.
@@ -127,13 +136,24 @@ The draw → 3D flow works without the AI service; the dashboard's **Import Floo
 
 ### 5. Or run the backend in Docker
 
+Needs the same `server/.env`, `Ai-service/.env` and `Ai-service/Model/best.pt` as above.
+
 ```bash
-docker compose up --build   # API on :5001 + AI service on :8000; reads server/.env
+docker compose up --build                                                 # AI service on CPU
+docker compose -f docker-compose.yml -f docker-compose.gpu.yml up --build # AI service on the NVIDIA GPU
 docker compose ps           # both should be healthy
 ```
 
-Run the client on the host (`cd client && npm run dev`). Needs Docker Compose ≥ 2.17 (the API image
-pulls `contracts/` in through an extra build context — see `docs/03` §3).
+The API is on http://localhost:5001 and the AI service on :8000 (this PC only). Run the client on the
+host (`cd client && npm run dev`). Needs Docker Compose ≥ 2.17 (the API image pulls `contracts/` in
+through an extra build context — see `docs/03` §3). The first build downloads PyTorch with CUDA
+(several GB).
+
+### 6. Hosting the AI service for a cloud server
+
+When the server is deployed elsewhere, the AI service keeps running on the GPU PC and is reached through
+a Cloudflare Tunnel (`Ai-service/compose.host.yml`). Step-by-step guide:
+[`docs/guides/ai-hosting.md`](./docs/guides/ai-hosting.md).
 
 ---
 

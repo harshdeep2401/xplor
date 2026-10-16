@@ -168,7 +168,8 @@ The stack must work the same on macOS, Windows and Linux (CI and containers are 
 - **Set up from scratch on each machine** — never copy `node_modules/` or `.venv/` between machines or
   OSes (they contain platform-specific binaries). Run `npm ci` in `client/` and `server/`, and `uv sync`
   in `Ai-service/`.
-- **Secrets travel by hand, not git:** `server/.env`, `client/.env` (and optionally `Ai-service/.env`)
+- **Secrets travel by hand, not git:** `server/.env`, `client/.env` and `Ai-service/.env` (whose
+  `FASTAPI_SECRET` must match the server's)
   are gitignored; copy them securely or recreate them from the `.env.example` files.
 - **Model weights travel by hand, not git:** get `best.pt` from the project lead and put it at
   `Ai-service/Model/best.pt` (`*.pt` is gitignored). Without it the AI service runs but reports 503.
