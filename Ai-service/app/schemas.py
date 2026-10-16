@@ -59,7 +59,7 @@ class DetectionResult(BaseModel):
 
 
 class DetectionMetadata(BaseModel):
-    method: str  # "opencv-heuristic" | "mock"
+    method: str  # "unet-mitb3" | "opencv-heuristic"
     imageWidth: int
     imageHeight: int
     processingTimeMs: int
@@ -77,5 +77,8 @@ class FloorPlanResponse(BaseModel):
 
 
 class HealthResponse(BaseModel):
-    status: str = "ok"
+    status: str = "ok"  # "ok" | "unavailable" (then HTTP 503)
     service: str = "xplor-ai-service"
+    detector: Optional[str] = None  # "unet" | "opencv"
+    device: Optional[str] = None  # "cuda" | "cpu" once the model is loaded
+    error: Optional[str] = None  # why the service is unavailable

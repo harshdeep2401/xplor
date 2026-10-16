@@ -170,14 +170,19 @@ The stack must work the same on macOS, Windows and Linux (CI and containers are 
   in `Ai-service/`.
 - **Secrets travel by hand, not git:** `server/.env`, `client/.env` (and optionally `Ai-service/.env`)
   are gitignored; copy them securely or recreate them from the `.env.example` files.
+- **Model weights travel by hand, not git:** get `best.pt` from the project lead and put it at
+  `Ai-service/Model/best.pt` (`*.pt` is gitignored). Without it the AI service runs but reports 503.
+- **PyTorch comes from the CUDA 12.6 build** (`pyproject.toml` pins the index): it supports Pascal
+  (GTX 10xx) through RTX 40xx GPUs and falls back to CPU without an NVIDIA GPU. The first `uv sync`
+  downloads ~2.5 GB.
 - **Local uploads are machine-local:** `server/uploads/` (floor plans, GLBs) is not in git, so projects
   created on one machine show missing images/GLBs on another until storage moves to R2.
 - **Run commands:** API `npm run dev` (port 5001), client `npm run dev`, AI service
   `uv run uvicorn app.main:app --port 8000`, or everything backend via `docker compose up --build`.
+  Tests: `npm test` in `server/`, `uv run pytest` in `Ai-service/`.
 - **npm scripts must be shell-neutral.** npm runs scripts with `cmd.exe` on Windows, so POSIX shell syntax
-  (`$(…)`, `find`, `rm -rf`, `VAR=x cmd`) breaks there. Prefer Node-native flags or cross-platform tools.
-  *Known exception:* `server`'s `npm test` uses `$(find …)`; on Windows run it from Git Bash or WSL until
-  it is made portable.
+  (`$(…)`, `find`, `rm -rf`, `VAR=x cmd`) breaks there. Prefer Node-native flags or cross-platform tools
+  (e.g. `server`'s `npm test` passes a quoted glob to `node --test`, which needs Node ≥ 22).
 - **Casing and line endings:** keep import casing exact (see §4); let git normalize line endings rather
   than committing CRLF churn.
 - **Docker on Windows** uses Docker Desktop (WSL 2 backend). Compose must be ≥ 2.17 for the server's

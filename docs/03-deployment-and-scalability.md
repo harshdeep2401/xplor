@@ -44,16 +44,15 @@ hatch.
 
 ## 3. Image Detection Compute *(Path B)*
 
-**Training and inference have different needs.** Training a detection model needs a GPU (a local NVIDIA
-machine). **Inference** on one floor plan at a time is light: a U-Net-class model runs in roughly seconds
-on CPU, so the default is to **run detection CPU-only inside the AI-service container**, preferably by
-exporting the model to **ONNX** and serving it with `onnxruntime` (small image, same file on every OS).
-The current OpenCV heuristic is CPU-only already. A GPU host is only needed if CPU latency proves too slow
-for the synchronous upload call (see `02` Module 5):
+**Inference runs on owned GPU hardware.** The trained model (MiT-B3 + U-Net, ~190 MB of weights) is
+served directly with **PyTorch** — no ONNX export — on the team's NVIDIA machine, which also trains it.
+One plan takes ~0.1 s on the GPU (~1 s on CPU, which is fine for local development). The weights are
+distributed out of band (from the project lead), never through git. When the API moves to the cloud, the
+AI service stays on that machine and is reached through a tunnel:
 
 - **Platform:** local NVIDIA GPU + Docker + **Cloudflare Tunnels** (`cloudflared`).
 - **Why:** cloud GPU (e.g. EC2 G4/G5) costs hundreds/month; a tunnel exposes owned hardware securely.
-- **Workflow:** the FastAPI detection service loads CV models into local VRAM → `cloudflared` opens a
+- **Workflow:** the FastAPI detection service loads the model into local VRAM → `cloudflared` opens a
   secure outbound tunnel → the Express backend calls it → results (a `detection-v1` payload, bridged to
   `canvas-v2` by the API) are written back and any artifacts uploaded to R2.
 

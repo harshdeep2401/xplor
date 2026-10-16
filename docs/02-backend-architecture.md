@@ -29,7 +29,7 @@
 | Auth | Firebase Authentication (client identity + Google OAuth) + Firebase Admin (server verification) + application-issued JWT + bcrypt |
 | Render / AI service | FastAPI + Uvicorn (Python) |
 | Geometry (render) | `trimesh`, `numpy` |
-| Computer vision (detection) | OpenCV heuristic today; trained models (e.g. U-Net, ideally exported to ONNX for CPU inference) behind the `detection-v1` seam |
+| Computer vision (detection) | Trained MiT-B3 + U-Net segmenter (PyTorch, `segmentation-models-pytorch`) + mask → vector post-processing (OpenCV, scikit-image), behind the `detection-v1` seam; the OpenCV heuristic is kept for comparison |
 | Blob storage | Cloudflare R2 (AWS S3-compatible SDK) |
 | Job queue | PostgreSQL (`FOR UPDATE SKIP LOCKED`) for the MVP; Redis + BullMQ at scale |
 | Validation | Zod (Node), `jsonschema` (Python) |
@@ -58,7 +58,7 @@
             ▼                       ▼                        ▼
    ┌──────────────┐        ┌──────────────┐         ┌──────────────┐
    │  Main API    │        │ Render / AI  │         │  DB Worker   │
-   │  (Node 20+)  │  HTTP  │  (FastAPI)   │  polls  │  (Node)      │
+   │  (Node 22+)  │  HTTP  │  (FastAPI)   │  polls  │  (Node)      │
    │ auth·proj·   │───────▶│ scene → GLB  │◀────────│ leases jobs, │
    │ scene·job·   │        │ (trimesh);   │         │ calls render │
    │ billing      │        │ image→canvas │         │ → stores GLB │
@@ -165,6 +165,18 @@ in place.
 - Detection is in image pixels and carries no real-world scale; the user sets `pixelsPerMetre` with the
   editor's **Calibrate** tool (a known length). Detection is probabilistic; the 2D editor is the cleanup
   surface.
+- **Inside the AI service** (`Ai-service/app/services/`): `detector.py` decodes the image (transparent PNGs
+  on white, EXIF orientation applied, a pixel-count cap) and dispatches on `DETECTOR`:
+  - `unet` (default): `segmenter.py` runs the trained model (Model/ModelInfo.md) — one 512 px letterboxed
+    forward pass, logits resized to the image — labelling each pixel background / wall / door / window /
+    room. `vectorize.py` turns the mask into `detection-v1`: wall + opening pixels are skeletonized and
+    traced into a graph of centre-line segments (spurs pruned, collinear pieces merged, near-axis walls
+    snapped exactly horizontal/vertical, thickness from the distance transform); each door/window blob
+    becomes a centre + width; each room region becomes a polygon.
+  - `opencv`: the classical heuristic (`opencv_detector.py`), for comparison runs only.
+- **Availability:** the model loads once at startup. If it can't (weights missing, GPU/driver problem),
+  `/health` and `/process-floor-plan` answer **503** with the reason, and the import is recorded as failed
+  with that message. There is **no silent fallback** to the heuristic.
 - **Swapping detectors** means replacing `detect(image_bytes)` in the AI service with anything that returns
   `detection-v1`. Nothing downstream changes.
 

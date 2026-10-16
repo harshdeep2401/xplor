@@ -4,16 +4,16 @@
 > next, in phases**. Unlike the timeless foundational docs (`01`–`05`), this doc has a time dimension and
 > will be updated as phases complete. Detailed point-in-time progress lives in
 > [`status-reports/`](./status-reports); the newest is
-> [`STATUS-REPORT-2026-10-16-phase3.md`](./status-reports/STATUS-REPORT-2026-10-16-phase3.md).
+> [`STATUS-REPORT-2026-10-16-phase3b.md`](./status-reports/STATUS-REPORT-2026-10-16-phase3b.md).
 
 - **Last updated:** 2026-10-16
-- **Nature of this update:** **Phase 3 complete** — the image → 2D → 3D core loop works end-to-end
-  (manually verified). Detection *quality* is now the weak link, so a parallel **Phase 3b (detection
-  quality)** is added for the trained U-Net. Development moves to a Windows machine (GPU + Docker).
-  *(Previous update, 2026-08-15: capstone pivot — monetization dropped, core loop + polish + furniture
-  engine.)*
-- **Phase status:** Phase 0 ✅ · Phase 1 ✅ · Phase 2 ✅ · **Phase 3 ✅** (image→2D→3D loop) ·
-  **active: Phase 3b** (detection quality, in parallel) · **next: Phase 4** (UX foundation).
+- **Nature of this update:** **Phase 3b largely done** — the trained MiT-B3 U-Net replaces the OpenCV
+  heuristic (PyTorch on the GPU machine, mask → vector post-processing), with an evaluation script that
+  scores it far above the heuristic. Plan change: **no ONNX**; the model runs in PyTorch on the team's GPU
+  PC, which will serve it to the cloud-hosted API **through a tunnel** (3b.5, next). All development is
+  now on Windows. *(Previous update, earlier 2026-10-16: Phase 3 complete.)*
+- **Phase status:** Phase 0 ✅ · Phase 1 ✅ · Phase 2 ✅ · Phase 3 ✅ · **Phase 3b 🟡** (model integrated
+  + evaluated; tunnel + GPU Docker remaining) · **next: Phase 4** (UX foundation).
 
 ---
 
@@ -51,9 +51,9 @@ foundational docs as *deferred*, not deleted. **VR** stays a deferred stub. See 
 |-------|-------|-------|
 | **Frontend** | Working, **100% TypeScript (strict)** | React 19 + Vite; 2D Konva editor + 3D R3F editor; build gates on `tsc`. **Import Floor Plan** flow, trace layer and Calibrate tool added (Phase 3). **UI is split-brain** (plain-CSS pages vs Tailwind 3D editor) and has **no notification surface** beyond the import banner. |
 | **Backend API** | Working, **100% TypeScript (strict)**, runs on `tsx` | Express 5 + Prisma; auth, projects, jobs, convert, scene versioning, GLB retention. Verified against Neon + Firebase. |
-| **AI service** | **Working, runtime-verified; detection quality low** | FastAPI OpenCV heuristic (`POST /process-floor-plan`) emitting `detection-v1`; managed with **uv** (`pyproject.toml` + `uv.lock`, Python 3.12). Misses walls and picks up text/symbols as walls; a trained **U-Net** is in training to replace it (Phase 3b). |
+| **AI service** | **Working, trained model, runtime-verified** | FastAPI (`POST /process-floor-plan`) emitting `detection-v1` from the **trained MiT-B3 U-Net** (PyTorch, CUDA 12.6 build; ~0.25 s per plan on the GPU incl. vectorization) — walls, doors, windows, rooms. 503 with a reason when the model can't load (no fallback). Managed with **uv**; 11 pytest tests. Not yet reachable remotely (tunnel: 3b.5). |
 | **Database** | Working | Neon Postgres; `Asset`/`UserAsset`/`Scene`/`Job` tables present. Migration-history baseline outstanding (§8). |
-| **Infra** | Foundation in place; **Docker stack unverified since Phase 2** | Docker (server + AI) + compose + CI (Phase 1); storage seam + health endpoints + env config (Phase 0). The server image was missing `contracts/` (fixed via a compose build context, 2026-10-16) but has not been rebuilt yet. Uploads still local-disk behind the seam. |
+| **Infra** | Foundation in place; **Docker stack unverified since Phase 2** | Docker (server + AI) + compose + CI (Phase 1); storage seam + health endpoints + env config (Phase 0). The server image was missing `contracts/` (fixed via a compose build context) but has not been rebuilt yet; the AI image now carries PyTorch and needs a GPU variant + mounted weights (3b.5). CI now runs the AI tests too. Uploads still local-disk behind the seam. |
 
 ### 2.2 What works (the deterministic draw→3D spine)
 
@@ -69,16 +69,17 @@ foundational docs as *deferred*, not deleted. **VR** stays a deferred stub. See 
   color + texture; undo/redo, copy/paste, delete, nudge; **Save** (new version) + **auto-store GLB**
   (retention-capped) + Export GLB/GLTF.
 - Dashboard lists projects with 2D/3D differentiation.
-- **Image import (Path B)**: Dashboard **Import Floor Plan** → upload → OpenCV detection → `detection-v1`
+- **Image import (Path B)**: Dashboard **Import Floor Plan** → upload → trained-model detection → `detection-v1`
   validated → bridge (wall welding + opening attachment) → `canvas-v2` in `project.canvas` → 2D editor
   with the image as a **trace layer** (toggle/opacity) → **Calibrate** sets real-world scale → Convert to 3D
   with rooms/floors. Detection failure still opens the editor with the image to trace by hand.
 
 ### 2.3 The honest gaps (what this roadmap targets)
 
-1. **Detection quality is poor.** The heuristic misses walls and turns text, dimension lines and furniture
-   symbols into walls; doors/windows are never detected. Users can fix everything in the editor, but it is
-   slow. *(Phase 3b.)*
+1. **Detection is good but not remote-ready.** The trained model finds walls, doors and windows (see the
+   Phase 3b report for scores); remaining errors are model-level (balcony railings as walls/wide windows,
+   occasional furniture outlines as walls). The AI service can't yet be reached securely from a cloud API.
+   *(Phase 3b.5.)*
 2. **UI is split-brain and gives no feedback.** Two visual identities, no shared primitives, and **every
    failure is a silent `console.error`** (no toast system). *(Phase 4.)*
 3. **Obvious editor features missing.** 2D shows **pixels not metres**, and multi-select can only be
@@ -149,15 +150,21 @@ Convert to 3D produces a scene; a golden `DetectionResult → canvas-v2` unit te
 **Goal:** make imports need little cleanup, and *prove* it with numbers. Everything stays behind
 `detection-v1`, so no downstream change is needed.
 
-| # | Step | Notes |
-|---|------|-------|
-| 3b.1 | **Evaluation script** — run a detector over a fixed CubiCasa5K sample and score it against the ground-truth vectors (wall precision/recall, endpoint error, % rooms closed) | Do this first: it decides whether a model beats the heuristic, and gives the capstone a measurable result |
-| 3b.2 | **Integrate the trained U-Net** — export to **ONNX**, run with `onnxruntime` on CPU in the AI service; add **mask → vector** post-processing (threshold → skeletonize → fit segments; door centres from connected components) to emit `detection-v1` | Trained on the Windows GPU machine; inference is CPU-friendly (seconds per plan), so it runs in Docker on any OS |
-| 3b.3 | **Detector selection by config** — `DETECTOR` = `opencv` / `unet` / `hybrid` (e.g. model walls + model doors, heuristic fallback) | Switch detectors without code changes; A/B with 3b.1 |
-| 3b.4 | *(Optional)* **Heuristic improvements** — mask text/dimension lines before Hough, estimate wall thickness, drop isolated short segments | Only if the model is delayed |
+| # | Step | Status / notes |
+|---|------|----------------|
+| 3b.1 | **Evaluation script** — score detectors on CubiCasa5K test plans | ✅ `Ai-service/eval/evaluate.py`: wall pixel F1 (3 px tolerance), door/window centre-matching F1, and closed rooms counted through the server's real bridge + converter (`eval/bridge_rooms.ts`). Scores `opencv`, `unet`, and an `oracle` (vectorizer on ground truth). Local only (needs the dataset + weights). |
+| 3b.2 | **Integrate the trained U-Net** — **PyTorch** (not ONNX) in the AI service + **mask → vector** post-processing | ✅ `segmenter.py` (MiT-B3 U-Net, same preprocessing as training, GPU when available) + `vectorize.py` (skeleton graph → straight, connected, axis-snapped walls with measured thickness; door/window centres + widths; room polygons). |
+| 3b.3 | **Detector selection by config** — `DETECTOR=unet` (default) / `opencv` | ✅ No `hybrid` and **no automatic fallback**: if the model can't load, the service answers 503 with the reason. |
+| 3b.4 | ~~Heuristic improvements~~ | Dropped — the model replaced the heuristic. |
+| 3b.5 | **Remote AI host** — serve the model from the GPU PC to a cloud API through a Cloudflare Tunnel | ⏳ Next: shared-secret auth on the AI service; Node **sends the image bytes** instead of the AI service fetching a URL; GPU Docker image (weights mounted, not baked) with `cloudflared` alongside and the AI port not published; quick tunnel now, named tunnel once a domain exists; step-by-step setup doc. |
+| 3b.6 | *(Later)* **Real-world test images** — non-CubiCasa plans and real phone photos | The model was only scored on CubiCasa5K (Finnish plans, simulated photos). |
 
-**Exit criteria:** the evaluation script runs in CI or locally; the chosen detector beats the heuristic on
-it; `detect()` returns valid `detection-v1`; typical imports form closed rooms without manual welding.
+**Result (400 test plans):** wall F1 **0.953** vs 0.470 for the heuristic; door / window F1 **0.92 /
+0.88** (heuristic: none); rooms closed **86%** vs 17%. Details in the Phase 3b status report.
+
+**Exit criteria:** ✅ the evaluation script runs locally; ✅ the model beats the heuristic on it;
+✅ `detect()` returns valid `detection-v1`; ✅ typical imports form closed rooms without manual welding;
+⏳ a cloud-hosted API can use the model securely over the tunnel.
 
 ### Phase 4 — UX Foundation & Visual Unification  *(polish, structural first)*
 **Goal:** the app feels like one finished product, and every failure is visible.
@@ -204,9 +211,8 @@ VR/WebXR preview (keep the stub), template-based generation, AI copilot. Revisit
 - **Sequencing: core loop → UX → smart feature.**
 - **Furniture engine is a scene-aware recommender** (room size + objects present), a light rule/ML model
   behind a swappable interface — *not* a flashy LLM.
-- **Ship the current image detector now**, behind a **plug-and-play detection contract**
-  (`detection-v1`); the deterministic 2D editor is the cleanup safety net; improve the model later without
-  breaking downstream.
+- **Image detection ships behind a plug-and-play detection contract** (`detection-v1`); the
+  deterministic 2D editor is the cleanup safety net; models improve without breaking downstream.
 - **VR deferred** — keep the stub button, decide later.
 - **Codebase is TypeScript-first** (client + server strict; AI service stays Python).
 - (From earlier) storage abstracted now, R2 wired at deploy time; no live deploy yet.
@@ -214,20 +220,28 @@ VR/WebXR preview (keep the stub), template-based generation, AI copilot. Revisit
   time. OCR of dimension text may automate it later.
 - **The uploaded image stays visible as a trace layer**, 1:1 with canvas pixels (canvas sized to the image).
 - **Wall welding happens in the bridge, not the detector**, so every detector benefits.
-- **Model inference runs on CPU via ONNX** in the AI-service container; the GPU is for training only.
+- **Model inference runs in PyTorch, no ONNX** (2026-10-16, superseding "CPU via ONNX"). It runs on the
+  team's GPU PC; CPU works (~1 s/plan) for anyone developing without an NVIDIA GPU. Torch comes from the
+  **CUDA 12.6** build (needed for the Pascal Quadro P6000).
+- **The AI service stays on the GPU PC** when the API moves to the cloud, reached through a **Cloudflare
+  Tunnel** with a shared secret. In Docker it runs as a GPU image with the weights **mounted** from
+  `Ai-service/Model/`, next to a `cloudflared` container.
+- **No silent detector fallback:** an unavailable model makes the AI service report 503 and the import
+  fail with the reason.
+- **Model weights are distributed by the project lead**, never via git (`*.pt` is gitignored).
 - **Python tooling is uv** (`pyproject.toml` + `uv.lock`), not pip/requirements.txt.
-- **Development continues on Windows** (GPU for training + Docker Desktop) as of 2026-10-16.
+- **All development is on Windows** (GPU for training + Docker Desktop) as of 2026-10-16, and the repo
+  must stay runnable by anyone on Windows with npm + uv.
 
 ---
 
 ## 6. Immediate Next Step
 
-1. **Set up the Windows machine** (`05` §10): move the uncommitted Phase 3 work over, `npm ci` / `uv sync`,
-   copy the `.env` files, then **verify the Docker stack** (`docker compose up --build`) and repeat the
-   import checklist against the containers.
-2. **Commit Phase 3** (and the uv migration + docs) once verified.
-3. **Phase 3b.1 → 3b.2:** build the evaluation script, then integrate the U-Net (ONNX + mask → vector).
-4. **Phase 4** in parallel: toast system first.
+1. **Phase 3b.5 — remote AI host:** shared-secret auth, image bytes sent by Node, GPU Docker image +
+   `cloudflared`, verify the Docker stack end to end, and write the tunnel setup guide.
+2. **Phase 4** in parallel: toast system first.
+3. Later: real-world test images (3b.6); tune the vectorizer where the evaluation shows losses (rooms that
+   don't close even from ground truth).
 
 Keep the migration-baseline caveat in mind (§8a — never accept a `prisma migrate dev` reset).
 
@@ -251,13 +265,17 @@ Keep the migration-baseline caveat in mind (§8a — never accept a `prisma migr
 - ~~**Merge-cleanup not yet committed.**~~ Resolved (`2909750`). Three harmless leftovers remain to delete:
   `client/src/firebase.js` (identical to `firebase.ts`, but Vite resolves it first),
   `client/src/services/authservice.js` and `client/src/components/AuthVisual.jsx` (both unused).
-- **Phase 3 is uncommitted** and exists only on the Mac working tree; it must be moved to the Windows
-  machine deliberately (copy the tree or push a branch) before work continues there.
+- ~~**Phase 3 is uncommitted.**~~ Resolved (`fde4080`).
+- **The AI host is one PC.** When it's off or asleep, imports fail (with a clear message; the editor still
+  opens for manual tracing). Acceptable for a capstone; a cloud GPU is the scale path (`03`).
+- **Model licence:** CubiCasa5K is CC BY-NC 4.0, so treat the model as non-commercial.
+- **CI downloads CUDA PyTorch** (several GB) for the AI-service job; slow but correct.
 - **Docker unverified.** The `contracts/` build-context fix has never been built; the server image would
   have crashed at startup since Phase 2.
-- **`server` `npm test` is POSIX-only** (`$(find …)`); it fails under Windows `cmd.exe`. Use Git Bash/WSL or
-  make it portable (e.g. Node ≥ 21 `--test` globs, if CI moves off Node 20).
-- **Detection is rough.** The heuristic detector will misfire; the deterministic 2D editor is the cleanup
+- ~~**`server` `npm test` is POSIX-only.**~~ Resolved: it passes a glob to `node --test` (Node ≥ 22; CI
+  moved to Node 22).
+- **Detection is probabilistic.** The model still misfires on some plans (railings, furniture outlines),
+  and is untested on real photos and non-Finnish plans; the deterministic 2D editor is the cleanup
   surface. Keep the seam clean so a better model is a drop-in.
 - **Structured-asset persistence is a real refactor.** Today 3D saves bake to a glTF blob; making furniture
   round-trip as data (Phase 6.1) also finally realizes "the scene is canonical" for 3D edits.

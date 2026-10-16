@@ -24,7 +24,7 @@ on top only once the deterministic core is solid.
 xplor/
 ├── client/       React 19 + Vite — 2D editor (Konva) and 3D editor (Three.js / React Three Fiber)
 ├── server/       Express 5 + Prisma — auth, projects, jobs; PostgreSQL (Neon)
-├── Ai-service/   FastAPI — floor-plan image detection (OpenCV today; trained model planned), managed with uv
+├── Ai-service/   FastAPI — floor-plan image detection (trained MiT-B3 U-Net, PyTorch), managed with uv
 ├── contracts/    JSON Schemas shared by all services: canvas-v2, scene-v1, detection-v1
 └── docs/         Foundational docs (01–05), roadmap (06), status-reports/, reports/
 ```
@@ -34,20 +34,19 @@ xplor/
 | Layer        | Technology |
 |--------------|-----------|
 | Frontend     | React 19, Vite, react-konva (2D), Three.js + React Three Fiber + drei (3D) |
-| Main API     | Node 20+, Express 5, Prisma |
+| Main API     | Node 22+, Express 5, Prisma |
 | Database     | PostgreSQL (Neon) |
 | Auth         | Firebase Authentication + Firebase Admin + application JWT + bcrypt |
-| AI service   | Python 3.12, FastAPI, OpenCV, NumPy (deps via uv) |
+| AI service   | Python 3.12, FastAPI, PyTorch + segmentation-models-pytorch, OpenCV, scikit-image (deps via uv) |
 | Blob storage | Local disk today; Cloudflare R2 planned (see `docs/03`) |
 
 ---
 
 ## Getting started
 
-Each service is run independently. You need **Node 20+**, **[uv](https://docs.astral.sh/uv/)** (it
+Each service is run independently. You need **Node 22+**, **[uv](https://docs.astral.sh/uv/)** (it
 installs Python 3.12 for you), and access to a PostgreSQL database (Neon or local). Works on macOS,
-Windows and Linux — see `docs/05-development-guidelines.md` §10 for cross-platform notes (on Windows, run
-`server`'s `npm test` from Git Bash or WSL). None of the `.env` files are committed — create them from the notes below
+Windows and Linux — see `docs/05-development-guidelines.md` §10 for cross-platform notes. None of the `.env` files are committed — create them from the notes below
 (and from `Ai-service/.env.example`).
 
 ### 1. Database (Prisma / Neon)
@@ -57,6 +56,9 @@ cd server
 npm install                 # runs `prisma generate` via postinstall
 npx prisma migrate deploy   # apply existing migrations to your DATABASE_URL
 ```
+
+> npm 11+ may skip install scripts ("install scripts not yet covered by allowScripts"). If the server
+> then fails with `@prisma/client did not initialize yet`, run `npx prisma generate` once.
 
 ### 2. Main API (`server/`)
 
@@ -100,15 +102,28 @@ npm run build               # production build
 
 ### 4. AI service (`Ai-service/`) — needed for Import Floor Plan
 
+The service runs the trained floor-plan model (card: `Ai-service/Model/ModelInfo.md`). The weights are
+**not in git** (190 MB): get `best.pt` from the project lead and put it at `Ai-service/Model/best.pt`.
+
 ```bash
 cd Ai-service
-uv sync                     # creates .venv (Python 3.12) from pyproject.toml + uv.lock
+uv sync                     # creates .venv (Python 3.12); first run downloads PyTorch (~2.5 GB)
 cp .env.example .env        # optional; defaults work for local dev
-uv run uvicorn app.main:app --reload --port 8000   # health check: GET /health
+uv run uvicorn app.main:app --reload --port 8000
+uv run pytest               # tests (no weights needed)
 # add a dependency: uv add <package>   (updates pyproject.toml + uv.lock)
 ```
 
-The draw → 3D flow works without it; the dashboard's **Import Floor Plan** needs it running.
+Check it at http://localhost:8000/health:
+- `{"status":"ok","device":"cuda"}` — ready, on the NVIDIA GPU (~0.1 s per plan).
+- `"device":"cpu"` — ready, no usable GPU (~1 s per plan). Fine for development.
+- HTTP **503** `"status":"unavailable"` — the model didn't load; `error` says why (usually the
+  weights file is missing). Imports then fail with that message; there is no silent fallback.
+
+PyTorch is installed from the CUDA 12.6 build, which supports GPUs from the GTX 10xx / Pascal generation
+up to RTX 40xx and also runs on machines without an NVIDIA GPU. RTX 50xx cards need a newer CUDA build.
+
+The draw → 3D flow works without the AI service; the dashboard's **Import Floor Plan** needs it running.
 
 ### 5. Or run the backend in Docker
 

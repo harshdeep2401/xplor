@@ -49,7 +49,15 @@ export const processFloorPlan = async ({
     })
 
     if (!response.ok) {
-      throw new Error(`AI service returned HTTP ${response.status}`)
+      // FastAPI errors carry a human-readable `detail` (e.g. 503 "model not loaded").
+      const detail = await response
+        .json()
+        .then((body: unknown) => {
+          const detail = (body as { detail?: unknown } | null)?.detail
+          return typeof detail === 'string' ? detail : ''
+        })
+        .catch(() => '')
+      throw new Error(`AI service returned HTTP ${response.status}${detail ? `: ${detail}` : ''}`)
     }
 
     return (await response.json()) as FloorPlanResult

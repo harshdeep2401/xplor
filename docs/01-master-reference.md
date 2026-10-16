@@ -140,9 +140,9 @@ core.
 ## 9. Enhancements Beyond the Core Pipeline
 
 **Now in scope (capstone):**
-- **Image-based floor-plan detection** (Path B) — the probabilistic input path. The current heuristic
-  detector ships behind a **stable, swappable seam** (a fixed detection contract) so a stronger model can
-  replace it without any downstream change.
+- **Image-based floor-plan detection** (Path B) — the probabilistic input path. A trained
+  segmentation model ships behind a **stable, swappable seam** (a fixed detection contract) so a better
+  model can replace it without any downstream change.
 - **Smart Asset Suggestion Engine** — a **scene-aware furniture recommender**: it reads the scene (room
   size + the objects already present) and recommends assets to place. Starts as a light rule/ML model
   behind a swappable interface (not necessarily vector search).

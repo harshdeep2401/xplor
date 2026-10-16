@@ -9,11 +9,12 @@ RUN apt-get update \
 WORKDIR /app
 
 # uv (pinned) installs the exact locked dependency set.
-COPY --from=ghcr.io/astral-sh/uv:0.9.21 /uv /usr/local/bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.12.24 /uv /usr/local/bin/uv
 
-# Deps first for layer caching. --frozen fails the build if uv.lock is stale.
+# Deps first for layer caching. --frozen fails the build if uv.lock is stale;
+# --no-dev leaves out test tools.
 COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-cache
+RUN uv sync --frozen --no-dev --no-cache
 ENV PATH="/app/.venv/bin:$PATH"
 
 COPY app ./app
