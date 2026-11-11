@@ -26,12 +26,18 @@ interface ProcessFloorPlanArgs {
   mimeType: string
 }
 
-// Shape of the FastAPI response. detection/metadata are passed straight through
-// to Prisma JSON columns, so they're left loose here.
+// Shape of the FastAPI response. `detection` is checked against detection-v1 by
+// the caller; `metadata` is stored on the job as-is.
 export interface FloorPlanResult {
   status: string
-  detection?: any
-  metadata?: any
+  detection?: unknown
+  metadata?: {
+    imageWidth?: number
+    imageHeight?: number
+    processingTimeMs?: number
+    method?: string
+    [key: string]: unknown
+  }
   error?: string
 }
 
@@ -88,11 +94,13 @@ export const processFloorPlan = async ({
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
       record(false, 'timeout')
-      throw new Error(`AI service did not respond within ${AI_SERVICE_TIMEOUT_MS}ms`)
+      throw new Error(`AI service did not respond within ${AI_SERVICE_TIMEOUT_MS}ms`, {
+        cause: error,
+      })
     }
     console.error(`AI service request to ${AI_SERVICE_ENDPOINT} failed:`, error)
     record(false, 'unreachable')
-    throw new Error('Could not reach the AI service (is it running?)')
+    throw new Error('Could not reach the AI service (is it running?)', { cause: error })
   } finally {
     clearTimeout(timeout)
   }
@@ -111,7 +119,11 @@ export const processFloorPlan = async ({
   }
 
   const result = (await response.json()) as FloorPlanResult
-  record(result.status === 'completed', result.status === 'completed' ? null : 'detection failed', result)
+  record(
+    result.status === 'completed',
+    result.status === 'completed' ? null : 'detection failed',
+    result,
+  )
   return result
 }
 
@@ -123,7 +135,13 @@ export const getAiStatus = async () => {
   const secret = process.env.FASTAPI_SECRET
   let route = describeRoute(AI_SERVICE_ENDPOINT, null)
   if (!secret) {
-    return { reachable: false, route, roundTripMs: null, error: 'FASTAPI_SECRET is not set on the server', status: null }
+    return {
+      reachable: false,
+      route,
+      roundTripMs: null,
+      error: 'FASTAPI_SECRET is not set on the server',
+      status: null,
+    }
   }
   try {
     const response = await fetch(`${aiBaseUrl(AI_SERVICE_ENDPOINT)}/status`, {
@@ -141,6 +159,12 @@ export const getAiStatus = async () => {
     }
     return { reachable: true, route, roundTripMs, error: null, status: await response.json() }
   } catch {
-    return { reachable: false, route, roundTripMs: null, error: 'Could not reach the AI service', status: null }
+    return {
+      reachable: false,
+      route,
+      roundTripMs: null,
+      error: 'Could not reach the AI service',
+      status: null,
+    }
   }
 }

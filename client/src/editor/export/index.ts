@@ -1,2 +1,2 @@
-export * from "./exportGLTF";
-export * from "./exportGLB";
+export * from './exportGLTF'
+export * from './exportGLB'

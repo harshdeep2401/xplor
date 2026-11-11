@@ -52,3 +52,6 @@ reports/
 
 curiosity.md
 MAKEthisMAKEsense.txt
+
+*.glb
+*.png

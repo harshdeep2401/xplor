@@ -54,7 +54,10 @@ function show(kind: ToastKind, message: string, options: ToastOptions = {}): str
   const others = toasts.filter((t) => t.id !== id)
   toasts = [...others, toast].slice(-MAX_VISIBLE)
   if (toast.duration > 0) {
-    timers.set(id, setTimeout(() => dismiss(id), toast.duration))
+    timers.set(
+      id,
+      setTimeout(() => dismiss(id), toast.duration),
+    )
   }
   emit()
   return id

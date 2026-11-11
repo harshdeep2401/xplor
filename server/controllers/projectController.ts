@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express'
-import { Prisma } from '@prisma/client'
+import { type Prisma } from '@prisma/client'
 import { prisma } from '../config/db'
 import { processFloorPlan } from '../services/aiService'
 import { putObject, floorPlanKey } from '../services/storage'
@@ -25,7 +25,7 @@ const createProject = async (req: Request, res: Response) => {
         type: type || '2d',
         userId,
         canvas: { elements: [] },
-      }
+      },
     })
 
     // Add _id to payload so frontend doesn't break
@@ -45,7 +45,7 @@ const createProject = async (req: Request, res: Response) => {
 const getProject = async (req: Request<{ id: string }>, res: Response) => {
   try {
     const project = await prisma.project.findUnique({
-      where: { id: req.params.id }
+      where: { id: req.params.id },
     })
 
     if (!project) {
@@ -74,7 +74,7 @@ const getProjects = async (req: Request, res: Response) => {
       orderBy: { updatedAt: 'desc' },
     })
 
-    const responseProjects = projects.map(p => ({ ...p, _id: p.id }))
+    const responseProjects = projects.map((p) => ({ ...p, _id: p.id }))
 
     res.status(200).json({ projects: responseProjects })
   } catch (error) {
@@ -91,7 +91,7 @@ const saveProject = async (req: Request<{ id: string }>, res: Response) => {
     // Verify the project exists and belongs to the caller before writing.
     // Without this check any authenticated user could overwrite any project.
     const existing = await prisma.project.findUnique({
-      where: { id: req.params.id }
+      where: { id: req.params.id },
     })
 
     if (!existing) {
@@ -104,7 +104,7 @@ const saveProject = async (req: Request<{ id: string }>, res: Response) => {
 
     const project = await prisma.project.update({
       where: { id: req.params.id },
-      data: { canvas }
+      data: { canvas },
     })
 
     const responseProject = { ...project, _id: project.id }
@@ -126,7 +126,7 @@ const saveProject = async (req: Request<{ id: string }>, res: Response) => {
 const deleteProject = async (req: Request<{ id: string }>, res: Response) => {
   try {
     const project = await prisma.project.findUnique({
-      where: { id: req.params.id }
+      where: { id: req.params.id },
     })
 
     if (!project) {
@@ -139,7 +139,7 @@ const deleteProject = async (req: Request<{ id: string }>, res: Response) => {
     }
 
     await prisma.project.delete({
-      where: { id: req.params.id }
+      where: { id: req.params.id },
     })
 
     res.status(200).json({ message: 'Project deleted successfully' })
@@ -165,7 +165,7 @@ const uploadFloorPlan = async (req: Request<{ id: string }>, res: Response) => {
     }
 
     const project = await prisma.project.findUnique({
-      where: { id: req.params.id }
+      where: { id: req.params.id },
     })
 
     if (!project) {
@@ -193,7 +193,7 @@ const uploadFloorPlan = async (req: Request<{ id: string }>, res: Response) => {
 
     let updatedProject = await prisma.project.update({
       where: { id: project.id },
-      data: { floorPlanUrl }
+      data: { floorPlanUrl },
     })
 
     let job = await prisma.job.create({
@@ -208,7 +208,7 @@ const uploadFloorPlan = async (req: Request<{ id: string }>, res: Response) => {
           fileSizeBytes: req.file.size,
           mimeType: req.file.mimetype,
         },
-      }
+      },
     })
 
     // Call the AI service synchronously and fold the result into the job
@@ -233,19 +233,22 @@ const uploadFloorPlan = async (req: Request<{ id: string }>, res: Response) => {
         mimeType: req.file.mimetype,
       })
 
-      if (result.status === 'completed' && !validateDetectionV1(result.detection)) {
+      const detection = result.detection
+      if (result.status === 'completed' && !validateDetectionV1(detection)) {
         throw new Error(
           `AI service returned invalid detection-v1: ${formatErrors(validateDetectionV1.errors)}`,
         )
       }
 
-      if (result.status === 'completed') {
-        const canvas = detectionToCanvas(result.detection, {
+      if (result.status === 'completed' && validateDetectionV1(detection)) {
+        const canvas = detectionToCanvas(detection, {
           pixelsPerMetre: project.scalePixelsPerMeter,
           wallHeight: project.defaultWallHeightM,
         })
         if (!validateCanvasV2(canvas)) {
-          throw new Error(`Bridged canvas failed canvas-v2: ${formatErrors(validateCanvasV2.errors)}`)
+          throw new Error(
+            `Bridged canvas failed canvas-v2: ${formatErrors(validateCanvasV2.errors)}`,
+          )
         }
 
         updatedProject = await prisma.project.update({
@@ -254,7 +257,10 @@ const uploadFloorPlan = async (req: Request<{ id: string }>, res: Response) => {
             canvas: canvas as unknown as Prisma.InputJsonValue,
             // Image pixels map 1:1 to canvas pixels.
             ...(result.metadata?.imageWidth && result.metadata?.imageHeight
-              ? { canvasWidth: result.metadata.imageWidth, canvasHeight: result.metadata.imageHeight }
+              ? {
+                  canvasWidth: result.metadata.imageWidth,
+                  canvasHeight: result.metadata.imageHeight,
+                }
               : {}),
           },
         })
@@ -314,11 +320,4 @@ function hasDrawing(canvas: unknown): boolean {
   )
 }
 
-export {
-  createProject,
-  getProject,
-  getProjects,
-  saveProject,
-  deleteProject,
-  uploadFloorPlan,
-}
+export { createProject, getProject, getProjects, saveProject, deleteProject, uploadFloorPlan }

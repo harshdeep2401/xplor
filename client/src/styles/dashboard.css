@@ -1,7 +1,7 @@
 .dashboard-page {
   min-height: 100vh;
   background-color: #0a0f1c;
-  background-image: 
+  background-image:
     linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
   background-size: 40px 40px;
@@ -128,12 +128,16 @@
 }
 
 .action-card-3d:hover {
-  box-shadow: 0 30px 60px rgba(99, 102, 241, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  box-shadow:
+    0 30px 60px rgba(99, 102, 241, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
   border-color: rgba(99, 102, 241, 0.4);
 }
 
 .action-card-2d:hover {
-  box-shadow: 0 30px 60px rgba(20, 184, 166, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  box-shadow:
+    0 30px 60px rgba(20, 184, 166, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
   border-color: rgba(20, 184, 166, 0.4);
 }
 
@@ -155,7 +159,9 @@
 }
 
 .action-card-import:hover {
-  box-shadow: 0 30px 60px rgba(245, 158, 11, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  box-shadow:
+    0 30px 60px rgba(245, 158, 11, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
   border-color: rgba(245, 158, 11, 0.4);
 }
 
@@ -264,9 +270,15 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.project-thumbnail.gradient-1 { background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(0,0,0,0.4)); }
-.project-thumbnail.gradient-2 { background: linear-gradient(135deg, rgba(20, 184, 166, 0.1), rgba(0,0,0,0.4)); }
-.project-thumbnail.gradient-3 { background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(0,0,0,0.4)); }
+.project-thumbnail.gradient-1 {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(0, 0, 0, 0.4));
+}
+.project-thumbnail.gradient-2 {
+  background: linear-gradient(135deg, rgba(20, 184, 166, 0.1), rgba(0, 0, 0, 0.4));
+}
+.project-thumbnail.gradient-3 {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(0, 0, 0, 0.4));
+}
 
 .project-info {
   padding: 20px;

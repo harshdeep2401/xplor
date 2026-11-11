@@ -1,0 +1,12 @@
+# Check text files out with LF on every OS, so Prettier's "endOfLine: lf" holds
+# on Windows too and diffs don't fill with CRLF churn.
+* text=auto eol=lf
+
+# Binary assets: never touch their bytes.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.glb binary
+*.pt binary
+*.zip binary

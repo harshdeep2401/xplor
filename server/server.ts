@@ -12,8 +12,11 @@ import authRoutes from './routes/authRoutes'
 import projectRoutes from './routes/projectRoutes'
 import jobRoutes from './routes/jobRoutes'
 import systemRoutes from './routes/systemRoutes'
+import assetRoutes from './routes/assetRoutes'
+import multer from 'multer'
+import { UploadError } from './middleware/uploadMiddleware'
 
-connectDB()
+void connectDB()
 
 const app = express()
 
@@ -27,10 +30,12 @@ const allowedOrigins = (
   .map((o) => o.trim())
   .filter(Boolean)
 
-app.use(cors({
-  origin: allowedOrigins,
-  credentials: true,
-}))
+app.use(
+  cors({
+    origin: allowedOrigins,
+    credentials: true,
+  }),
+)
 app.use(express.json())
 
 // Local-disk uploads (floor plans etc.) served back out as static files.
@@ -38,7 +43,11 @@ app.use(express.json())
 // http://localhost:5000/uploads/floor-plans/<userId>/<file>
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
 
-app.get('/', (req: Request, res: Response) => {
+// Files that ship with the app, e.g. the furniture catalog's models and
+// thumbnails at /static/furniture/<file> (listed by GET /api/assets).
+app.use('/static', express.static(path.join(__dirname, 'public'), { maxAge: '7d' }))
+
+app.get('/', (_req: Request, res: Response) => {
   res.send('XPLOR API Running')
 })
 
@@ -61,6 +70,7 @@ app.use('/api/auth', authRoutes)
 app.use('/api/projects', projectRoutes)
 app.use('/api/jobs', jobRoutes)
 app.use('/api/system', systemRoutes)
+app.use('/api/assets', assetRoutes)
 
 // JSON 404 for anything unmatched above.
 app.use((_req: Request, res: Response) => {
@@ -69,6 +79,10 @@ app.use((_req: Request, res: Response) => {
 
 // Central error handler — the single place that formats error responses.
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+  // Rejected uploads: wrong file type (UploadError) or too large (multer).
+  if (err instanceof UploadError || err instanceof multer.MulterError) {
+    return res.status(400).json({ message: err.message })
+  }
   console.error(err)
   res.status(500).json({ message: err.message || 'Internal server error' })
 })

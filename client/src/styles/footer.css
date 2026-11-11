@@ -1,11 +1,7 @@
 .footer {
   padding: 90px 80px 40px;
   margin-top: 80px;
-  background: linear-gradient(
-    180deg,
-    rgba(10, 15, 35, 0.9),
-    rgba(5, 8, 22, 1)
-  );
+  background: linear-gradient(180deg, rgba(10, 15, 35, 0.9), rgba(5, 8, 22, 1));
   border-top: 1px solid rgba(255, 255, 255, 0.08);
   position: relative;
   overflow: hidden;
@@ -99,7 +95,7 @@
 .footer-bottom {
   margin-top: 70px;
   padding-top: 30px;
-  border-top: 1px solid rgba(255,255,255,0.08);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
   text-align: center;
   color: #94a3b8;
   position: relative;

@@ -13,13 +13,17 @@ function Hero() {
         </h1>
 
         <p className="hero-description">
-          Build, automate, and grow with the next generation AI startup platform.
-          Experience futuristic tools, immersive dashboards, and powerful analytics.
+          Build, automate, and grow with the next generation AI startup platform. Experience
+          futuristic tools, immersive dashboards, and powerful analytics.
         </p>
 
         <div className="hero-buttons">
-          <Link to="/signup" className="hero-btn-primary">Get Started</Link>
-          <a href="#features" className="hero-btn-secondary">Learn More</a>
+          <Link to="/signup" className="hero-btn-primary">
+            Get Started
+          </Link>
+          <a href="#features" className="hero-btn-secondary">
+            Learn More
+          </a>
         </div>
       </div>
 

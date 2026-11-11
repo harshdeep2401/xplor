@@ -15,7 +15,13 @@ export function translateElements(
     if (!ids.has(el.id)) return el
     switch (el.type) {
       case 'wall':
-        return { ...el, startX: el.startX + dx, startY: el.startY + dy, endX: el.endX + dx, endY: el.endY + dy }
+        return {
+          ...el,
+          startX: el.startX + dx,
+          startY: el.startY + dy,
+          endX: el.endX + dx,
+          endY: el.endY + dy,
+        }
       case 'window':
         return { ...el, x: el.x + dx, y: el.y + dy, startX: el.startX + dx, startY: el.startY + dy }
       default:

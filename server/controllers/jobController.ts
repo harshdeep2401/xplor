@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express'
-import { Prisma } from '@prisma/client'
+import { type Prisma } from '@prisma/client'
 import { prisma } from '../config/db'
 
 // GET /api/jobs?projectId=&status=
@@ -30,7 +30,7 @@ const getJobs = async (req: Request, res: Response) => {
 const getJob = async (req: Request<{ id: string }>, res: Response) => {
   try {
     const job = await prisma.job.findUnique({
-      where: { id: req.params.id }
+      where: { id: req.params.id },
     })
 
     if (!job) {
@@ -95,8 +95,4 @@ const updateJobStatus = async (req: Request<{ id: string }>, res: Response) => {
   }
 }
 
-export {
-  getJobs,
-  getJob,
-  updateJobStatus,
-}
+export { getJobs, getJob, updateJobStatus }

@@ -86,9 +86,15 @@
   white-space: nowrap;
 }
 
-.pipe-node.ok { border-color: color-mix(in srgb, var(--ok) 60%, transparent); }
-.pipe-node.warn { border-color: color-mix(in srgb, var(--warn) 60%, transparent); }
-.pipe-node.down { border-color: color-mix(in srgb, var(--down) 60%, transparent); }
+.pipe-node.ok {
+  border-color: color-mix(in srgb, var(--ok) 60%, transparent);
+}
+.pipe-node.warn {
+  border-color: color-mix(in srgb, var(--warn) 60%, transparent);
+}
+.pipe-node.down {
+  border-color: color-mix(in srgb, var(--down) 60%, transparent);
+}
 
 .pipe-link {
   flex: 1 1 30px;
@@ -108,16 +114,27 @@
   animation: pipeFlow 1.6s linear infinite;
 }
 
-.pipe-link.down { background: var(--down); }
-.pipe-link.warn { background: var(--warn); }
+.pipe-link.down {
+  background: var(--down);
+}
+.pipe-link.warn {
+  background: var(--warn);
+}
 
 @keyframes pipeFlow {
-  from { transform: translateX(-100%); }
-  to { transform: translateX(400%); }
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(400%);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .pipe-link.ok::after { animation: none; width: 100%; }
+  .pipe-link.ok::after {
+    animation: none;
+    width: 100%;
+  }
 }
 
 .status-error {
@@ -143,9 +160,15 @@
   padding: 22px;
 }
 
-.status-card.ok { border-top: 3px solid var(--ok); }
-.status-card.warn { border-top: 3px solid var(--warn); }
-.status-card.down { border-top: 3px solid var(--down); }
+.status-card.ok {
+  border-top: 3px solid var(--ok);
+}
+.status-card.warn {
+  border-top: 3px solid var(--warn);
+}
+.status-card.down {
+  border-top: 3px solid var(--down);
+}
 
 .status-card header {
   display: flex;
@@ -167,9 +190,16 @@
   flex: 0 0 auto;
 }
 
-.status-dot.ok { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
-.status-dot.warn { background: var(--warn); }
-.status-dot.down { background: var(--down); }
+.status-dot.ok {
+  background: var(--ok);
+  box-shadow: 0 0 8px var(--ok);
+}
+.status-dot.warn {
+  background: var(--warn);
+}
+.status-dot.down {
+  background: var(--down);
+}
 
 .status-summary {
   color: #a1a1aa;
@@ -251,12 +281,25 @@
   white-space: nowrap;
 }
 
-.status-table td.ok { color: var(--ok); }
-.status-table td.down { color: #fca5a5; }
+.status-table td.ok {
+  color: var(--ok);
+}
+.status-table td.down {
+  color: #fca5a5;
+}
 
 @media (max-width: 640px) {
-  .status-header { padding: 20px 16px; }
-  .status-content { padding: 24px 16px; }
-  .status-pipeline { flex-wrap: wrap; gap: 8px; }
-  .pipe-link { display: none; }
+  .status-header {
+    padding: 20px 16px;
+  }
+  .status-content {
+    padding: 24px 16px;
+  }
+  .status-pipeline {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .pipe-link {
+    display: none;
+  }
 }

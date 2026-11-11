@@ -1,5 +1,5 @@
-import * as THREE from "three";
-import { traverseMeshes } from "./traverseMeshes";
+import * as THREE from 'three'
+import { traverseMeshes } from './traverseMeshes'
 
 /**
  * Dispose all textures & materials inside an Object3D
@@ -7,21 +7,19 @@ import { traverseMeshes } from "./traverseMeshes";
  */
 export function disposeTextures(root: THREE.Object3D) {
   traverseMeshes(root, (mesh) => {
-    const materials = Array.isArray(mesh.material)
-      ? mesh.material
-      : [mesh.material];
+    const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
 
     materials.forEach((mat) => {
-      if (!mat) return;
+      if (!mat) return
 
       // Dispose textures
       Object.values(mat).forEach((value) => {
         if (value instanceof THREE.Texture) {
-          value.dispose();
+          value.dispose()
         }
-      });
+      })
 
-      mat.dispose();
-    });
-  });
+      mat.dispose()
+    })
+  })
 }

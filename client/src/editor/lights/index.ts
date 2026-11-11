@@ -1,2 +1,2 @@
-export * from "./createLight";
-export * from "./updateLight";
+export * from './createLight'
+export * from './updateLight'

@@ -1,25 +1,25 @@
-import { Undo, Redo, Save, Eye, Box, ArrowLeft } from "lucide-react"; // icons
-import Button from "../ui/Button";
+import { Undo, Redo, Save, Eye, Box, ArrowLeft } from 'lucide-react' // icons
+import Button from '../ui/Button'
 
-type SaveStatus = "idle" | "saving" | "saved" | "error";
+type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
 
 type NavbarProps = {
-  projectName: string;
-  onSave: () => void;
-  onUndo: () => void;
-  onRedo: () => void;
-  onVrPreview: () => void;
-  onBack?: () => void;
-  saveStatus?: SaveStatus;
-  subtitle?: string;
-};
+  projectName: string
+  onSave: () => void
+  onUndo: () => void
+  onRedo: () => void
+  onVrPreview: () => void
+  onBack?: () => void
+  saveStatus?: SaveStatus
+  subtitle?: string
+}
 
 const SAVE_STATUS_LABEL: Record<SaveStatus, string> = {
-  idle: "",
-  saving: "Saving…",
-  saved: "Saved",
-  error: "Save failed",
-};
+  idle: '',
+  saving: 'Saving…',
+  saved: 'Saved',
+  error: 'Save failed',
+}
 
 export default function Navbar({
   projectName,
@@ -28,7 +28,7 @@ export default function Navbar({
   onRedo,
   onVrPreview,
   onBack,
-  saveStatus = "idle",
+  saveStatus = 'idle',
   subtitle,
 }: NavbarProps) {
   return (
@@ -36,7 +36,13 @@ export default function Navbar({
       {/* Left: Back + Logo + Project Name */}
       <div className="flex min-w-0 items-center gap-2">
         {onBack && (
-          <Button variant="ghost" size="sm" onClick={onBack} title="Back to dashboard" aria-label="Back to dashboard">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onBack}
+            title="Back to dashboard"
+            aria-label="Back to dashboard"
+          >
             <ArrowLeft className="h-5 w-5" />
           </Button>
         )}
@@ -51,8 +57,8 @@ export default function Navbar({
 
       {/* Right: Actions */}
       <div className="flex items-center gap-2">
-        {saveStatus !== "idle" && (
-          <span className={`mr-2 text-sm ${saveStatus === "error" ? "text-danger" : "text-muted"}`}>
+        {saveStatus !== 'idle' && (
+          <span className={`mr-2 text-sm ${saveStatus === 'error' ? 'text-danger' : 'text-muted'}`}>
             {SAVE_STATUS_LABEL[saveStatus]}
           </span>
         )}
@@ -67,7 +73,7 @@ export default function Navbar({
           variant="primary"
           size="sm"
           onClick={onSave}
-          loading={saveStatus === "saving"}
+          loading={saveStatus === 'saving'}
           icon={<Save className="h-4 w-4" />}
         >
           Save
@@ -77,5 +83,5 @@ export default function Navbar({
         </Button>
       </div>
     </nav>
-  );
+  )
 }

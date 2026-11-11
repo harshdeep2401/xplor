@@ -33,7 +33,5 @@ export const validateDetectionV1: ValidateFunction<DetectionV1> = ajv.compile<De
 // Compact, human-readable summary of ajv errors for error messages/logs.
 export function formatErrors(errors: ErrorObject[] | null | undefined): string {
   if (!errors || errors.length === 0) return 'unknown validation error'
-  return errors
-    .map((e) => `${e.instancePath || '(root)'} ${e.message ?? ''}`.trim())
-    .join('; ')
+  return errors.map((e) => `${e.instancePath || '(root)'} ${e.message ?? ''}`.trim()).join('; ')
 }

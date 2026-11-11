@@ -9,8 +9,8 @@ function Footer() {
         <div className="footer-brand">
           <h2>XPLOR</h2>
           <p>
-            Building futuristic AI experiences with immersive design,
-            smart automation, and powerful technology.
+            Building futuristic AI experiences with immersive design, smart automation, and powerful
+            technology.
           </p>
         </div>
 
@@ -24,9 +24,15 @@ function Footer() {
 
         <div className="footer-contact">
           <h3>Contact</h3>
-          <p><Mail size="1em" aria-hidden="true" /> hello@xplor.ai</p>
-          <p><Phone size="1em" aria-hidden="true" /> +91 98765 43210</p>
-          <p><MapPin size="1em" aria-hidden="true" /> Punjab, India</p>
+          <p>
+            <Mail size="1em" aria-hidden="true" /> hello@xplor.ai
+          </p>
+          <p>
+            <Phone size="1em" aria-hidden="true" /> +91 98765 43210
+          </p>
+          <p>
+            <MapPin size="1em" aria-hidden="true" /> Punjab, India
+          </p>
         </div>
       </div>
 

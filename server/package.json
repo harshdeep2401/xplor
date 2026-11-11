@@ -7,23 +7,35 @@
     "start": "tsx server.ts",
     "dev": "tsx watch server.ts",
     "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "test": "node --import tsx --test \"services/**/*.test.ts\"",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "seed:assets": "tsx scripts/seedAssets.ts",
+    "check": "npm run typecheck && npm run lint && npm run format:check && npm test"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/multer": "^2.2.0",
     "@types/node": "^20.19.43",
+    "eslint": "^10.14.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.14.0",
     "nodemon": "^3.1.14",
+    "prettier": "^3.10.0",
     "prisma": "^6.4.1",
     "tsx": "^4.23.12",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.72.2"
   },
   "dependencies": {
     "@prisma/client": "^6.4.1",

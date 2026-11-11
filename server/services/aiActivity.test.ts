@@ -3,9 +3,15 @@ import assert from 'node:assert/strict'
 import { aiBaseUrl, describeRoute, recordAiCall, recentAiCalls } from './aiActivity'
 
 test('the base URL drops the detection path', () => {
-  assert.equal(aiBaseUrl('https://a-b.trycloudflare.com/process-floor-plan'), 'https://a-b.trycloudflare.com')
+  assert.equal(
+    aiBaseUrl('https://a-b.trycloudflare.com/process-floor-plan'),
+    'https://a-b.trycloudflare.com',
+  )
   assert.equal(aiBaseUrl('http://127.0.0.1:8000/process-floor-plan'), 'http://127.0.0.1:8000')
-  assert.equal(aiBaseUrl('https://ai.example.com/xplor/process-floor-plan/'), 'https://ai.example.com/xplor')
+  assert.equal(
+    aiBaseUrl('https://ai.example.com/xplor/process-floor-plan/'),
+    'https://ai.example.com/xplor',
+  )
 })
 
 test('a CF-Ray header marks the call as tunnelled and names the data centre', () => {

@@ -1,0 +1,1806 @@
+{
+  "source": "kenney",
+  "license": "CC0 1.0 (Kenney Furniture Kit 2.0, www.kenney.nl)",
+  "items": [
+    {
+      "slug": "bathroomCabinet",
+      "name": "Bathroom cabinet",
+      "category": "Bathroom",
+      "model": "bathroomCabinet.glb",
+      "preview": "bathroomCabinet.png",
+      "dimensions": {
+        "x": 0.4,
+        "y": 0.65,
+        "z": 0.2
+      },
+      "roomTypes": ["bathroom"],
+      "tags": ["cabinet", "storage", "wall"],
+      "placement": "wall"
+    },
+    {
+      "slug": "bathroomCabinetDrawer",
+      "name": "Bathroom vanity",
+      "category": "Bathroom",
+      "model": "bathroomCabinetDrawer.glb",
+      "preview": "bathroomCabinetDrawer.png",
+      "dimensions": {
+        "x": 0.8,
+        "y": 0.85,
+        "z": 0.5
+      },
+      "roomTypes": ["bathroom"],
+      "tags": ["vanity", "cabinet", "drawers"],
+      "placement": "floor"
+    },
+    {
+      "slug": "bathroomMirror",
+      "name": "Bathroom mirror",
+      "category": "Bathroom",
+      "model": "bathroomMirror.glb",
+      "preview": "bathroomMirror.png",
+      "dimensions": {
+        "x": 0.55,
+        "y": 0.8,
+        "z": 0.22
+      },
+      "roomTypes": ["bathroom"],
+      "tags": ["mirror", "cabinet"],
+      "placement": "wall"
+    },
+    {
+      "slug": "bathroomSink",
+      "name": "Bathroom sink",
+      "category": "Bathroom",
+      "model": "bathroomSink.glb",
+      "preview": "bathroomSink.png",
+      "dimensions": {
+        "x": 0.55,
+        "y": 0.88,
+        "z": 0.45
+      },
+      "roomTypes": ["bathroom"],
+      "tags": ["sink", "basin", "pedestal"],
+      "placement": "floor"
+    },
+    {
+      "slug": "bathroomSinkSquare",
+      "name": "Square bathroom sink",
+      "category": "Bathroom",
+      "model": "bathroomSinkSquare.glb",
+      "preview": "bathroomSinkSquare.png",
+      "dimensions": {
+        "x": 0.75,
+        "y": 0.88,
+        "z": 0.5
+      },
+      "roomTypes": ["bathroom"],
+      "tags": ["sink", "basin", "vanity"],
+      "placement": "floor"
+    },
+    {
+      "slug": "bathtub",
+      "name": "Bathtub",
+      "category": "Bathroom",
+      "model": "bathtub.glb",
+      "preview": "bathtub.png",
+      "dimensions": {
+        "x": 1.7,
+        "y": 0.58,
+        "z": 0.75
+      },
+      "roomTypes": ["bathroom"],
+      "tags": ["bath", "tub"],
+      "placement": "floor"
+    },
+    {
+      "slug": "shower",
+      "name": "Shower",
+      "category": "Bathroom",
+      "model": "shower.glb",
+      "preview": "shower.png",
+      "dimensions": {
+        "x": 0.9,
+        "y": 2.0,
+        "z": 0.9
+      },
+      "roomTypes": ["bathroom"],
+      "tags": ["shower", "cubicle"],
+      "placement": "floor"
+    },
+    {
+      "slug": "showerRound",
+      "name": "Corner shower (round)",
+      "category": "Bathroom",
+      "model": "showerRound.glb",
+      "preview": "showerRound.png",
+      "dimensions": {
+        "x": 0.9,
+        "y": 2.0,
+        "z": 0.9
+      },
+      "roomTypes": ["bathroom"],
+      "tags": ["shower", "cubicle", "round"],
+      "placement": "floor"
+    },
+    {
+      "slug": "toilet",
+      "name": "Toilet",
+      "category": "Bathroom",
+      "model": "toilet.glb",
+      "preview": "toilet.png",
+      "dimensions": {
+        "x": 0.4,
+        "y": 0.78,
+        "z": 0.65
+      },
+      "roomTypes": ["bathroom"],
+      "tags": ["toilet", "wc"],
+      "placement": "floor"
+    },
+    {
+      "slug": "toiletSquare",
+      "name": "Toilet (square)",
+      "category": "Bathroom",
+      "model": "toiletSquare.glb",
+      "preview": "toiletSquare.png",
+      "dimensions": {
+        "x": 0.38,
+        "y": 0.78,
+        "z": 0.55
+      },
+      "roomTypes": ["bathroom"],
+      "tags": ["toilet", "wc"],
+      "placement": "floor"
+    },
+    {
+      "slug": "bedBunk",
+      "name": "Bunk bed",
+      "category": "Bedroom",
+      "model": "bedBunk.glb",
+      "preview": "bedBunk.png",
+      "dimensions": {
+        "x": 1.0,
+        "y": 1.6,
+        "z": 2.05
+      },
+      "roomTypes": ["bedroom"],
+      "tags": ["bed", "bunk", "kids"],
+      "placement": "floor"
+    },
+    {
+      "slug": "bedDouble",
+      "name": "Double bed",
+      "category": "Bedroom",
+      "model": "bedDouble.glb",
+      "preview": "bedDouble.png",
+      "dimensions": {
+        "x": 1.65,
+        "y": 0.65,
+        "z": 2.1
+      },
+      "roomTypes": ["bedroom"],
+      "tags": ["bed", "double", "queen"],
+      "placement": "floor"
+    },
+    {
+      "slug": "bedSingle",
+      "name": "Single bed",
+      "category": "Bedroom",
+      "model": "bedSingle.glb",
+      "preview": "bedSingle.png",
+      "dimensions": {
+        "x": 1.0,
+        "y": 0.65,
+        "z": 2.05
+      },
+      "roomTypes": ["bedroom"],
+      "tags": ["bed", "single"],
+      "placement": "floor"
+    },
+    {
+      "slug": "cabinetBed",
+      "name": "Nightstand",
+      "category": "Bedroom",
+      "model": "cabinetBed.glb",
+      "preview": "cabinetBed.png",
+      "dimensions": {
+        "x": 0.5,
+        "y": 0.45,
+        "z": 0.4
+      },
+      "roomTypes": ["bedroom"],
+      "tags": ["nightstand", "bedside"],
+      "placement": "floor"
+    },
+    {
+      "slug": "cabinetBedDrawer",
+      "name": "Nightstand with drawer",
+      "category": "Bedroom",
+      "model": "cabinetBedDrawer.glb",
+      "preview": "cabinetBedDrawer.png",
+      "dimensions": {
+        "x": 0.5,
+        "y": 0.5,
+        "z": 0.4
+      },
+      "roomTypes": ["bedroom"],
+      "tags": ["nightstand", "bedside", "drawers"],
+      "placement": "floor"
+    },
+    {
+      "slug": "cabinetBedDrawerTable",
+      "name": "Nightstand with drawer (tall top)",
+      "category": "Bedroom",
+      "model": "cabinetBedDrawerTable.glb",
+      "preview": "cabinetBedDrawerTable.png",
+      "dimensions": {
+        "x": 0.5,
+        "y": 0.5,
+        "z": 0.4
+      },
+      "roomTypes": ["bedroom"],
+      "tags": ["nightstand", "bedside", "drawers"],
+      "placement": "floor"
+    },
+    {
+      "slug": "bear",
+      "name": "Teddy bear",
+      "category": "Decor",
+      "model": "bear.glb",
+      "preview": "bear.png",
+      "dimensions": {
+        "x": 0.4,
+        "y": 0.46,
+        "z": 0.25
+      },
+      "roomTypes": ["bedroom"],
+      "tags": ["teddy bear", "toy", "kids"],
+      "placement": "surface"
+    },
+    {
+      "slug": "books",
+      "name": "Books",
+      "category": "Decor",
+      "model": "books.glb",
+      "preview": "books.png",
+      "dimensions": {
+        "x": 0.3,
+        "y": 0.22,
+        "z": 0.2
+      },
+      "roomTypes": ["living", "office", "bedroom"],
+      "tags": ["books"],
+      "placement": "surface"
+    },
+    {
+      "slug": "pillow",
+      "name": "Pillow",
+      "category": "Decor",
+      "model": "pillow.glb",
+      "preview": "pillow.png",
+      "dimensions": {
+        "x": 0.45,
+        "y": 0.42,
+        "z": 0.17
+      },
+      "roomTypes": ["bedroom", "living"],
+      "tags": ["pillow", "cushion"],
+      "placement": "surface"
+    },
+    {
+      "slug": "pillowBlue",
+      "name": "Blue pillow",
+      "category": "Decor",
+      "model": "pillowBlue.glb",
+      "preview": "pillowBlue.png",
+      "dimensions": {
+        "x": 0.45,
+        "y": 0.25,
+        "z": 0.12
+      },
+      "roomTypes": ["bedroom", "living"],
+      "tags": ["pillow", "cushion"],
+      "placement": "surface"
+    },
+    {
+      "slug": "pillowBlueLong",
+      "name": "Long blue pillow",
+      "category": "Decor",
+      "model": "pillowBlueLong.glb",
+      "preview": "pillowBlueLong.png",
+      "dimensions": {
+        "x": 1.0,
+        "y": 0.42,
+        "z": 0.17
+      },
+      "roomTypes": ["bedroom"],
+      "tags": ["pillow"],
+      "placement": "surface"
+    },
+    {
+      "slug": "pillowLong",
+      "name": "Long pillow",
+      "category": "Decor",
+      "model": "pillowLong.glb",
+      "preview": "pillowLong.png",
+      "dimensions": {
+        "x": 0.75,
+        "y": 0.42,
+        "z": 0.17
+      },
+      "roomTypes": ["bedroom"],
+      "tags": ["pillow"],
+      "placement": "surface"
+    },
+    {
+      "slug": "plantSmall1",
+      "name": "Small plant 1",
+      "category": "Decor",
+      "model": "plantSmall1.glb",
+      "preview": "plantSmall1.png",
+      "dimensions": {
+        "x": 0.18,
+        "y": 0.27,
+        "z": 0.18
+      },
+      "roomTypes": ["living", "office", "kitchen", "bathroom", "bedroom"],
+      "tags": ["plant", "small"],
+      "placement": "surface"
+    },
+    {
+      "slug": "plantSmall2",
+      "name": "Small plant 2",
+      "category": "Decor",
+      "model": "plantSmall2.glb",
+      "preview": "plantSmall2.png",
+      "dimensions": {
+        "x": 0.18,
+        "y": 0.27,
+        "z": 0.18
+      },
+      "roomTypes": ["living", "office", "kitchen", "bathroom", "bedroom"],
+      "tags": ["plant", "small"],
+      "placement": "surface"
+    },
+    {
+      "slug": "plantSmall3",
+      "name": "Small plant 3",
+      "category": "Decor",
+      "model": "plantSmall3.glb",
+      "preview": "plantSmall3.png",
+      "dimensions": {
+        "x": 0.19,
+        "y": 0.28,
+        "z": 0.17
+      },
+      "roomTypes": ["living", "office", "kitchen", "bathroom", "bedroom"],
+      "tags": ["plant", "small"],
+      "placement": "surface"
+    },
+    {
+      "slug": "pottedPlant",
+      "name": "Potted plant",
+      "category": "Decor",
+      "model": "pottedPlant.glb",
+      "preview": "pottedPlant.png",
+      "dimensions": {
+        "x": 0.45,
+        "y": 1.3,
+        "z": 0.5
+      },
+      "roomTypes": ["living", "office", "hallway", "bedroom", "dining"],
+      "tags": ["plant", "pot"],
+      "placement": "floor"
+    },
+    {
+      "slug": "rugDoormat",
+      "name": "Doormat",
+      "category": "Decor",
+      "model": "rugDoormat.glb",
+      "preview": "rugDoormat.png",
+      "dimensions": {
+        "x": 0.75,
+        "y": 0.01,
+        "z": 0.45
+      },
+      "roomTypes": ["hallway"],
+      "tags": ["doormat", "mat"],
+      "placement": "floor"
+    },
+    {
+      "slug": "rugRectangle",
+      "name": "Rectangular rug",
+      "category": "Decor",
+      "model": "rugRectangle.glb",
+      "preview": "rugRectangle.png",
+      "dimensions": {
+        "x": 2.3,
+        "y": 0.01,
+        "z": 1.6
+      },
+      "roomTypes": ["living", "bedroom", "dining"],
+      "tags": ["rug", "carpet"],
+      "placement": "floor"
+    },
+    {
+      "slug": "rugRound",
+      "name": "Round rug",
+      "category": "Decor",
+      "model": "rugRound.glb",
+      "preview": "rugRound.png",
+      "dimensions": {
+        "x": 1.6,
+        "y": 0.01,
+        "z": 1.6
+      },
+      "roomTypes": ["living", "bedroom"],
+      "tags": ["rug", "carpet", "round"],
+      "placement": "floor"
+    },
+    {
+      "slug": "rugRounded",
+      "name": "Rounded rug",
+      "category": "Decor",
+      "model": "rugRounded.glb",
+      "preview": "rugRounded.png",
+      "dimensions": {
+        "x": 2.3,
+        "y": 0.01,
+        "z": 1.6
+      },
+      "roomTypes": ["living", "bedroom"],
+      "tags": ["rug", "carpet"],
+      "placement": "floor"
+    },
+    {
+      "slug": "rugSquare",
+      "name": "Square rug",
+      "category": "Decor",
+      "model": "rugSquare.glb",
+      "preview": "rugSquare.png",
+      "dimensions": {
+        "x": 1.6,
+        "y": 0.01,
+        "z": 1.6
+      },
+      "roomTypes": ["living", "bedroom", "dining"],
+      "tags": ["rug", "carpet"],
+      "placement": "floor"
+    },
+    {
+      "slug": "bench",
+      "name": "Bench",
+      "category": "Dining",
+      "model": "bench.glb",
+      "preview": "bench.png",
+      "dimensions": {
+        "x": 0.95,
+        "y": 0.9,
+        "z": 0.45
+      },
+      "roomTypes": ["dining", "hallway"],
+      "tags": ["bench", "seating"],
+      "placement": "floor"
+    },
+    {
+      "slug": "benchCushion",
+      "name": "Cushioned bench",
+      "category": "Dining",
+      "model": "benchCushion.glb",
+      "preview": "benchCushion.png",
+      "dimensions": {
+        "x": 0.95,
+        "y": 0.88,
+        "z": 0.45
+      },
+      "roomTypes": ["dining", "hallway"],
+      "tags": ["bench", "seating"],
+      "placement": "floor"
+    },
+    {
+      "slug": "chair",
+      "name": "Wooden chair",
+      "category": "Dining",
+      "model": "chair.glb",
+      "preview": "chair.png",
+      "dimensions": {
+        "x": 0.45,
+        "y": 0.9,
+        "z": 0.45
+      },
+      "roomTypes": ["dining", "kitchen"],
+      "tags": ["chair", "seating"],
+      "placement": "floor"
+    },
+    {
+      "slug": "chairCushion",
+      "name": "Cushioned chair",
+      "category": "Dining",
+      "model": "chairCushion.glb",
+      "preview": "chairCushion.png",
+      "dimensions": {
+        "x": 0.45,
+        "y": 0.88,
+        "z": 0.45
+      },
+      "roomTypes": ["dining", "kitchen"],
+      "tags": ["chair", "seating"],
+      "placement": "floor"
+    },
+    {
+      "slug": "chairModernCushion",
+      "name": "Modern chair",
+      "category": "Dining",
+      "model": "chairModernCushion.glb",
+      "preview": "chairModernCushion.png",
+      "dimensions": {
+        "x": 0.45,
+        "y": 0.88,
+        "z": 0.45
+      },
+      "roomTypes": ["dining", "kitchen", "office"],
+      "tags": ["chair", "seating"],
+      "placement": "floor"
+    },
+    {
+      "slug": "chairModernFrameCushion",
+      "name": "Modern frame chair",
+      "category": "Dining",
+      "model": "chairModernFrameCushion.glb",
+      "preview": "chairModernFrameCushion.png",
+      "dimensions": {
+        "x": 0.45,
+        "y": 0.88,
+        "z": 0.45
+      },
+      "roomTypes": ["dining", "kitchen", "office"],
+      "tags": ["chair", "seating"],
+      "placement": "floor"
+    },
+    {
+      "slug": "chairRounded",
+      "name": "Rounded chair",
+      "category": "Dining",
+      "model": "chairRounded.glb",
+      "preview": "chairRounded.png",
+      "dimensions": {
+        "x": 0.45,
+        "y": 0.87,
+        "z": 0.45
+      },
+      "roomTypes": ["dining", "kitchen"],
+      "tags": ["chair", "seating"],
+      "placement": "floor"
+    },
+    {
+      "slug": "table",
+      "name": "Dining table",
+      "category": "Dining",
+      "model": "table.glb",
+      "preview": "table.png",
+      "dimensions": {
+        "x": 1.6,
+        "y": 0.75,
+        "z": 0.9
+      },
+      "roomTypes": ["dining", "kitchen"],
+      "tags": ["dining table", "table"],
+      "placement": "floor"
+    },
+    {
+      "slug": "tableCloth",
+      "name": "Dining table with cloth",
+      "category": "Dining",
+      "model": "tableCloth.glb",
+      "preview": "tableCloth.png",
+      "dimensions": {
+        "x": 1.6,
+        "y": 0.75,
+        "z": 0.9
+      },
+      "roomTypes": ["dining", "kitchen"],
+      "tags": ["dining table", "table", "tablecloth"],
+      "placement": "floor"
+    },
+    {
+      "slug": "tableCross",
+      "name": "Dining table (cross legs)",
+      "category": "Dining",
+      "model": "tableCross.glb",
+      "preview": "tableCross.png",
+      "dimensions": {
+        "x": 1.6,
+        "y": 0.76,
+        "z": 0.85
+      },
+      "roomTypes": ["dining", "kitchen"],
+      "tags": ["dining table", "table"],
+      "placement": "floor"
+    },
+    {
+      "slug": "tableCrossCloth",
+      "name": "Dining table with cloth (cross legs)",
+      "category": "Dining",
+      "model": "tableCrossCloth.glb",
+      "preview": "tableCrossCloth.png",
+      "dimensions": {
+        "x": 1.6,
+        "y": 0.76,
+        "z": 0.85
+      },
+      "roomTypes": ["dining", "kitchen"],
+      "tags": ["dining table", "table", "tablecloth"],
+      "placement": "floor"
+    },
+    {
+      "slug": "tableGlass",
+      "name": "Glass dining table",
+      "category": "Dining",
+      "model": "tableGlass.glb",
+      "preview": "tableGlass.png",
+      "dimensions": {
+        "x": 1.6,
+        "y": 0.75,
+        "z": 0.9
+      },
+      "roomTypes": ["dining"],
+      "tags": ["dining table", "table", "glass"],
+      "placement": "floor"
+    },
+    {
+      "slug": "tableRound",
+      "name": "Round dining table",
+      "category": "Dining",
+      "model": "tableRound.glb",
+      "preview": "tableRound.png",
+      "dimensions": {
+        "x": 1.2,
+        "y": 0.75,
+        "z": 1.3
+      },
+      "roomTypes": ["dining", "kitchen"],
+      "tags": ["dining table", "table", "round"],
+      "placement": "floor"
+    },
+    {
+      "slug": "computerKeyboard",
+      "name": "Keyboard",
+      "category": "Electronics",
+      "model": "computerKeyboard.glb",
+      "preview": "computerKeyboard.png",
+      "dimensions": {
+        "x": 0.45,
+        "y": 0.04,
+        "z": 0.18
+      },
+      "roomTypes": ["office", "bedroom"],
+      "tags": ["keyboard", "computer"],
+      "placement": "surface"
+    },
+    {
+      "slug": "computerMouse",
+      "name": "Mouse",
+      "category": "Electronics",
+      "model": "computerMouse.glb",
+      "preview": "computerMouse.png",
+      "dimensions": {
+        "x": 0.07,
+        "y": 0.035,
+        "z": 0.12
+      },
+      "roomTypes": ["office", "bedroom"],
+      "tags": ["mouse", "computer"],
+      "placement": "surface"
+    },
+    {
+      "slug": "computerScreen",
+      "name": "Monitor",
+      "category": "Electronics",
+      "model": "computerScreen.glb",
+      "preview": "computerScreen.png",
+      "dimensions": {
+        "x": 0.6,
+        "y": 0.45,
+        "z": 0.16
+      },
+      "roomTypes": ["office", "bedroom"],
+      "tags": ["monitor", "screen", "computer"],
+      "placement": "surface"
+    },
+    {
+      "slug": "laptop",
+      "name": "Laptop",
+      "category": "Electronics",
+      "model": "laptop.glb",
+      "preview": "laptop.png",
+      "dimensions": {
+        "x": 0.35,
+        "y": 0.22,
+        "z": 0.32
+      },
+      "roomTypes": ["office", "bedroom", "living"],
+      "tags": ["laptop", "computer"],
+      "placement": "surface"
+    },
+    {
+      "slug": "radio",
+      "name": "Radio",
+      "category": "Electronics",
+      "model": "radio.glb",
+      "preview": "radio.png",
+      "dimensions": {
+        "x": 0.4,
+        "y": 0.29,
+        "z": 0.13
+      },
+      "roomTypes": ["living", "kitchen"],
+      "tags": ["radio", "audio"],
+      "placement": "surface"
+    },
+    {
+      "slug": "speaker",
+      "name": "Speaker",
+      "category": "Electronics",
+      "model": "speaker.glb",
+      "preview": "speaker.png",
+      "dimensions": {
+        "x": 0.28,
+        "y": 1.1,
+        "z": 0.28
+      },
+      "roomTypes": ["living"],
+      "tags": ["speaker", "audio"],
+      "placement": "floor"
+    },
+    {
+      "slug": "speakerSmall",
+      "name": "Small speaker",
+      "category": "Electronics",
+      "model": "speakerSmall.glb",
+      "preview": "speakerSmall.png",
+      "dimensions": {
+        "x": 0.25,
+        "y": 0.5,
+        "z": 0.22
+      },
+      "roomTypes": ["living", "office", "bedroom"],
+      "tags": ["speaker", "audio"],
+      "placement": "surface"
+    },
+    {
+      "slug": "televisionAntenna",
+      "name": "TV antenna",
+      "category": "Electronics",
+      "model": "televisionAntenna.glb",
+      "preview": "televisionAntenna.png",
+      "dimensions": {
+        "x": 0.45,
+        "y": 0.18,
+        "z": 0.14
+      },
+      "roomTypes": ["living"],
+      "tags": ["antenna"],
+      "placement": "surface"
+    },
+    {
+      "slug": "televisionModern",
+      "name": "Flat-screen TV",
+      "category": "Electronics",
+      "model": "televisionModern.glb",
+      "preview": "televisionModern.png",
+      "dimensions": {
+        "x": 1.25,
+        "y": 0.8,
+        "z": 0.22
+      },
+      "roomTypes": ["living", "bedroom"],
+      "tags": ["tv", "television", "screen"],
+      "placement": "surface"
+    },
+    {
+      "slug": "televisionVintage",
+      "name": "Vintage TV",
+      "category": "Electronics",
+      "model": "televisionVintage.glb",
+      "preview": "televisionVintage.png",
+      "dimensions": {
+        "x": 0.7,
+        "y": 0.48,
+        "z": 0.48
+      },
+      "roomTypes": ["living"],
+      "tags": ["tv", "television", "retro"],
+      "placement": "surface"
+    },
+    {
+      "slug": "hoodLarge",
+      "name": "Cooker hood",
+      "category": "Kitchen",
+      "model": "hoodLarge.glb",
+      "preview": "hoodLarge.png",
+      "dimensions": {
+        "x": 0.6,
+        "y": 0.55,
+        "z": 0.4
+      },
+      "roomTypes": ["kitchen"],
+      "tags": ["extractor", "hood"],
+      "placement": "wall"
+    },
+    {
+      "slug": "hoodModern",
+      "name": "Cooker hood (modern)",
+      "category": "Kitchen",
+      "model": "hoodModern.glb",
+      "preview": "hoodModern.png",
+      "dimensions": {
+        "x": 0.6,
+        "y": 0.6,
+        "z": 0.4
+      },
+      "roomTypes": ["kitchen"],
+      "tags": ["extractor", "hood"],
+      "placement": "wall"
+    },
+    {
+      "slug": "kitchenBar",
+      "name": "Breakfast bar",
+      "category": "Kitchen",
+      "model": "kitchenBar.glb",
+      "preview": "kitchenBar.png",
+      "dimensions": {
+        "x": 1.2,
+        "y": 1.05,
+        "z": 0.6
+      },
+      "roomTypes": ["kitchen", "dining"],
+      "tags": ["breakfast bar", "counter"],
+      "placement": "floor"
+    },
+    {
+      "slug": "kitchenBarEnd",
+      "name": "Breakfast bar end",
+      "category": "Kitchen",
+      "model": "kitchenBarEnd.glb",
+      "preview": "kitchenBarEnd.png",
+      "dimensions": {
+        "x": 0.28,
+        "y": 1.05,
+        "z": 0.6
+      },
+      "roomTypes": ["kitchen", "dining"],
+      "tags": ["breakfast bar", "end"],
+      "placement": "floor"
+    },
+    {
+      "slug": "kitchenBlender",
+      "name": "Blender",
+      "category": "Kitchen",
+      "model": "kitchenBlender.glb",
+      "preview": "kitchenBlender.png",
+      "dimensions": {
+        "x": 0.18,
+        "y": 0.38,
+        "z": 0.15
+      },
+      "roomTypes": ["kitchen"],
+      "tags": ["blender"],
+      "placement": "surface"
+    },
+    {
+      "slug": "kitchenCabinet",
+      "name": "Counter cabinet",
+      "category": "Kitchen",
+      "model": "kitchenCabinet.glb",
+      "preview": "kitchenCabinet.png",
+      "dimensions": {
+        "x": 0.6,
+        "y": 0.9,
+        "z": 0.6
+      },
+      "roomTypes": ["kitchen"],
+      "tags": ["base cabinet", "counter"],
+      "placement": "floor"
+    },
+    {
+      "slug": "kitchenCabinetCornerInner",
+      "name": "Corner counter cabinet",
+      "category": "Kitchen",
+      "model": "kitchenCabinetCornerInner.glb",
+      "preview": "kitchenCabinetCornerInner.png",
+      "dimensions": {
+        "x": 0.62,
+        "y": 0.9,
+        "z": 0.62
+      },
+      "roomTypes": ["kitchen"],
+      "tags": ["corner cabinet", "counter"],
+      "placement": "floor"
+    },
+    {
+      "slug": "kitchenCabinetCornerRound",
+      "name": "Rounded corner counter",
+      "category": "Kitchen",
+      "model": "kitchenCabinetCornerRound.glb",
+      "preview": "kitchenCabinetCornerRound.png",
+      "dimensions": {
+        "x": 0.6,
+        "y": 0.9,
+        "z": 0.6
+      },
+      "roomTypes": ["kitchen"],
+      "tags": ["corner cabinet", "counter"],
+      "placement": "floor"
+    },
+    {
+      "slug": "kitchenCabinetDrawer",
+      "name": "Counter drawers",
+      "category": "Kitchen",
+      "model": "kitchenCabinetDrawer.glb",
+      "preview": "kitchenCabinetDrawer.png",
+      "dimensions": {
+        "x": 0.6,
+        "y": 0.9,
+        "z": 0.6
+      },
+      "roomTypes": ["kitchen"],
+      "tags": ["base cabinet", "drawers", "counter"],
+      "placement": "floor"
+    },
+    {
+      "slug": "kitchenCabinetUpper",
+      "name": "Wall cabinet",
+      "category": "Kitchen",
+      "model": "kitchenCabinetUpper.glb",
+      "preview": "kitchenCabinetUpper.png",
+      "dimensions": {
+        "x": 0.6,
+        "y": 0.72,
+        "z": 0.35
+      },
+      "roomTypes": ["kitchen"],
+      "tags": ["wall cabinet"],
+      "placement": "wall"
+    },
+    {
+      "slug": "kitchenCabinetUpperCorner",
+      "name": "Corner wall cabinet",
+      "category": "Kitchen",
+      "model": "kitchenCabinetUpperCorner.glb",
+      "preview": "kitchenCabinetUpperCorner.png",
+      "dimensions": {
+        "x": 0.3,
+        "y": 0.72,
+        "z": 0.33
+      },
+      "roomTypes": ["kitchen"],
+      "tags": ["wall cabinet", "corner"],
+      "placement": "wall"
+    },
+    {
+      "slug": "kitchenCabinetUpperDouble",
+      "name": "Double wall cabinet",
+      "category": "Kitchen",
+      "model": "kitchenCabinetUpperDouble.glb",
+      "preview": "kitchenCabinetUpperDouble.png",
+      "dimensions": {
+        "x": 0.6,
+        "y": 0.72,
+        "z": 0.35
+      },
+      "roomTypes": ["kitchen"],
+      "tags": ["wall cabinet"],
+      "placement": "wall"
+    },
+    {
+      "slug": "kitchenCabinetUpperLow",
+      "name": "Low wall cabinet",
+      "category": "Kitchen",
+      "model": "kitchenCabinetUpperLow.glb",
+      "preview": "kitchenCabinetUpperLow.png",
+      "dimensions": {
+        "x": 0.6,
+        "y": 0.36,
+        "z": 0.35
+      },
+      "roomTypes": ["kitchen"],
+      "tags": ["wall cabinet", "low"],
+      "placement": "wall"
+    },
+    {
+      "slug": "kitchenCoffeeMachine",
+      "name": "Coffee machine",
+      "category": "Kitchen",
+      "model": "kitchenCoffeeMachine.glb",
+      "preview": "kitchenCoffeeMachine.png",
+      "dimensions": {
+        "x": 0.25,
+        "y": 0.3,
+        "z": 0.32
+      },
+      "roomTypes": ["kitchen", "office"],
+      "tags": ["coffee machine"],
+      "placement": "surface"
+    },
+    {
+      "slug": "kitchenFridge",
+      "name": "Fridge",
+      "category": "Kitchen",
+      "model": "kitchenFridge.glb",
+      "preview": "kitchenFridge.png",
+      "dimensions": {
+        "x": 0.6,
+        "y": 1.8,
+        "z": 0.55
+      },
+      "roomTypes": ["kitchen"],
+      "tags": ["fridge", "refrigerator"],
+      "placement": "floor"
+    },
+    {
+      "slug": "kitchenFridgeBuiltIn",
+      "name": "Built-in fridge",
+      "category": "Kitchen",
+      "model": "kitchenFridgeBuiltIn.glb",
+      "preview": "kitchenFridgeBuiltIn.png",
+      "dimensions": {
+        "x": 0.6,
+        "y": 1.8,
+        "z": 0.62
+      },
+      "roomTypes": ["kitchen"],
+      "tags": ["fridge", "refrigerator", "built-in"],
+      "placement": "floor"
+    },
+    {
+      "slug": "kitchenFridgeLarge",
+      "name": "Large fridge",
+      "category": "Kitchen",
+      "model": "kitchenFridgeLarge.glb",
+      "preview": "kitchenFridgeLarge.png",
+      "dimensions": {
+        "x": 0.9,
+        "y": 1.8,
+        "z": 0.7
+      },
+      "roomTypes": ["kitchen"],
+      "tags": ["fridge", "refrigerator", "double"],
+      "placement": "floor"
+    },
+    {
+      "slug": "kitchenFridgeSmall",
+      "name": "Small fridge",
+      "category": "Kitchen",
+      "model": "kitchenFridgeSmall.glb",
+      "preview": "kitchenFridgeSmall.png",
+      "dimensions": {
+        "x": 0.6,
+        "y": 1.2,
+        "z": 0.55
+      },
+      "roomTypes": ["kitchen", "office"],
+      "tags": ["fridge", "refrigerator", "small"],
+      "placement": "floor"
+    },
+    {
+      "slug": "kitchenMicrowave",
+      "name": "Microwave",
+      "category": "Kitchen",
+      "model": "kitchenMicrowave.glb",
+      "preview": "kitchenMicrowave.png",
+      "dimensions": {
+        "x": 0.5,
+        "y": 0.3,
+        "z": 0.4
+      },
+      "roomTypes": ["kitchen"],
+      "tags": ["microwave"],
+      "placement": "surface"
+    },
+    {
+      "slug": "kitchenSink",
+      "name": "Kitchen sink",
+      "category": "Kitchen",
+      "model": "kitchenSink.glb",
+      "preview": "kitchenSink.png",
+      "dimensions": {
+        "x": 0.6,
+        "y": 0.98,
+        "z": 0.6
+      },
+      "roomTypes": ["kitchen"],
+      "tags": ["sink", "counter"],
+      "placement": "floor"
+    },
+    {
+      "slug": "kitchenStove",
+      "name": "Stove",
+      "category": "Kitchen",
+      "model": "kitchenStove.glb",
+      "preview": "kitchenStove.png",
+      "dimensions": {
+        "x": 0.6,
+        "y": 0.9,
+        "z": 0.6
+      },
+      "roomTypes": ["kitchen"],
+      "tags": ["stove", "oven", "cooker"],
+      "placement": "floor"
+    },
+    {
+      "slug": "kitchenStoveElectric",
+      "name": "Electric stove",
+      "category": "Kitchen",
+      "model": "kitchenStoveElectric.glb",
+      "preview": "kitchenStoveElectric.png",
+      "dimensions": {
+        "x": 0.6,
+        "y": 0.9,
+        "z": 0.6
+      },
+      "roomTypes": ["kitchen"],
+      "tags": ["stove", "oven", "cooker", "electric"],
+      "placement": "floor"
+    },
+    {
+      "slug": "stoolBar",
+      "name": "Bar stool",
+      "category": "Kitchen",
+      "model": "stoolBar.glb",
+      "preview": "stoolBar.png",
+      "dimensions": {
+        "x": 0.45,
+        "y": 0.75,
+        "z": 0.4
+      },
+      "roomTypes": ["kitchen", "dining"],
+      "tags": ["bar stool", "stool", "seating"],
+      "placement": "floor"
+    },
+    {
+      "slug": "stoolBarSquare",
+      "name": "Square bar stool",
+      "category": "Kitchen",
+      "model": "stoolBarSquare.glb",
+      "preview": "stoolBarSquare.png",
+      "dimensions": {
+        "x": 0.38,
+        "y": 0.75,
+        "z": 0.37
+      },
+      "roomTypes": ["kitchen", "dining"],
+      "tags": ["bar stool", "stool", "seating"],
+      "placement": "floor"
+    },
+    {
+      "slug": "toaster",
+      "name": "Toaster",
+      "category": "Kitchen",
+      "model": "toaster.glb",
+      "preview": "toaster.png",
+      "dimensions": {
+        "x": 0.3,
+        "y": 0.2,
+        "z": 0.17
+      },
+      "roomTypes": ["kitchen"],
+      "tags": ["toaster"],
+      "placement": "surface"
+    },
+    {
+      "slug": "trashcan",
+      "name": "Bin",
+      "category": "Kitchen",
+      "model": "trashcan.glb",
+      "preview": "trashcan.png",
+      "dimensions": {
+        "x": 0.35,
+        "y": 0.7,
+        "z": 0.38
+      },
+      "roomTypes": ["kitchen", "office", "bathroom"],
+      "tags": ["bin", "trash"],
+      "placement": "floor"
+    },
+    {
+      "slug": "dryer",
+      "name": "Dryer",
+      "category": "Laundry",
+      "model": "dryer.glb",
+      "preview": "dryer.png",
+      "dimensions": {
+        "x": 0.6,
+        "y": 0.85,
+        "z": 0.6
+      },
+      "roomTypes": ["bathroom", "kitchen", "other"],
+      "tags": ["dryer", "laundry"],
+      "placement": "floor"
+    },
+    {
+      "slug": "washer",
+      "name": "Washing machine",
+      "category": "Laundry",
+      "model": "washer.glb",
+      "preview": "washer.png",
+      "dimensions": {
+        "x": 0.6,
+        "y": 0.85,
+        "z": 0.6
+      },
+      "roomTypes": ["bathroom", "kitchen", "other"],
+      "tags": ["washing machine", "laundry"],
+      "placement": "floor"
+    },
+    {
+      "slug": "washerDryerStacked",
+      "name": "Washer and dryer (stacked)",
+      "category": "Laundry",
+      "model": "washerDryerStacked.glb",
+      "preview": "washerDryerStacked.png",
+      "dimensions": {
+        "x": 0.6,
+        "y": 1.7,
+        "z": 0.6
+      },
+      "roomTypes": ["bathroom", "other"],
+      "tags": ["washing machine", "dryer", "laundry"],
+      "placement": "floor"
+    },
+    {
+      "slug": "ceilingFan",
+      "name": "Ceiling fan",
+      "category": "Lighting",
+      "model": "ceilingFan.glb",
+      "preview": "ceilingFan.png",
+      "dimensions": {
+        "x": 1.1,
+        "y": 0.32,
+        "z": 1.25
+      },
+      "roomTypes": ["living", "bedroom"],
+      "tags": ["ceiling fan", "fan"],
+      "placement": "ceiling"
+    },
+    {
+      "slug": "lampRoundFloor",
+      "name": "Round floor lamp",
+      "category": "Lighting",
+      "model": "lampRoundFloor.glb",
+      "preview": "lampRoundFloor.png",
+      "dimensions": {
+        "x": 0.35,
+        "y": 1.6,
+        "z": 0.4
+      },
+      "roomTypes": ["living", "bedroom", "office"],
+      "tags": ["floor lamp", "lamp", "light"],
+      "placement": "floor"
+    },
+    {
+      "slug": "lampRoundTable",
+      "name": "Round table lamp",
+      "category": "Lighting",
+      "model": "lampRoundTable.glb",
+      "preview": "lampRoundTable.png",
+      "dimensions": {
+        "x": 0.3,
+        "y": 0.58,
+        "z": 0.34
+      },
+      "roomTypes": ["bedroom", "living", "office"],
+      "tags": ["table lamp", "lamp", "light"],
+      "placement": "surface"
+    },
+    {
+      "slug": "lampSquareCeiling",
+      "name": "Pendant light",
+      "category": "Lighting",
+      "model": "lampSquareCeiling.glb",
+      "preview": "lampSquareCeiling.png",
+      "dimensions": {
+        "x": 0.25,
+        "y": 0.45,
+        "z": 0.25
+      },
+      "roomTypes": ["living", "bedroom", "kitchen", "dining", "office", "hallway", "bathroom"],
+      "tags": ["pendant", "ceiling light", "light"],
+      "placement": "ceiling"
+    },
+    {
+      "slug": "lampSquareFloor",
+      "name": "Square floor lamp",
+      "category": "Lighting",
+      "model": "lampSquareFloor.glb",
+      "preview": "lampSquareFloor.png",
+      "dimensions": {
+        "x": 0.28,
+        "y": 1.6,
+        "z": 0.28
+      },
+      "roomTypes": ["living", "bedroom", "office"],
+      "tags": ["floor lamp", "lamp", "light"],
+      "placement": "floor"
+    },
+    {
+      "slug": "lampSquareTable",
+      "name": "Square table lamp",
+      "category": "Lighting",
+      "model": "lampSquareTable.glb",
+      "preview": "lampSquareTable.png",
+      "dimensions": {
+        "x": 0.24,
+        "y": 0.55,
+        "z": 0.24
+      },
+      "roomTypes": ["bedroom", "living", "office"],
+      "tags": ["table lamp", "lamp", "light"],
+      "placement": "surface"
+    },
+    {
+      "slug": "lampWall",
+      "name": "Wall light",
+      "category": "Lighting",
+      "model": "lampWall.glb",
+      "preview": "lampWall.png",
+      "dimensions": {
+        "x": 0.4,
+        "y": 0.17,
+        "z": 0.27
+      },
+      "roomTypes": ["living", "bedroom", "hallway", "bathroom"],
+      "tags": ["wall light", "sconce", "light"],
+      "placement": "wall"
+    },
+    {
+      "slug": "benchCushionLow",
+      "name": "Low cushioned bench",
+      "category": "Living",
+      "model": "benchCushionLow.glb",
+      "preview": "benchCushionLow.png",
+      "dimensions": {
+        "x": 1.1,
+        "y": 0.45,
+        "z": 0.5
+      },
+      "roomTypes": ["living", "hallway", "bedroom"],
+      "tags": ["bench", "seating"],
+      "placement": "floor"
+    },
+    {
+      "slug": "cabinetTelevision",
+      "name": "TV stand",
+      "category": "Living",
+      "model": "cabinetTelevision.glb",
+      "preview": "cabinetTelevision.png",
+      "dimensions": {
+        "x": 1.6,
+        "y": 0.55,
+        "z": 0.45
+      },
+      "roomTypes": ["living", "bedroom"],
+      "tags": ["tv stand", "media", "cabinet"],
+      "placement": "floor"
+    },
+    {
+      "slug": "cabinetTelevisionDoors",
+      "name": "TV stand with doors",
+      "category": "Living",
+      "model": "cabinetTelevisionDoors.glb",
+      "preview": "cabinetTelevisionDoors.png",
+      "dimensions": {
+        "x": 1.6,
+        "y": 0.55,
+        "z": 0.47
+      },
+      "roomTypes": ["living", "bedroom"],
+      "tags": ["tv stand", "media", "cabinet"],
+      "placement": "floor"
+    },
+    {
+      "slug": "loungeChair",
+      "name": "Armchair",
+      "category": "Living",
+      "model": "loungeChair.glb",
+      "preview": "loungeChair.png",
+      "dimensions": {
+        "x": 0.9,
+        "y": 0.85,
+        "z": 0.8
+      },
+      "roomTypes": ["living", "bedroom"],
+      "tags": ["armchair", "seating"],
+      "placement": "floor"
+    },
+    {
+      "slug": "loungeChairRelax",
+      "name": "Recliner",
+      "category": "Living",
+      "model": "loungeChairRelax.glb",
+      "preview": "loungeChairRelax.png",
+      "dimensions": {
+        "x": 0.85,
+        "y": 1.05,
+        "z": 1.15
+      },
+      "roomTypes": ["living"],
+      "tags": ["recliner", "armchair", "seating"],
+      "placement": "floor"
+    },
+    {
+      "slug": "loungeDesignChair",
+      "name": "Loveseat",
+      "category": "Living",
+      "model": "loungeDesignChair.glb",
+      "preview": "loungeDesignChair.png",
+      "dimensions": {
+        "x": 1.2,
+        "y": 0.7,
+        "z": 0.75
+      },
+      "roomTypes": ["living"],
+      "tags": ["loveseat", "seating"],
+      "placement": "floor"
+    },
+    {
+      "slug": "loungeDesignSofa",
+      "name": "Modern sofa",
+      "category": "Living",
+      "model": "loungeDesignSofa.glb",
+      "preview": "loungeDesignSofa.png",
+      "dimensions": {
+        "x": 2.0,
+        "y": 0.72,
+        "z": 0.8
+      },
+      "roomTypes": ["living"],
+      "tags": ["sofa", "couch", "seating"],
+      "placement": "floor"
+    },
+    {
+      "slug": "loungeDesignSofaCorner",
+      "name": "Modern corner sofa",
+      "category": "Living",
+      "model": "loungeDesignSofaCorner.glb",
+      "preview": "loungeDesignSofaCorner.png",
+      "dimensions": {
+        "x": 2.4,
+        "y": 0.72,
+        "z": 2.4
+      },
+      "roomTypes": ["living"],
+      "tags": ["sofa", "corner", "sectional"],
+      "placement": "floor"
+    },
+    {
+      "slug": "loungeSofa",
+      "name": "Sofa",
+      "category": "Living",
+      "model": "loungeSofa.glb",
+      "preview": "loungeSofa.png",
+      "dimensions": {
+        "x": 2.0,
+        "y": 0.85,
+        "z": 0.88
+      },
+      "roomTypes": ["living"],
+      "tags": ["sofa", "couch", "seating"],
+      "placement": "floor"
+    },
+    {
+      "slug": "loungeSofaCorner",
+      "name": "Corner sofa",
+      "category": "Living",
+      "model": "loungeSofaCorner.glb",
+      "preview": "loungeSofaCorner.png",
+      "dimensions": {
+        "x": 2.2,
+        "y": 0.85,
+        "z": 2.2
+      },
+      "roomTypes": ["living"],
+      "tags": ["sofa", "corner", "sectional", "seating"],
+      "placement": "floor"
+    },
+    {
+      "slug": "loungeSofaLong",
+      "name": "Sofa with chaise",
+      "category": "Living",
+      "model": "loungeSofaLong.glb",
+      "preview": "loungeSofaLong.png",
+      "dimensions": {
+        "x": 2.0,
+        "y": 0.85,
+        "z": 1.65
+      },
+      "roomTypes": ["living"],
+      "tags": ["sofa", "chaise", "couch", "seating"],
+      "placement": "floor"
+    },
+    {
+      "slug": "loungeSofaOttoman",
+      "name": "Ottoman",
+      "category": "Living",
+      "model": "loungeSofaOttoman.glb",
+      "preview": "loungeSofaOttoman.png",
+      "dimensions": {
+        "x": 0.85,
+        "y": 0.42,
+        "z": 0.85
+      },
+      "roomTypes": ["living"],
+      "tags": ["ottoman", "footstool"],
+      "placement": "floor"
+    },
+    {
+      "slug": "sideTable",
+      "name": "Console table",
+      "category": "Living",
+      "model": "sideTable.glb",
+      "preview": "sideTable.png",
+      "dimensions": {
+        "x": 1.1,
+        "y": 0.75,
+        "z": 0.45
+      },
+      "roomTypes": ["living", "bedroom", "hallway"],
+      "tags": ["console", "side table"],
+      "placement": "floor"
+    },
+    {
+      "slug": "sideTableDrawers",
+      "name": "Console table with drawers",
+      "category": "Living",
+      "model": "sideTableDrawers.glb",
+      "preview": "sideTableDrawers.png",
+      "dimensions": {
+        "x": 1.1,
+        "y": 0.75,
+        "z": 0.45
+      },
+      "roomTypes": ["living", "bedroom", "hallway"],
+      "tags": ["console", "side table", "drawers"],
+      "placement": "floor"
+    },
+    {
+      "slug": "tableCoffee",
+      "name": "Coffee table",
+      "category": "Living",
+      "model": "tableCoffee.glb",
+      "preview": "tableCoffee.png",
+      "dimensions": {
+        "x": 1.1,
+        "y": 0.42,
+        "z": 0.65
+      },
+      "roomTypes": ["living"],
+      "tags": ["coffee table", "table"],
+      "placement": "floor"
+    },
+    {
+      "slug": "tableCoffeeGlass",
+      "name": "Glass coffee table",
+      "category": "Living",
+      "model": "tableCoffeeGlass.glb",
+      "preview": "tableCoffeeGlass.png",
+      "dimensions": {
+        "x": 1.1,
+        "y": 0.42,
+        "z": 0.65
+      },
+      "roomTypes": ["living"],
+      "tags": ["coffee table", "table", "glass"],
+      "placement": "floor"
+    },
+    {
+      "slug": "tableCoffeeGlassSquare",
+      "name": "Square glass coffee table",
+      "category": "Living",
+      "model": "tableCoffeeGlassSquare.glb",
+      "preview": "tableCoffeeGlassSquare.png",
+      "dimensions": {
+        "x": 0.8,
+        "y": 0.42,
+        "z": 0.8
+      },
+      "roomTypes": ["living"],
+      "tags": ["coffee table", "table", "glass"],
+      "placement": "floor"
+    },
+    {
+      "slug": "tableCoffeeSquare",
+      "name": "Square coffee table",
+      "category": "Living",
+      "model": "tableCoffeeSquare.glb",
+      "preview": "tableCoffeeSquare.png",
+      "dimensions": {
+        "x": 0.8,
+        "y": 0.42,
+        "z": 0.8
+      },
+      "roomTypes": ["living"],
+      "tags": ["coffee table", "table"],
+      "placement": "floor"
+    },
+    {
+      "slug": "chairDesk",
+      "name": "Office chair",
+      "category": "Office",
+      "model": "chairDesk.glb",
+      "preview": "chairDesk.png",
+      "dimensions": {
+        "x": 0.62,
+        "y": 1.1,
+        "z": 0.6
+      },
+      "roomTypes": ["office", "bedroom"],
+      "tags": ["office chair", "chair", "seating"],
+      "placement": "floor"
+    },
+    {
+      "slug": "desk",
+      "name": "Desk",
+      "category": "Office",
+      "model": "desk.glb",
+      "preview": "desk.png",
+      "dimensions": {
+        "x": 1.4,
+        "y": 0.75,
+        "z": 0.7
+      },
+      "roomTypes": ["office", "bedroom"],
+      "tags": ["desk", "table"],
+      "placement": "floor"
+    },
+    {
+      "slug": "deskCorner",
+      "name": "Corner desk",
+      "category": "Office",
+      "model": "deskCorner.glb",
+      "preview": "deskCorner.png",
+      "dimensions": {
+        "x": 1.6,
+        "y": 0.75,
+        "z": 1.6
+      },
+      "roomTypes": ["office"],
+      "tags": ["desk", "corner"],
+      "placement": "floor"
+    },
+    {
+      "slug": "bookcaseClosed",
+      "name": "Cabinet with shelves",
+      "category": "Storage",
+      "model": "bookcaseClosed.glb",
+      "preview": "bookcaseClosed.png",
+      "dimensions": {
+        "x": 0.8,
+        "y": 1.8,
+        "z": 0.4
+      },
+      "roomTypes": ["living", "office", "bedroom"],
+      "tags": ["cabinet", "shelves"],
+      "placement": "floor"
+    },
+    {
+      "slug": "bookcaseClosedDoors",
+      "name": "Wardrobe",
+      "category": "Storage",
+      "model": "bookcaseClosedDoors.glb",
+      "preview": "bookcaseClosedDoors.png",
+      "dimensions": {
+        "x": 0.8,
+        "y": 1.8,
+        "z": 0.4
+      },
+      "roomTypes": ["living", "office", "bedroom"],
+      "tags": ["wardrobe", "cabinet"],
+      "placement": "floor"
+    },
+    {
+      "slug": "bookcaseClosedWide",
+      "name": "Wide cabinet",
+      "category": "Storage",
+      "model": "bookcaseClosedWide.glb",
+      "preview": "bookcaseClosedWide.png",
+      "dimensions": {
+        "x": 1.6,
+        "y": 1.7,
+        "z": 0.4
+      },
+      "roomTypes": ["living", "office", "bedroom"],
+      "tags": ["cabinet", "shelves", "wide"],
+      "placement": "floor"
+    },
+    {
+      "slug": "bookcaseOpen",
+      "name": "Bookcase",
+      "category": "Storage",
+      "model": "bookcaseOpen.glb",
+      "preview": "bookcaseOpen.png",
+      "dimensions": {
+        "x": 0.8,
+        "y": 1.8,
+        "z": 0.35
+      },
+      "roomTypes": ["living", "office", "bedroom"],
+      "tags": ["bookcase", "shelves"],
+      "placement": "floor"
+    },
+    {
+      "slug": "bookcaseOpenLow",
+      "name": "Low bookcase",
+      "category": "Storage",
+      "model": "bookcaseOpenLow.glb",
+      "preview": "bookcaseOpenLow.png",
+      "dimensions": {
+        "x": 0.8,
+        "y": 0.8,
+        "z": 0.35
+      },
+      "roomTypes": ["living", "office", "bedroom"],
+      "tags": ["bookcase", "shelves", "low"],
+      "placement": "floor"
+    },
+    {
+      "slug": "cardboardBoxClosed",
+      "name": "Cardboard box",
+      "category": "Storage",
+      "model": "cardboardBoxClosed.glb",
+      "preview": "cardboardBoxClosed.png",
+      "dimensions": {
+        "x": 0.45,
+        "y": 0.55,
+        "z": 0.45
+      },
+      "roomTypes": ["other", "office"],
+      "tags": ["box"],
+      "placement": "floor"
+    },
+    {
+      "slug": "cardboardBoxOpen",
+      "name": "Open cardboard box",
+      "category": "Storage",
+      "model": "cardboardBoxOpen.glb",
+      "preview": "cardboardBoxOpen.png",
+      "dimensions": {
+        "x": 0.75,
+        "y": 0.55,
+        "z": 0.45
+      },
+      "roomTypes": ["other", "office"],
+      "tags": ["box"],
+      "placement": "floor"
+    },
+    {
+      "slug": "coatRack",
+      "name": "Wall coat rack",
+      "category": "Storage",
+      "model": "coatRack.glb",
+      "preview": "coatRack.png",
+      "dimensions": {
+        "x": 0.8,
+        "y": 0.5,
+        "z": 0.24
+      },
+      "roomTypes": ["hallway", "bedroom"],
+      "tags": ["coat", "hooks", "wall"],
+      "placement": "wall"
+    },
+    {
+      "slug": "coatRackStanding",
+      "name": "Coat stand",
+      "category": "Storage",
+      "model": "coatRackStanding.glb",
+      "preview": "coatRackStanding.png",
+      "dimensions": {
+        "x": 0.5,
+        "y": 1.75,
+        "z": 0.5
+      },
+      "roomTypes": ["hallway", "bedroom"],
+      "tags": ["coat", "stand"],
+      "placement": "floor"
+    }
+  ]
+}

@@ -18,7 +18,18 @@ const detection: DetectionV1 = {
     { id: 'w2', startX: 300, startY: 0, endX: 300, endY: 200 },
     { id: 'w0', startX: 50, startY: 50, endX: 50, endY: 50, thickness: 8 },
   ],
-  rooms: [{ id: 'r1', points: [[0, 0], [300, 0], [300, 200], [0, 200]], areaPx: 60000 }],
+  rooms: [
+    {
+      id: 'r1',
+      points: [
+        [0, 0],
+        [300, 0],
+        [300, 200],
+        [0, 200],
+      ],
+      areaPx: 60000,
+    },
+  ],
   doors: [
     { id: 'd1', x: 120, y: 2 },
     { id: 'd2', x: 500, y: 500, width: 40 },
@@ -38,7 +49,15 @@ const expectedCanvas: CanvasV2 = {
     { id: 'w2', start: { x: 300, y: 0 }, end: { x: 300, y: 200 }, thickness: 8 },
   ],
   openings: [
-    { id: 'win1', type: 'window', wallId: 'w2', offset: 0.5, width: 60, height: 1.2, sillHeight: 0.9 },
+    {
+      id: 'win1',
+      type: 'window',
+      wallId: 'w2',
+      offset: 0.5,
+      width: 60,
+      height: 1.2,
+      sillHeight: 0.9,
+    },
     { id: 'd1', type: 'door', wallId: 'w1', offset: 0.4, width: 36, height: 2.1, sillHeight: 0 },
   ],
   labels: [],

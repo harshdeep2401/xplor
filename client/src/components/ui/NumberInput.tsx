@@ -5,7 +5,10 @@
 import { useState } from 'react'
 import type { InputHTMLAttributes } from 'react'
 
-interface NumberInputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange' | 'type'> {
+interface NumberInputProps extends Omit<
+  InputHTMLAttributes<HTMLInputElement>,
+  'value' | 'onChange' | 'type'
+> {
   value: number
   onChange: (value: number) => void
   // Decimals shown when not editing.
@@ -13,7 +16,15 @@ interface NumberInputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, '
   min?: number
 }
 
-export default function NumberInput({ value, onChange, decimals = 2, min, onFocus, onBlur, ...rest }: NumberInputProps) {
+export default function NumberInput({
+  value,
+  onChange,
+  decimals = 2,
+  min,
+  onFocus,
+  onBlur,
+  ...rest
+}: NumberInputProps) {
   // The text being typed; null when the box isn't focused.
   const [draft, setDraft] = useState<string | null>(null)
   const formatted = String(Number(value.toFixed(decimals)))

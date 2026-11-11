@@ -1,28 +1,20 @@
 // components/PropertiesPanel.tsx
-import type {
-  SceneObject,
-  TransformAxis,
-  TransformField,
-} from "../../types/scene";
-import * as THREE from "three";
+import type { SceneObject, TransformAxis, TransformField } from '../../types/scene'
+import * as THREE from 'three'
+import { isLocked } from '../../editor/scene/objectMeta'
 
 type PropertiesPanelProps = {
-  objects: SceneObject[];
-  selectedId: string | null;
-  updateTransform: (
-    id: string,
-    field: TransformField,
-    axis: TransformAxis,
-    value: number,
-  ) => void;
-  updateObjectName?: (id: string, name: string) => void;
-  updateObjectColor?: (id: string, colorHex: string) => void;
+  objects: SceneObject[]
+  selectedId: string | null
+  updateTransform: (id: string, field: TransformField, axis: TransformAxis, value: number) => void
+  updateObjectName?: (id: string, name: string) => void
+  updateObjectColor?: (id: string, colorHex: string) => void
 
-  updateLightIntensity?: (id: string, intensity: number) => void;
-  updateLightColor?: (id: string, colorHex: number) => void;
+  updateLightIntensity?: (id: string, intensity: number) => void
+  updateLightColor?: (id: string, colorHex: number) => void
 
-  updateObjectTexture?: (id: string, file: File | null) => void;
-};
+  updateObjectTexture?: (id: string, file: File | null) => void
+}
 
 export default function PropertiesPanel({
   objects,
@@ -34,48 +26,45 @@ export default function PropertiesPanel({
   updateLightColor,
   updateObjectTexture,
 }: PropertiesPanelProps) {
-  const selectedObject = selectedId
-    ? objects.find((o) => o.id === selectedId)
-    : null;
+  const selectedObject = selectedId ? objects.find((o) => o.id === selectedId) : null
 
   // Extract material color
   const getCurrentColorHex = () => {
-    if (!selectedObject) return "#ffffff";
-    let found: string | null = null;
+    if (!selectedObject) return '#ffffff'
+    let found: string | null = null
 
-    selectedObject.object3d.traverse((child: any) => {
-      if (found) return;
-      if (child.isMesh && child.material) {
-        const mat = Array.isArray(child.material)
-          ? child.material[0]
-          : child.material;
+    selectedObject.object3d.traverse((child) => {
+      if (found) return
+      if (child instanceof THREE.Mesh && child.material) {
+        const mat = (Array.isArray(child.material) ? child.material[0] : child.material) as
+          { color?: THREE.Color } | undefined
         if (mat?.color?.isColor) {
-          found = `#${mat.color.getHexString()}`;
+          found = `#${mat.color.getHexString()}`
         }
       }
-    });
-    return found || "#ffffff";
-  };
+    })
+    return found || '#ffffff'
+  }
 
   // Extract light intensity
   const getCurrentIntensity = () => {
-    if (!selectedObject) return 1;
-    const val = selectedObject.object3d.userData?.intensity;
-    return typeof val === "number" ? val : 1;
-  };
+    if (!selectedObject) return 1
+    const val = selectedObject.object3d.userData?.intensity
+    return typeof val === 'number' ? val : 1
+  }
 
   // Extract light color
   const getCurrentLightColor = () => {
-    if (!selectedObject) return "#ffffff";
-    const hex = selectedObject.object3d.userData?.lightColor;
-    return "#" + (hex || 0xffffff).toString(16).padStart(6, "0");
-  };
+    if (!selectedObject) return '#ffffff'
+    const hex = selectedObject.object3d.userData?.lightColor
+    return '#' + (hex || 0xffffff).toString(16).padStart(6, '0')
+  }
 
-  const isLight = selectedObject?.object3d?.userData?.isLight === true;
+  const isLight = selectedObject?.object3d?.userData?.isLight === true
 
   return (
     <div
-      key={selectedId || "empty-panel"}
+      key={selectedId || 'empty-panel'}
       className="space-y-4 transition-opacity duration-300 ease-in-out"
     >
       <h3 className="font-semibold text-ink mt-6 text-lg">Properties</h3>
@@ -83,6 +72,12 @@ export default function PropertiesPanel({
       {!selectedObject ? (
         <div className="p-4 rounded-xl bg-surface-2 text-sm text-muted">
           Select an object to see its properties.
+        </div>
+      ) : isLocked(selectedObject.object3d) ? (
+        <div className="p-4 rounded-xl bg-surface-2 text-sm text-muted">
+          <div className="mb-1 font-medium text-ink">{selectedObject.name}</div>
+          Walls and floors come from the 2D plan. Change them in the 2D editor, then convert again —
+          your furniture stays where it is.
         </div>
       ) : (
         <>
@@ -105,9 +100,7 @@ export default function PropertiesPanel({
                 <input
                   type="color"
                   value={getCurrentColorHex()}
-                  onChange={(e) =>
-                    updateObjectColor?.(selectedId!, e.target.value)
-                  }
+                  onChange={(e) => updateObjectColor?.(selectedId!, e.target.value)}
                   className="w-12 h-8 cursor-pointer"
                 />
                 <span className="text-xs text-muted">Material color</span>
@@ -126,11 +119,11 @@ export default function PropertiesPanel({
                   type="file"
                   accept="image/*"
                   onChange={(e) => {
-                    const file = e.target.files?.[0] || null;
+                    const file = e.target.files?.[0] || null
                     if (updateObjectTexture && selectedId) {
-                      updateObjectTexture(selectedId, file);
+                      updateObjectTexture(selectedId, file)
                     }
-                    (e.target as HTMLInputElement).value = "";
+                    ;(e.target as HTMLInputElement).value = ''
                   }}
                   className="text-sm text-ink-soft cursor-pointer"
                 />
@@ -150,7 +143,7 @@ export default function PropertiesPanel({
           <div className="bg-surface-2 rounded-xl p-4 border border-solid border-line">
             <h4 className="text-sm font-medium text-ink-soft mb-3">Position</h4>
             <div className="grid grid-cols-3 gap-2">
-              {(["x", "y", "z"] as TransformAxis[]).map((axis) => (
+              {(['x', 'y', 'z'] as TransformAxis[]).map((axis) => (
                 <div key={axis} className="relative">
                   <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted">
                     {axis.toUpperCase()}
@@ -158,13 +151,11 @@ export default function PropertiesPanel({
                   <input
                     type="number"
                     step={0.1}
-                    value={Number(
-                      selectedObject.object3d.position[axis],
-                    ).toFixed(2)}
+                    value={Number(selectedObject.object3d.position[axis]).toFixed(2)}
                     onChange={(e) =>
                       updateTransform(
                         selectedId!,
-                        "position",
+                        'position',
                         axis,
                         parseFloat(e.target.value) || 0,
                       )
@@ -185,10 +176,10 @@ export default function PropertiesPanel({
               step={0.1}
               value={selectedObject.object3d.scale.x.toFixed(2)}
               onChange={(e) =>
-                ["x", "y", "z"].forEach((axis) =>
+                ['x', 'y', 'z'].forEach((axis) =>
                   updateTransform(
                     selectedId!,
-                    "scale",
+                    'scale',
                     axis as TransformAxis,
                     parseFloat(e.target.value) || 1,
                   ),
@@ -204,10 +195,10 @@ export default function PropertiesPanel({
               step="0.1"
               value={selectedObject.object3d.scale.x}
               onChange={(e) =>
-                ["x", "y", "z"].forEach((axis) =>
+                ['x', 'y', 'z'].forEach((axis) =>
                   updateTransform(
                     selectedId!,
-                    "scale",
+                    'scale',
                     axis as TransformAxis,
                     parseFloat(e.target.value),
                   ),
@@ -223,9 +214,7 @@ export default function PropertiesPanel({
               <h4 className="text-sm font-medium text-ink-soft mb-3">Light Settings</h4>
 
               {/* INTENSITY */}
-              <label className="text-xs text-ink-soft block mb-2">
-                Intensity
-              </label>
+              <label className="text-xs text-ink-soft block mb-2">Intensity</label>
               <div className="flex items-center space-x-3 mb-4">
                 <input
                   type="range"
@@ -233,12 +222,7 @@ export default function PropertiesPanel({
                   max="10"
                   step="0.1"
                   value={getCurrentIntensity()}
-                  onChange={(e) =>
-                    updateLightIntensity?.(
-                      selectedId!,
-                      parseFloat(e.target.value),
-                    )
-                  }
+                  onChange={(e) => updateLightIntensity?.(selectedId!, parseFloat(e.target.value))}
                   className="flex-1 cursor-pointer accent-primary"
                 />
                 <input
@@ -248,10 +232,7 @@ export default function PropertiesPanel({
                   max="10"
                   value={parseFloat(getCurrentIntensity().toFixed(1))}
                   onChange={(e) =>
-                    updateLightIntensity?.(
-                      selectedId!,
-                      parseFloat(e.target.value) || 0,
-                    )
+                    updateLightIntensity?.(selectedId!, parseFloat(e.target.value) || 0)
                   }
                   className="w-16 p-2 text-right rounded-lg border border-solid border-line bg-field/60 text-ink text-sm outline-none focus:border-primary"
                 />
@@ -264,21 +245,16 @@ export default function PropertiesPanel({
                   type="color"
                   value={getCurrentLightColor()}
                   onChange={(e) =>
-                    updateLightColor?.(
-                      selectedId!,
-                      new THREE.Color(e.target.value).getHex(),
-                    )
+                    updateLightColor?.(selectedId!, new THREE.Color(e.target.value).getHex())
                   }
                   className="w-12 h-8 cursor-pointer"
                 />
-                <span className="text-xs text-muted">
-                  Emitted light color
-                </span>
+                <span className="text-xs text-muted">Emitted light color</span>
               </div>
             </div>
           )}
         </>
       )}
     </div>
-  );
+  )
 }

@@ -78,9 +78,7 @@ function fromLegacy(canvas: CanvasV1, defaults: CanvasDefaults): CanvasV2 {
   // otherwise fall back to nearest-wall snapping like doors.
   for (const win of legacyWindows) {
     const point: Point = { x: win.x, y: win.y }
-    const attached = win.attachedWallId
-      ? walls.find((w) => w.id === win.attachedWallId)
-      : undefined
+    const attached = win.attachedWallId ? walls.find((w) => w.id === win.attachedWallId) : undefined
     const wall = attached ?? nearestWall(point, walls)
     if (!wall) continue
     openings.push({

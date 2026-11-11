@@ -35,7 +35,8 @@
   z-index: 10;
 }
 
-.topbar-left, .topbar-right {
+.topbar-left,
+.topbar-right {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -224,15 +225,17 @@
   min-height: 0;
   position: relative;
   background-color: #e2e5ea;
-  background-image:
-    radial-gradient(circle, #c8ccd4 0.8px, transparent 0.8px);
+  background-image: radial-gradient(circle, #c8ccd4 0.8px, transparent 0.8px);
   background-size: 20px 20px;
   overflow: hidden;
 }
 
 /* Custom black crosshair cursor using inline SVG data URI */
 .konva-stage {
-  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cline x1='12' y1='0' x2='12' y2='24' stroke='%23111827' stroke-width='1.2'/%3E%3Cline x1='0' y1='12' x2='24' y2='12' stroke='%23111827' stroke-width='1.2'/%3E%3Ccircle cx='12' cy='12' r='2.5' fill='none' stroke='%23111827' stroke-width='1'/%3E%3C/svg%3E") 12 12, crosshair;
+  cursor:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'%3E%3Cline x1='12' y1='0' x2='12' y2='24' stroke='%23111827' stroke-width='1.2'/%3E%3Cline x1='0' y1='12' x2='24' y2='12' stroke='%23111827' stroke-width='1.2'/%3E%3Ccircle cx='12' cy='12' r='2.5' fill='none' stroke='%23111827' stroke-width='1'/%3E%3C/svg%3E")
+      12 12,
+    crosshair;
 }
 
 /* ── Zoom label in topbar ── */
@@ -308,7 +311,8 @@
   gap: 4px;
 }
 
-.prop-row span:first-child, .prop-row label {
+.prop-row span:first-child,
+.prop-row label {
   color: #64748b;
   font-size: 11px;
   text-transform: uppercase;

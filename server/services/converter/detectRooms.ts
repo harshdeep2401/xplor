@@ -54,7 +54,10 @@ export function detectRooms(walls: { start: Vec2; end: Vec2 }[]): DetectedRoom[]
 
   const sortedNbr = new Map<number, number[]>()
   for (const [v, set] of adj) {
-    sortedNbr.set(v, [...set].sort((a, b) => angle(v, a) - angle(v, b)))
+    sortedNbr.set(
+      v,
+      [...set].sort((a, b) => angle(v, a) - angle(v, b)),
+    )
   }
 
   // 3. Face traversal over directed half-edges.

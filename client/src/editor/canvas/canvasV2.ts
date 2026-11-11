@@ -81,7 +81,10 @@ function distanceToSegment(p: CanvasV2Point, s: CanvasV2Point, e: CanvasV2Point)
   return Math.hypot(p.x - cx, p.y - cy)
 }
 function pointAt(w: CanvasV2Wall, offset: number): CanvasV2Point {
-  return { x: w.start.x + offset * (w.end.x - w.start.x), y: w.start.y + offset * (w.end.y - w.start.y) }
+  return {
+    x: w.start.x + offset * (w.end.x - w.start.x),
+    y: w.start.y + offset * (w.end.y - w.start.y),
+  }
 }
 function wallAngle(w: CanvasV2Wall): number {
   return Math.atan2(w.end.y - w.start.y, w.end.x - w.start.x) * (180 / Math.PI)
@@ -115,11 +118,19 @@ export function toCanvasV2(
       if (el.curvature) wall.curvature = el.curvature
       walls.push(wall)
     } else if (el.type === 'label') {
-      labels.push({ id: el.id, position: { x: el.x, y: el.y }, text: el.text, fontSize: el.fontSize })
+      labels.push({
+        id: el.id,
+        position: { x: el.x, y: el.y },
+        text: el.text,
+        fontSize: el.fontSize,
+      })
     }
   }
 
-  const attachTo = (point: CanvasV2Point, preferredWallId?: string | null): CanvasV2Wall | undefined => {
+  const attachTo = (
+    point: CanvasV2Point,
+    preferredWallId?: string | null,
+  ): CanvasV2Wall | undefined => {
     if (preferredWallId) {
       const found = walls.find((w) => w.id === preferredWallId)
       if (found) return found
@@ -259,5 +270,9 @@ export function fromCanvasV2(canvas: CanvasV2): LoadedCanvas {
 
 // Type guard: does a stored project.canvas already use the canvas-v2 contract?
 export function isCanvasV2(raw: unknown): raw is CanvasV2 {
-  return typeof raw === 'object' && raw !== null && (raw as { version?: unknown }).version === 'canvas-v2'
+  return (
+    typeof raw === 'object' &&
+    raw !== null &&
+    (raw as { version?: unknown }).version === 'canvas-v2'
+  )
 }

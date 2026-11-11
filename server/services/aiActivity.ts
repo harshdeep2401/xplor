@@ -32,7 +32,10 @@ const calls: AiCall[] = []
 export const recordAiCall = (call: AiCall) => {
   calls.unshift(call)
   calls.length = Math.min(calls.length, MAX_CALLS)
-  const route = call.via === 'cloudflare-tunnel' ? `Cloudflare tunnel${call.cfColo ? ` (${call.cfColo})` : ''}` : 'direct'
+  const route =
+    call.via === 'cloudflare-tunnel'
+      ? `Cloudflare tunnel${call.cfColo ? ` (${call.cfColo})` : ''}`
+      : 'direct'
   console.log(
     `[ai] job ${call.jobId}: ${call.ok ? 'ok' : `failed (${call.error})`} via ${route} in ${call.roundTripMs} ms` +
       (call.processingMs != null ? ` (${call.processingMs} ms on the AI machine)` : ''),

@@ -31,8 +31,7 @@ export interface FloorPlanUploadResponse {
 // Outcome of a floor-plan import, handed to the 2D editor via router state so it
 // can tell the user what happened.
 export type ImportResult =
-  | { status: 'completed'; wallCount: number }
-  | { status: 'failed'; error: string }
+  { status: 'completed'; wallCount: number } | { status: 'failed'; error: string }
 
 // GET /api/system/status — the System Status page (pages/SystemStatus.tsx).
 export interface AiRoute {
@@ -55,7 +54,14 @@ export interface AiCall extends AiRoute {
 
 export interface SystemStatus {
   checkedAt: string
-  server: { ok: boolean; host: string; platform: string; node: string; startedAt: string; uptimeS: number }
+  server: {
+    ok: boolean
+    host: string
+    platform: string
+    node: string
+    startedAt: string
+    uptimeS: number
+  }
   database: { ok: boolean; latencyMs: number | null }
   ai: {
     reachable: boolean
@@ -71,7 +77,12 @@ export interface SystemStatus {
       uptimeS: number
       detector: string
       device: string | null
-      gpu: { name: string; memoryUsedMb: number; memoryTotalMb: number; modelMemoryMb: number } | null
+      gpu: {
+        name: string
+        memoryUsedMb: number
+        memoryTotalMb: number
+        modelMemoryMb: number
+      } | null
       model: { method: string; file: string; sizeMb: number; sha256: string } | null
       detectionsServed: number
       lastDetectionMs: number | null

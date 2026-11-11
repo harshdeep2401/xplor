@@ -37,6 +37,16 @@ version tag (`canvas-v2` → `canvas-v3`), never mutate a schema in place.
 - **scene-v1** — everything is in **metres**, right-handed **Y-up** (x = right, y = up,
   z = depth). The floor is `y = 0`. A canvas point `(px_x, px_y)` maps to floor
   `(px_x / pixelsPerMetre, px_y / pixelsPerMetre)` as `(x, z)`.
+  - **Rooms** carry an optional `name` (the 2D label placed inside the room) and `type`
+    (`living`, `bedroom`, `kitchen`, … — from the name, else guessed from area and shape).
+  - **Assets** are placed objects: `kind` `model` (a GLB at `source`) or `primitive`
+    (`source` = `cube`/`sphere`). A model is first fitted to `baseSize` metres with its
+    bottom-centre at the origin, then `transform` is applied — so `position.y = 0` means
+    standing on the floor and real size = `baseSize × scale`, whatever units the file used.
+    `catalogId` points at the furniture catalog (`Asset` table); `roomId` is set by the
+    server on save from the asset's position.
+  - Positions are absolute plan coordinates (the 3D editor recentres the plan for display
+    and converts back on save), so converting the 2D plan again keeps furniture in place.
 - **detection-v1** — everything is in **source-image pixels** (origin top-left, +y
   downward). No real-world scale is applied; the bridge supplies it when producing
   canvas-v2. Walls are **centre-line segments** (two endpoints + `thickness`), never

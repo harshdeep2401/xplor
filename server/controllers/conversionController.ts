@@ -1,8 +1,22 @@
 import type { Request, Response } from 'express'
-import { Prisma } from '@prisma/client'
+import { type Prisma } from '@prisma/client'
 import { prisma } from '../config/db'
-import { convertCanvasToScene, ConverterError } from '../services/converter'
-import { putObject, glbKey, deleteObject, keyFromPublicUrl } from '../services/storage'
+import {
+  convertCanvasToScene,
+  ConverterError,
+  carryOverEditorContent,
+  assignAssetRooms,
+  validateSceneV1,
+  formatErrors,
+  type SceneV1,
+} from '../services/converter'
+import {
+  putObject,
+  glbKey,
+  projectFileKey,
+  deleteObject,
+  keyFromPublicUrl,
+} from '../services/storage'
 
 // How many most-recent GLB exports to keep per project (older ones are pruned).
 const GLB_KEEP = Math.max(1, Number(process.env.GLB_KEEP) || 2)
@@ -33,7 +47,7 @@ export const convertProject = async (req: Request<{ id: string }>, res: Response
 
     // Convert. canvas-v2 payloads carry their own scale/height; legacy canvases
     // fall back to the project's columns.
-    let scene
+    let scene: SceneV1
     try {
       scene = convertCanvasToScene(project.canvas, {
         pixelsPerMetre: project.scalePixelsPerMeter,
@@ -52,6 +66,15 @@ export const convertProject = async (req: Request<{ id: string }>, res: Response
       })
       return res.status(422).json({ message: `Conversion failed: ${message}`, jobId: job.id })
     }
+
+    // Keep the furniture, asset materials and lights the user added in 3D: they
+    // are carried over from the scene this conversion replaces.
+    const previous = await prisma.scene.findFirst({
+      where: { projectId: project.id, isActive: true },
+      orderBy: { version: 'desc' },
+      select: { sceneData: true, metadata: true },
+    })
+    scene = carryOverEditorContent(previous?.sceneData, scene)
 
     // New Scene version. Optimistic concurrency: next = max(version)+1; a
     // concurrent convert racing for the same version violates
@@ -75,6 +98,7 @@ export const convertProject = async (req: Request<{ id: string }>, res: Response
             projectId: project.id,
             version: nextVersion,
             sceneData: scene as unknown as Prisma.InputJsonValue,
+            ...(previous?.metadata ? { metadata: previous.metadata as Prisma.InputJsonValue } : {}),
             isActive: true,
             sourceJobId: job.id,
           },
@@ -119,19 +143,36 @@ export const convertProject = async (req: Request<{ id: string }>, res: Response
   }
 }
 
-// PUT /api/projects/:id/scene → persist the 3D editor's scene into the active
-// canonical Scene (superseding the legacy glTF-in-project.canvas save, which
-// clobbered the 2D drawing). Body: { sceneData, baseVersion }. Optimistic
-// concurrency: baseVersion must match the current active version, else 409.
+// PUT /api/projects/:id/scene → save the 3D editor's scene into the active
+// canonical Scene, bumping its version. Body: { sceneData, metadata?, baseVersion }.
+// sceneData must be a valid scene-v1 (walls/rooms as converted, plus the editor's
+// assets, lights and materials); the server sets each asset's roomId. metadata
+// holds editor-only settings (e.g. the grid size of a plan-less 3D project).
+// Optimistic concurrency: baseVersion must match the current active version, else 409.
 export const saveScene = async (req: Request<{ id: string }>, res: Response) => {
   try {
-    const { sceneData, baseVersion } = req.body as {
+    const {
+      sceneData: rawScene,
+      metadata,
+      baseVersion,
+    } = req.body as {
       sceneData?: unknown
+      metadata?: unknown
       baseVersion?: number
     }
-    if (sceneData === undefined) {
+    if (rawScene === undefined) {
       return res.status(400).json({ message: 'sceneData is required' })
     }
+    if (!validateSceneV1(rawScene)) {
+      return res.status(400).json({
+        message: `sceneData is not a valid scene-v1: ${formatErrors(validateSceneV1.errors)}`,
+      })
+    }
+    const sceneData = assignAssetRooms(rawScene as SceneV1)
+    const metadataField =
+      metadata && typeof metadata === 'object'
+        ? { metadata: metadata as Prisma.InputJsonValue }
+        : {}
 
     const project = await prisma.project.findUnique({
       where: { id: req.params.id },
@@ -153,7 +194,8 @@ export const saveScene = async (req: Request<{ id: string }>, res: Response) => 
         data: {
           projectId: req.params.id,
           version: 1,
-          sceneData: sceneData as Prisma.InputJsonValue,
+          sceneData: sceneData as unknown as Prisma.InputJsonValue,
+          ...metadataField,
           isActive: true,
         },
       })
@@ -171,7 +213,8 @@ export const saveScene = async (req: Request<{ id: string }>, res: Response) => 
       const updated = await prisma.scene.update({
         where: { id: active.id },
         data: {
-          sceneData: sceneData as Prisma.InputJsonValue,
+          sceneData: sceneData as unknown as Prisma.InputJsonValue,
+          ...metadataField,
           version: active.version + 1,
         },
       })
@@ -286,8 +329,42 @@ export const getActiveScene = async (req: Request<{ id: string }>, res: Response
     }
 
     return res.status(200).json({
-      scene: { id: scene.id, version: scene.version, sceneData: scene.sceneData },
+      scene: {
+        id: scene.id,
+        version: scene.version,
+        sceneData: scene.sceneData,
+        metadata: scene.metadata,
+      },
     })
+  } catch (error) {
+    return res.status(500).json({ message: (error as Error).message })
+  }
+}
+
+// POST /api/projects/:id/files  (multipart field 'file')
+// Store a GLB model or texture image the 3D editor imported from the user's disk,
+// so the saved scene can refer to it by URL and reload it later.
+export const uploadProjectFile = async (req: Request<{ id: string }>, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded. Expected field "file".' })
+    }
+
+    const project = await prisma.project.findUnique({
+      where: { id: req.params.id },
+      select: { userId: true },
+    })
+    if (!project) return res.status(404).json({ message: 'Project not found' })
+    if (project.userId !== req.user!.id) {
+      return res.status(401).json({ message: 'Not authorized to modify this project' })
+    }
+
+    const url = await putObject({
+      key: projectFileKey(req.params.id, req.file.originalname),
+      body: req.file.buffer,
+      contentType: req.file.mimetype,
+    })
+    return res.status(201).json({ url })
   } catch (error) {
     return res.status(500).json({ message: (error as Error).message })
   }

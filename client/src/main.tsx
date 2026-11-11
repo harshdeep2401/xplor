@@ -11,6 +11,6 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       <App />
     </BrowserRouter>
     <Toaster />
-  </React.StrictMode>
+  </React.StrictMode>,
 )
 // vite reload trigger

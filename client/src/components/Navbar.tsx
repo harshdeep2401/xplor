@@ -4,9 +4,7 @@ import '../styles/navbar.css'
 function Navbar() {
   return (
     <nav className="navbar">
-      <div className="navbar-logo">
-        XPLOR
-      </div>
+      <div className="navbar-logo">XPLOR</div>
 
       {/* In-page links to sections of the home page (pages/Home.tsx). */}
       <div className="navbar-links">
@@ -16,8 +14,12 @@ function Navbar() {
       </div>
 
       <div className="navbar-buttons">
-        <Link to="/login" className="login-btn">Login</Link>
-        <Link to="/signup" className="signup-btn">Sign Up</Link>
+        <Link to="/login" className="login-btn">
+          Login
+        </Link>
+        <Link to="/signup" className="signup-btn">
+          Sign Up
+        </Link>
       </div>
     </nav>
   )

@@ -1,11 +1,12 @@
 import * as THREE from 'three'
 import type { SceneObject } from '../../types/scene'
 import { computeWallPieces } from './wallPieces'
+import { setMeta } from './objectMeta'
 
 // Builds editor SceneObjects (Three.js meshes) from a canonical scene-v1 payload
-// produced by the backend converter. For now each wall becomes a solid extruded
-// box — enough to SEE the converted 2D plan in 3D. Door/window cutouts are not
-// carved yet (deferred to the visual-polish pass); openings are ignored here.
+// produced by the backend converter: each wall becomes a group of boxes with its
+// door/window openings carved out, and each room a flat floor. Placed assets and
+// lights are loaded separately (editor/persist/sceneV1.ts).
 
 // Minimal client mirror of the parts of scene-v1 we render.
 interface SceneV1Vec2 {
@@ -32,6 +33,7 @@ interface SceneV1Material {
 }
 interface SceneV1Room {
   id: string
+  name?: string
   floorPolygon: SceneV1Vec2[]
 }
 interface SceneV1 {
@@ -78,15 +80,13 @@ export function buildSceneObjectsFromSceneV1(scene: unknown): SceneObject[] {
       const boxLen = p.uEnd - p.uStart
       const boxH = p.yTop - p.yBottom
       if (boxLen <= 0 || boxH <= 0) continue
-      const mesh = new THREE.Mesh(
-        new THREE.BoxGeometry(boxLen, boxH, wall.thickness),
-        material,
-      )
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(boxLen, boxH, wall.thickness), material)
       // Local: along-length midpoint, vertical midpoint, centred across thickness.
       mesh.position.set((p.uStart + p.uEnd) / 2, (p.yBottom + p.yTop) / 2, 0)
       group.add(mesh)
     }
 
+    setMeta(group, { kind: 'wall', refId: wall.id })
     return { id: wall.id, name: `Wall ${wall.id}`, object3d: group }
   })
 
@@ -121,7 +121,9 @@ function buildFloor(room: SceneV1Room, centre: { x: number; z: number }): SceneO
   mesh.rotation.x = Math.PI / 2
   mesh.position.y = FLOOR_Y
 
-  return { id: room.id, name: `Floor ${room.id}`, object3d: mesh }
+  setMeta(mesh, { kind: 'floor', refId: room.id })
+  const label = room.name ? `Floor: ${room.name}` : `Floor ${room.id}`
+  return { id: room.id, name: label, object3d: mesh }
 }
 
 interface WallBBox {
@@ -168,4 +170,10 @@ export function planBoundsFromSceneV1(
   if (!b) return null
   const height = walls.reduce((max, w) => Math.max(max, w.height), 0)
   return { width: b.maxX - b.minX, length: b.maxZ - b.minZ, height }
+}
+
+// Centre of the plan in absolute scene-v1 coordinates: the editor shows the plan
+// shifted by this much so it sits over the origin. Origin for a plan with no walls.
+export function planCentreFromSceneV1(scene: unknown): { x: number; z: number } {
+  return planCentre(((scene ?? {}) as SceneV1).walls ?? [])
 }

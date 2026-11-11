@@ -25,10 +25,7 @@ export const googleLoginRequest = async (token: string): Promise<AuthResponse> =
   return response.data
 }
 
-export const loginRequest = async (
-  email: string,
-  password: string
-): Promise<AuthResponse> => {
+export const loginRequest = async (email: string, password: string): Promise<AuthResponse> => {
   const response = await axios.post<AuthResponse>(`${API}/auth/login`, {
     email,
     password,
@@ -37,9 +34,7 @@ export const loginRequest = async (
   return response.data
 }
 
-export const registerRequest = async (
-  data: RegisterData
-): Promise<AuthResponse> => {
+export const registerRequest = async (data: RegisterData): Promise<AuthResponse> => {
   const response = await axios.post<AuthResponse>(`${API}/auth/register`, data)
 
   return response.data

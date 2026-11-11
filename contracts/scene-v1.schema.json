@@ -105,7 +105,11 @@
       "required": ["id", "floorPolygon"],
       "properties": {
         "id": { "type": "string", "minLength": 1 },
-        "name": { "type": "string" },
+        "name": { "type": "string", "description": "Text of the 2D label placed inside this room, if any." },
+        "type": {
+          "$ref": "#/$defs/roomType",
+          "description": "What the room is used for: taken from the name when it names a known kind (\"Master Bedroom\" → bedroom), otherwise guessed from the floor area. Drives furniture suggestions."
+        },
         "floorPolygon": {
           "type": "array",
           "minItems": 3,
@@ -116,14 +120,36 @@
         "materialId": { "type": "string" }
       }
     },
+    "roomType": {
+      "enum": ["living", "bedroom", "kitchen", "dining", "bathroom", "office", "hallway", "other"],
+      "description": "Room kinds understood by furniture suggestions."
+    },
     "asset": {
       "type": "object",
       "additionalProperties": false,
       "required": ["id", "transform"],
+      "description": "A placed 3D object. The model is first fitted to baseSize with its bottom-centre at the origin, then the transform is applied, so the transform never depends on the units the model file was authored in.",
       "properties": {
         "id": { "type": "string", "minLength": 1 },
         "name": { "type": "string" },
-        "source": { "type": "string", "description": "Asset origin (library id or model URL)." },
+        "kind": {
+          "enum": ["model", "primitive"],
+          "default": "model",
+          "description": "\"model\" loads a GLB from source; \"primitive\" builds a built-in shape named by source (\"cube\" or \"sphere\")."
+        },
+        "source": {
+          "type": "string",
+          "description": "For a model: the GLB URL (catalog file, uploaded file, or external link). For a primitive: \"cube\" or \"sphere\"."
+        },
+        "catalogId": { "type": "string", "description": "Id of the furniture catalog entry (Asset table) this model came from, if any." },
+        "baseSize": {
+          "$ref": "#/$defs/vec3",
+          "description": "Metres (x = width, y = height, z = depth) the model is fitted to before the transform. Real-world size = baseSize × transform.scale."
+        },
+        "roomId": {
+          "type": "string",
+          "description": "Id of the room whose floor contains the asset's position. Set by the server on save; absent when the asset is outside every room."
+        },
         "transform": { "$ref": "#/$defs/transform" },
         "materialId": { "type": "string" }
       }

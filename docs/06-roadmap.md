@@ -6,8 +6,20 @@
 > [`status-reports/`](./status-reports); the newest is
 > [`STATUS-REPORT-2026-10-16-phase3b.md`](./status-reports/STATUS-REPORT-2026-10-16-phase3b.md).
 
-- **Last updated:** 2026-10-20
-- **Nature of this update:** **Phase 5 done (2026-10-20)** — the 2D editor works in metres (labels,
+- **Last updated:** 2026-11-11
+- **Nature of this update:** **Phase 6 done (2026-11-11)** — the furniture suggestion engine (6.4): a
+  rule-based recommender behind a swappable interface ranks what each room is missing and finds each piece
+  a collision-free spot (sofa against a wall, coffee table in front of it, TV stand facing it, TV on the
+  stand, nightstands by the bed's head, chairs round the table, mirror above the basin, doorways kept clear).
+  A **Suggestions** panel in the 3D editor adds any of them in one click; catalog items dropped from the
+  library now land where they're dropped.
+- **Earlier on 2026-11-11:** **Phase 6 foundations (6.1–6.3)** — 3D saves are now
+  structured `scene-v1` (furniture, lights and colours as data; no more glTF blob); converting the 2D
+  plan again keeps the furniture; rooms get a name (from a 2D label inside them) and a type; files
+  imported from disk are uploaded so they reload; the furniture library is our own **120-item Kenney
+  CC0 catalog** in the `Asset` table, each model fitted to real-world dimensions. The old Railway
+  furniture backend is gone (it had stopped responding). Next: the recommender (6.4).
+- **Earlier, 2026-10-20:** **Phase 5 done** — the 2D editor works in metres (labels,
   properties, cursor) and has a Measure tool; selections can be built with Shift+click, moved by dragging
   or arrow keys, copied/pasted/duplicated; the 3D editor switches its handles between move, rotate and
   resize (W/E/R); the furniture search filters the list. Client unit tests now run in CI.
@@ -21,8 +33,8 @@
   PC and is served to a cloud-hosted API **through a Cloudflare Tunnel** with a shared secret (3b.5,
   verified end to end). All development is now on Windows. *(Previous update, earlier 2026-10-16: Phase 3 complete.)*
 - **Phase status:** Phase 0 ✅ · Phase 1 ✅ · Phase 2 ✅ · Phase 3 ✅ · **Phase 3b 🟡** (model integrated,
-  evaluated, and remotely hostable; real-world images later) · **Phase 4 ✅** · **Phase 5 ✅** · **next:
-  Phase 6** (furniture suggestions).
+  evaluated, and remotely hostable; real-world images later) · **Phase 4 ✅** · **Phase 5 ✅** · **Phase 6 ✅**
+  · **next:** deployment (Docker stack, cloud server, named tunnel) and real-world images (3b.6).
 
 ---
 
@@ -91,11 +103,10 @@ foundational docs as *deferred*, not deleted. **VR** stays a deferred stub. See 
    URL changes on restart until a domain + named tunnel exist. *(Phase 3b.5/3b.6.)*
 2. ~~**UI is split-brain and gives no feedback.**~~ Fixed in Phase 4 (toasts, tokens, shared
    primitives). Remaining: the landing page keeps its own hand-written CSS (now on the token colours).
-3. ~~**Obvious editor features missing.**~~ Done in Phase 5. Remaining: no grid snapping in 2D; the
-   furniture list still comes from a hard-coded external URL (moves to an owned `/assets` route in
-   Phase 6.3).
-4. **Furniture is manual and lossy.** Placement is a naive grid; assets are baked to an opaque glTF blob on
-   save (no structured round-trip), rooms have no type, and there's no recommender. *(Phase 6.)*
+3. ~~**Obvious editor features missing.**~~ Done in Phase 5. Remaining: no grid snapping in 2D.
+4. ~~**Furniture is manual.**~~ Done in Phase 6: structured saves, typed rooms, our own catalog and a
+   recommender with one-click placement. Remaining: suggestions are rules, not learned; room types can only
+   be set through a 2D label.
 5. **Docker stack not rebuilt** since the converter started loading `contracts/` (fix applied, unverified).
 6. **Migration baseline** outstanding (§8a).
 
@@ -221,19 +232,53 @@ move / copy-paste / duplicate / nudge** (multi-select is delete-only today); opt
 **3D:** **gizmo mode toggle** (translate/rotate/scale); **functional asset search/filter**; route the asset
 browser through an owned/local route instead of the hardcoded external URL (sets up Phase 6).
 
-### Phase 6 — Scene-Aware Furniture Suggestion Engine  *(the smart feature)*
+### Phase 6 — Scene-Aware Furniture Suggestion Engine  ✅ **DONE (2026-11-11)**
 **Goal:** given the scene JSON (room size + objects already placed), recommend catalog furniture and
-one-click place it. Foundations first:
+one-click place it.
 
-1. **Structured asset persistence** — stop baking 3D edits to a glTF blob; serialize/deserialize scene-v1
-   `assets[]` (`source` + `transform` + new `roomId`); make `buildFromSceneV1.ts` hydrate `assets[]`.
-2. **Room semantics** — give rooms a type/name (user-labeled in the 2D editor, heuristic default by area;
-   the `room` contract already allows `name`).
-3. **Local asset catalog** — replace the hardcoded external URL with a server `/assets` route over the
-   `Asset` table + seeded furniture GLBs tagged by category + suitable room types.
-4. **Recommender behind a swappable interface** — `recommend(sceneContext) → RankedAssets`; start
-   rule/association-based (co-occurrence + room-area scaling), swappable for a light ML model later.
-   Surface a **Suggestions panel** + deterministic non-overlapping placement in the room polygon.
+**Done (6.1–6.3):**
+1. **Structured asset persistence** ✅ — the 3D editor saves `scene-v1` (`client/src/editor/persist/sceneV1.ts`):
+   walls/rooms as converted, plus `assets[]` (`kind`, `source`, `catalogId`, `baseSize`, `transform`),
+   point lights and per-asset colour/texture materials. Every placed object is a wrapper whose content is
+   fitted to `baseSize` metres with its bottom-centre at the origin, so transforms are unit-independent.
+   `PUT /scene` validates against `scene-v1` (old glTF saves → 400; the editor says they can't be opened
+   and suggests converting again) and sets each asset's `roomId`; re-converting carries assets, their
+   materials and point lights over (`server/services/converter/sceneAssets.ts`). Models/textures from
+   disk are uploaded (`POST /api/projects/:id/files`). Walls and floors are locked in 3D (edit them in 2D).
+   Fixed on the way: floors counted as collisions (furniture couldn't be dragged in converted plans), and
+   recolouring an object also recoloured its copies and undo history (shared materials).
+2. **Room semantics** ✅ — `room.name` = the first 2D label inside the room; `room.type` from the name
+   (keywords, e.g. "Master Bath" → bathroom) or else from area/shape (`roomSemantics.ts`). No new 2D UI:
+   users name rooms by dropping a label in them.
+3. **Local asset catalog** ✅ — `GET /api/assets` over the `Asset` table (no schema change: size, room
+   types, tags and placement live in `Asset.metadata`), seeded by `npm run seed:assets` from
+   `server/scripts/furniture-catalog.json`. 120 items from the **Kenney Furniture Kit 2.0 (CC0)**; models
+   and previews in `server/public/furniture/`, served at `/static/furniture/…`. Kenney models aren't to
+   scale (and not consistently), so each item has hand-set real-world dimensions it is fitted to on load;
+   the most stretched are kitchen units (1.5× taller, Kenney's are squat cubes). Structural pieces (walls,
+   floors, doorways, stairs) are left out — the 2D plan provides those.
+
+**Done (6.4):**
+4. **Recommender behind a swappable interface** ✅ — `server/services/recommender/`: `Recommender.recommend({
+   scene, catalog, roomId?, limit? }) → RoomSuggestions[]` (`types.ts`); `getRecommender()` picks the
+   implementation (`RECOMMENDER` env; today only `rules-v1`). **Rules** (`rules.ts`): per room type, a kit of
+   roles (bed, nightstand, wardrobe, …) with weights, area-scaled counts, preferred variants (double bed from
+   11 m², bathtub from 5 m², corner sofa from 25 m²) and anchors. Score = weight × share still missing
+   (+0.15 when its anchor is already in the room); one suggestion per role, best first. Suggestions in one
+   list build on each other (the TV goes on the *suggested* stand). **Placement** (`placement.ts`,
+   `geometry.ts`): deterministic search over candidate spots — against a wall (longest first, sliding out
+   from the middle; the TV stand picks the wall facing the sofa), in front of / beside / around / on /
+   above an anchor, room centre, ceiling, inside a doorway (mats) — accepting the first that stays inside
+   the room clear of the walls and doesn't collide (oriented-box test with height ranges; flat rugs only
+   collide with each other; doorways keep a 0.9 m clear zone). Kenney models face +z, so "against a wall"
+   turns +z into the room. **API:** `POST /api/projects/:id/suggestions` with the editor's current scene
+   (unsaved edits count). **Client:** `SuggestionsPanel` (room picker, reasons, one-click **Add** at the
+   suggested spot), refreshed 0.7 s after the scene changes; library drops are placed at the pointer
+   (floor raycast). Catalog names tidied ("Coffee table", not "Table coffee"). 9 recommender tests on the
+   real catalog (consistency, anchoring, doors, determinism).
+
+*Later:* a learned ranking (co-occurrence from user scenes) behind the same interface; let users set a
+room's type in 3D; suggest alternatives (`alternatives[]` is returned but not shown yet).
 
 ### Phase 7 — Deferred  *(not active)*
 VR/WebXR preview (keep the stub), template-based generation, AI copilot. Revisit after Phases 3–6.
@@ -273,11 +318,9 @@ VR/WebXR preview (keep the stub), template-based generation, AI copilot. Revisit
 
 ## 6. Immediate Next Step
 
-1. **Phase 6:** foundations first: structured asset persistence (6.1), room names/types (6.2), an owned
-   asset catalog route (6.3); then the recommender + Suggestions panel (6.4).
-2. Run the root `docker-compose.yml` stack (server + AI) end to end; deploy the server and point it at the
+1. Run the root `docker-compose.yml` stack (server + AI) end to end; deploy the server and point it at the
    tunnel; get a domain for a permanent (named) tunnel.
-3. Later: real-world test images (3b.6); tune the vectorizer where the evaluation shows losses (rooms that
+2. Later: real-world test images (3b.6); tune the vectorizer where the evaluation shows losses (rooms that
    don't close even from ground truth).
 
 Keep the migration-baseline caveat in mind (§8a — never accept a `prisma migrate dev` reset).

@@ -41,6 +41,12 @@ export function glbKey(projectId: string): string {
   return `glb/${projectId}/${Date.now()}.glb`
 }
 
+// Storage key for a model/texture the 3D editor imported from the user's disk.
+export function projectFileKey(projectId: string, originalName: string): string {
+  const safeName = originalName.replace(/[^a-zA-Z0-9.\-_]/g, '_')
+  return `project-files/${projectId}/${Date.now()}-${safeName}`
+}
+
 // Delete a stored object. No-op if it's already gone (force). Used when pruning
 // old GLB exports.
 export async function deleteObject(key: string): Promise<void> {

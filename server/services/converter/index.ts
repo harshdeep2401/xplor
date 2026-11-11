@@ -11,7 +11,10 @@ export { detectionToCanvas } from './detectionToCanvas'
 
 // Thrown when the canvas going in or the scene coming out fails schema validation.
 export class ConverterError extends Error {
-  constructor(message: string, public readonly details: string) {
+  constructor(
+    message: string,
+    public readonly details: string,
+  ) {
     super(`${message}: ${details}`)
     this.name = 'ConverterError'
   }
@@ -42,3 +45,5 @@ export function convertCanvasToScene(rawCanvas: unknown, defaults: CanvasDefault
 
   return scene
 }
+export { describeRoom, roomTypeFromName, roomTypeFromShape, pointInPolygon } from './roomSemantics'
+export { assignAssetRooms, carryOverEditorContent } from './sceneAssets'

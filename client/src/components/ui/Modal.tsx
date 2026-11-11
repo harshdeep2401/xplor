@@ -14,7 +14,14 @@ interface ModalProps {
   busy?: boolean
 }
 
-export default function Modal({ open, title, onClose, children, footer, busy = false }: ModalProps) {
+export default function Modal({
+  open,
+  title,
+  onClose,
+  children,
+  footer,
+  busy = false,
+}: ModalProps) {
   const titleId = useId()
   const panelRef = useRef<HTMLDivElement>(null)
 

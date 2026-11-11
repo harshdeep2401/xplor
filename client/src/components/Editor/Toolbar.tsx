@@ -1,5 +1,5 @@
-import { useState } from "react";
-import type { FC, ReactNode } from "react";
+import { useState } from 'react'
+import type { FC, ReactNode } from 'react'
 import {
   Search,
   Box,
@@ -12,25 +12,34 @@ import {
   Armchair,
   Pencil,
   FolderOpen,
-} from "lucide-react";
-import AssetList from "./AssetList";
-import Button, { buttonClass } from "../ui/Button";
-import { inputClass } from "../ui/Field";
+} from 'lucide-react'
+import AssetList from './AssetList'
+import Button from '../ui/Button'
+import { buttonClass } from '../ui/buttonClass'
+import { inputClass } from '../ui/Field'
 
 type ToolbarProps = {
-  addCube: () => void;
-  addSphere: () => void;
-  addLight: () => void;
-  handleFile: (file: File | null) => Promise<void>;
-  deleteSelected: () => void;
-  exportGLTF: () => void;
-  exportGLB: () => void;
-  saveToBackend: () =>void;
-  selectedId: string | null;
-  onImportFromUrl: (url: string) => void;
-};
+  addCube: () => void
+  addSphere: () => void
+  addLight: () => void
+  handleFile: (file: File | null) => Promise<void>
+  deleteSelected: () => void
+  exportGLTF: () => void
+  exportGLB: () => void
+  saveToBackend: () => void
+  selectedId: string | null
+  onImportFromUrl: (url: string) => void
+}
 
-function Section({ title, icon, children }: { title: string; icon: ReactNode; children: ReactNode }) {
+function Section({
+  title,
+  icon,
+  children,
+}: {
+  title: string
+  icon: ReactNode
+  children: ReactNode
+}) {
   return (
     <section className="rounded-xl border border-solid border-line bg-surface-2 p-4">
       <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-ink-soft">
@@ -38,7 +47,7 @@ function Section({ title, icon, children }: { title: string; icon: ReactNode; ch
       </h3>
       {children}
     </section>
-  );
+  )
 }
 
 const Toolbar: FC<ToolbarProps> = ({
@@ -52,18 +61,18 @@ const Toolbar: FC<ToolbarProps> = ({
   selectedId,
 }) => {
   // Filters the furniture list below.
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState('')
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0] || null;
+    const file = e.target.files?.[0] || null
     if (file) {
-      handleFile(file);
+      void handleFile(file)
     }
     // Allow picking the same file again later.
-    e.target.value = "";
-  };
+    e.target.value = ''
+  }
 
-  const rowButton = "w-full justify-start";
+  const rowButton = 'w-full justify-start'
 
   return (
     // `relative` + `z-10` keep the toolbar on top of the 3D canvas.
@@ -87,17 +96,32 @@ const Toolbar: FC<ToolbarProps> = ({
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
         <Section title="Add" icon={<Box className="h-4 w-4" />}>
           <div className="flex flex-col gap-2">
-            <Button size="sm" className={rowButton} onClick={addCube} icon={<Box className="h-4 w-4" />}>
+            <Button
+              size="sm"
+              className={rowButton}
+              onClick={addCube}
+              icon={<Box className="h-4 w-4" />}
+            >
               Add Cube
             </Button>
-            <Button size="sm" className={rowButton} onClick={addSphere} icon={<Circle className="h-4 w-4" />}>
+            <Button
+              size="sm"
+              className={rowButton}
+              onClick={addSphere}
+              icon={<Circle className="h-4 w-4" />}
+            >
               Add Sphere
             </Button>
-            <Button size="sm" className={rowButton} onClick={addLight} icon={<Lightbulb className="h-4 w-4" />}>
+            <Button
+              size="sm"
+              className={rowButton}
+              onClick={addLight}
+              icon={<Lightbulb className="h-4 w-4" />}
+            >
               Add Light
             </Button>
 
-            <label htmlFor="model-upload" className={buttonClass("secondary", "sm", rowButton)}>
+            <label htmlFor="model-upload" className={buttonClass('secondary', 'sm', rowButton)}>
               <Upload className="h-4 w-4" /> Import Model (.glb)
             </label>
             <input
@@ -130,17 +154,27 @@ const Toolbar: FC<ToolbarProps> = ({
 
         <Section title="File" icon={<FolderOpen className="h-4 w-4" />}>
           <div className="flex flex-col gap-2">
-            <Button size="sm" className={rowButton} onClick={exportGLB} icon={<Download className="h-4 w-4" />}>
+            <Button
+              size="sm"
+              className={rowButton}
+              onClick={exportGLB}
+              icon={<Download className="h-4 w-4" />}
+            >
               Export as GLB
             </Button>
-            <Button size="sm" className={rowButton} onClick={saveToBackend} icon={<Save className="h-4 w-4" />}>
+            <Button
+              size="sm"
+              className={rowButton}
+              onClick={saveToBackend}
+              icon={<Save className="h-4 w-4" />}
+            >
               Save Project
             </Button>
           </div>
         </Section>
       </div>
     </aside>
-  );
-};
+  )
+}
 
-export default Toolbar;
+export default Toolbar

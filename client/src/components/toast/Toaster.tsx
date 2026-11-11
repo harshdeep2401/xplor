@@ -19,10 +19,18 @@ export default function Toaster() {
       {toasts.map((t) => {
         const Icon = ICONS[t.kind]
         return (
-          <div key={t.id} className={`toast toast-${t.kind}`} role={t.kind === 'error' ? 'alert' : 'status'}>
+          <div
+            key={t.id}
+            className={`toast toast-${t.kind}`}
+            role={t.kind === 'error' ? 'alert' : 'status'}
+          >
             <Icon className="toast-icon" size={18} aria-hidden="true" />
             <p className="toast-message">{t.message}</p>
-            <button className="toast-close" onClick={() => toast.dismiss(t.id)} aria-label="Dismiss">
+            <button
+              className="toast-close"
+              onClick={() => toast.dismiss(t.id)}
+              aria-label="Dismiss"
+            >
               <X size={16} aria-hidden="true" />
             </button>
           </div>

@@ -7,7 +7,8 @@ import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import apiClient from '../services/apiClient'
 import { getApiErrorMessage } from '../services/errors'
-import Button, { buttonClass } from '../components/ui/Button'
+import Button from '../components/ui/Button'
+import { buttonClass } from '../components/ui/buttonClass'
 import type { SystemStatus as Status } from '../types/api'
 import '../styles/status.css'
 
@@ -36,7 +37,12 @@ function Row({ label, value, mono }: { label: string; value: ReactNode; mono?: b
   )
 }
 
-function Card({ title, health, summary, children }: {
+function Card({
+  title,
+  health,
+  summary,
+  children,
+}: {
   title: string
   health: Health
   summary: string
@@ -70,9 +76,9 @@ export default function SystemStatus() {
   }, [])
 
   useEffect(() => {
-    refresh()
+    void refresh()
     if (paused) return
-    const id = setInterval(refresh, REFRESH_MS)
+    const id = setInterval(() => void refresh(), REFRESH_MS)
     return () => clearInterval(id)
   }, [refresh, paused])
 
@@ -87,8 +93,12 @@ export default function SystemStatus() {
   return (
     <div className="status-page">
       <header className="status-header">
-        <Link to="/" className="dashboard-logo">XPLOR</Link>
-        <Link to="/dashboard" className={buttonClass('secondary', 'sm')}>← Dashboard</Link>
+        <Link to="/" className="dashboard-logo">
+          XPLOR
+        </Link>
+        <Link to="/dashboard" className={buttonClass('secondary', 'sm')}>
+          ← Dashboard
+        </Link>
       </header>
 
       <main className="status-content">
@@ -101,8 +111,12 @@ export default function SystemStatus() {
             </p>
           </div>
           <div className="status-controls">
-            <Button size="sm" onClick={refresh}>Refresh now</Button>
-            <Button size="sm" onClick={() => setPaused((p) => !p)}>{paused ? 'Resume' : 'Pause'}</Button>
+            <Button size="sm" onClick={refresh}>
+              Refresh now
+            </Button>
+            <Button size="sm" onClick={() => setPaused((p) => !p)}>
+              {paused ? 'Resume' : 'Pause'}
+            </Button>
           </div>
         </div>
 
@@ -116,11 +130,14 @@ export default function SystemStatus() {
           <div className={`pipe-link ${routeHealth}`} />
           <div className={`pipe-node ${routeHealth}`}>
             {tunnel ? 'Cloudflare tunnel' : 'Direct connection'}
-            <small>{ai?.route.cfColo ? `data centre ${ai.route.cfColo}` : ai?.route.host ?? '…'}</small>
+            <small>
+              {ai?.route.cfColo ? `data centre ${ai.route.cfColo}` : (ai?.route.host ?? '…')}
+            </small>
           </div>
           <div className={`pipe-link ${aiHealth}`} />
           <div className={`pipe-node ${aiHealth}`}>
-            AI model<small>{model ? `${model.host}${model.gpu ? ` · ${model.gpu.name}` : ''}` : '…'}</small>
+            AI model
+            <small>{model ? `${model.host}${model.gpu ? ` · ${model.gpu.name}` : ''}` : '…'}</small>
           </div>
         </div>
 
@@ -131,7 +148,11 @@ export default function SystemStatus() {
             <Card
               title="Backend (API server)"
               health={serverHealth}
-              summary={status.database.ok ? 'Running, database connected.' : 'Running, but the database is not answering.'}
+              summary={
+                status.database.ok
+                  ? 'Running, database connected.'
+                  : 'Running, but the database is not answering.'
+              }
             >
               <Row label="Machine" value={status.server.host} mono />
               <Row label="System" value={status.server.platform} />
@@ -139,7 +160,11 @@ export default function SystemStatus() {
               <Row label="Up for" value={duration(status.server.uptimeS)} />
               <Row
                 label="Database"
-                value={status.database.ok ? `connected (${status.database.latencyMs} ms)` : 'not reachable'}
+                value={
+                  status.database.ok
+                    ? `connected (${status.database.latencyMs} ms)`
+                    : 'not reachable'
+                }
               />
             </Card>
 
@@ -148,7 +173,7 @@ export default function SystemStatus() {
               health={routeHealth}
               summary={
                 !ai.reachable
-                  ? ai.error ?? 'The AI service cannot be reached.'
+                  ? (ai.error ?? 'The AI service cannot be reached.')
                   : tunnel
                     ? 'Requests travel through a Cloudflare tunnel (Cloudflare stamps each one with a CF-Ray id).'
                     : 'Direct connection (no tunnel): the AI service is on the same network as the server.'
@@ -158,7 +183,10 @@ export default function SystemStatus() {
               <Row label="AI address" value={ai.route.host} mono />
               <Row label="CF-Ray (last check)" value={ai.route.cfRay ?? 'none'} mono />
               <Row label="Cloudflare data centre" value={ai.route.cfColo ?? 'n/a'} />
-              <Row label="Round trip" value={ai.roundTripMs != null ? `${ai.roundTripMs} ms` : 'n/a'} />
+              <Row
+                label="Round trip"
+                value={ai.roundTripMs != null ? `${ai.roundTripMs} ms` : 'n/a'}
+              />
               {ai.reachable && ai.error && <Row label="Problem" value={ai.error} />}
             </Card>
 
@@ -170,23 +198,36 @@ export default function SystemStatus() {
                   ? 'No answer from the AI service.'
                   : model.ready
                     ? `Loaded on ${model.gpu ? `the GPU of ${model.host}` : model.host}.`
-                    : model.error ?? 'Not ready.'
+                    : (model.error ?? 'Not ready.')
               }
             >
               {model && (
                 <>
                   <Row label="Machine" value={model.host} mono />
-                  <Row label="Runs in" value={model.runningIn === 'docker' ? 'Docker container' : 'directly on the PC'} />
-                  <Row label="Device" value={model.gpu ? `${model.gpu.name} (${model.device})` : model.device ?? 'n/a'} />
+                  <Row
+                    label="Runs in"
+                    value={model.runningIn === 'docker' ? 'Docker container' : 'directly on the PC'}
+                  />
+                  <Row
+                    label="Device"
+                    value={
+                      model.gpu ? `${model.gpu.name} (${model.device})` : (model.device ?? 'n/a')
+                    }
+                  />
                   {model.gpu && (
                     <Row
                       label="GPU memory"
                       value={
                         <span className="status-meter">
-                          <span style={{ width: `${(100 * model.gpu.memoryUsedMb) / model.gpu.memoryTotalMb}%` }} />
+                          <span
+                            style={{
+                              width: `${(100 * model.gpu.memoryUsedMb) / model.gpu.memoryTotalMb}%`,
+                            }}
+                          />
                           <em>
-                            {(model.gpu.memoryUsedMb / 1024).toFixed(1)} / {(model.gpu.memoryTotalMb / 1024).toFixed(1)} GB
-                            {' '}(model {model.gpu.modelMemoryMb} MB)
+                            {(model.gpu.memoryUsedMb / 1024).toFixed(1)} /{' '}
+                            {(model.gpu.memoryTotalMb / 1024).toFixed(1)} GB (model{' '}
+                            {model.gpu.modelMemoryMb} MB)
                           </em>
                         </span>
                       }
@@ -194,8 +235,15 @@ export default function SystemStatus() {
                   )}
                   {model.model && (
                     <>
-                      <Row label="Model" value={`${model.model.method} · ${model.model.file} (${model.model.sizeMb} MB)`} />
-                      <Row label="Weights fingerprint" value={`sha256 ${model.model.sha256}…`} mono />
+                      <Row
+                        label="Model"
+                        value={`${model.model.method} · ${model.model.file} (${model.model.sizeMb} MB)`}
+                      />
+                      <Row
+                        label="Weights fingerprint"
+                        value={`sha256 ${model.model.sha256}…`}
+                        mono
+                      />
                     </>
                   )}
                   <Row label="Up for" value={duration(model.uptimeS)} />
@@ -218,8 +266,8 @@ export default function SystemStatus() {
           <section className="status-activity">
             <h2>Recent AI calls</h2>
             <p className="status-summary">
-              Every floor-plan import since the server started. Import a plan from the Dashboard in another tab and
-              it shows up here.
+              Every floor-plan import since the server started. Import a plan from the Dashboard in
+              another tab and it shows up here.
             </p>
             {status.recentCalls.length === 0 ? (
               <p className="status-empty">No imports yet.</p>
@@ -240,8 +288,14 @@ export default function SystemStatus() {
                     {status.recentCalls.map((call) => (
                       <tr key={`${call.at}-${call.jobId}`}>
                         <td>{time(call.at)}</td>
-                        <td className={call.ok ? 'ok' : 'down'}>{call.ok ? 'detected' : call.error}</td>
-                        <td>{call.via === 'cloudflare-tunnel' ? `tunnel${call.cfColo ? ` (${call.cfColo})` : ''}` : 'direct'}</td>
+                        <td className={call.ok ? 'ok' : 'down'}>
+                          {call.ok ? 'detected' : call.error}
+                        </td>
+                        <td>
+                          {call.via === 'cloudflare-tunnel'
+                            ? `tunnel${call.cfColo ? ` (${call.cfColo})` : ''}`
+                            : 'direct'}
+                        </td>
                         <td className="mono">{call.cfRay ?? '—'}</td>
                         <td>{call.roundTripMs} ms</td>
                         <td>{call.processingMs != null ? `${call.processingMs} ms` : '—'}</td>

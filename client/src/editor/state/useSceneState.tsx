@@ -1,19 +1,19 @@
-import { useRef, useState, useEffect } from "react";
-import type { SceneObject } from "../../types/scene";
+import { useRef, useState, useEffect } from 'react'
+import type { SceneObject } from '../../types/scene'
 
 export function useSceneState() {
-  const [objects, setObjects] = useState<SceneObject[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [objects, setObjects] = useState<SceneObject[]>([])
+  const [selectedId, setSelectedId] = useState<string | null>(null)
 
   /**
    * Ref always pointing to latest objects
    * Needed for export / async actions
    */
-  const objectsRef = useRef<SceneObject[]>(objects);
+  const objectsRef = useRef<SceneObject[]>(objects)
 
   useEffect(() => {
-    objectsRef.current = objects;
-  }, [objects]);
+    objectsRef.current = objects
+  }, [objects])
 
   return {
     objects,
@@ -22,5 +22,5 @@ export function useSceneState() {
 
     selectedId,
     setSelectedId,
-  };
+  }
 }

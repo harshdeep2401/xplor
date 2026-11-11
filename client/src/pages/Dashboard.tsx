@@ -5,7 +5,8 @@ import { auth } from '../firebase'
 import apiClient from '../services/apiClient'
 import { getApiErrorMessage } from '../services/errors'
 import { toast } from '../components/toast/toast'
-import Button, { buttonClass } from '../components/ui/Button'
+import Button from '../components/ui/Button'
+import { buttonClass } from '../components/ui/buttonClass'
 import Field from '../components/ui/Field'
 import Modal from '../components/ui/Modal'
 import { getUser, clearSession } from '../services/session'
@@ -55,12 +56,12 @@ function Dashboard() {
       }
     }
 
-    fetchProjects()
+    void fetchProjects()
   }, [navigate])
 
   const handleLogout = () => {
     clearSession()
-    auth.signOut()
+    void auth.signOut()
     navigate('/')
   }
 
@@ -174,17 +175,22 @@ function Dashboard() {
     <div className="dashboard-page">
       {/* Header */}
       <header className="dashboard-header">
-        <Link to="/" className="dashboard-logo">XPLOR</Link>
+        <Link to="/" className="dashboard-logo">
+          XPLOR
+        </Link>
         <div className="dashboard-user-info">
-          <Link to="/status" className={buttonClass('ghost', 'sm')}>System status</Link>
+          <Link to="/status" className={buttonClass('ghost', 'sm')}>
+            System status
+          </Link>
           <div className="dashboard-user-avatar">{getInitial()}</div>
-          <Button size="sm" onClick={handleLogout}>Log Out</Button>
+          <Button size="sm" onClick={handleLogout}>
+            Log Out
+          </Button>
         </div>
       </header>
 
       {/* Main Content */}
       <main className="dashboard-content">
-        
         {/* Welcome Section */}
         <div className="dashboard-welcome">
           <h1>Welcome back, {getFirstName()}!</h1>
@@ -223,7 +229,8 @@ function Dashboard() {
           <h2 className="recent-works-header">Recent Works</h2>
           {isLoading ? (
             <p className="dashboard-state">
-              <LoaderCircle className="h-5 w-5 animate-spin text-primary" aria-hidden="true" /> Loading projects…
+              <LoaderCircle className="h-5 w-5 animate-spin text-primary" aria-hidden="true" />{' '}
+              Loading projects…
             </p>
           ) : loadError ? (
             <p className="dashboard-state dashboard-state-error">{loadError}</p>
@@ -236,14 +243,20 @@ function Dashboard() {
                 const is3D = project.type === '3d'
                 const dateString = new Date(project.updatedAt).toLocaleDateString()
                 return (
-                  <div 
-                    key={project._id || project.id} 
+                  <div
+                    key={project._id || project.id}
                     className="project-card"
-                    onClick={() => navigate(`/editor/${is3D ? '3d' : '2d'}/${project._id || project.id}`)}
+                    onClick={() =>
+                      navigate(`/editor/${is3D ? '3d' : '2d'}/${project._id || project.id}`)
+                    }
                     style={{ cursor: 'pointer' }}
                   >
                     <div className={`project-thumbnail ${gradient}`}>
-                      {is3D ? <Box size={40} aria-hidden="true" /> : <PencilRuler size={40} aria-hidden="true" />}
+                      {is3D ? (
+                        <Box size={40} aria-hidden="true" />
+                      ) : (
+                        <PencilRuler size={40} aria-hidden="true" />
+                      )}
                     </div>
                     <div className="project-info">
                       <h4>{project.name}</h4>
@@ -258,7 +271,6 @@ function Dashboard() {
             </div>
           )}
         </div>
-
       </main>
 
       {/* Footer */}
@@ -274,26 +286,32 @@ function Dashboard() {
         busy={isCreating}
         footer={
           <>
-            <Button onClick={() => setIsModalOpen(false)} disabled={isCreating}>Cancel</Button>
+            <Button onClick={() => setIsModalOpen(false)} disabled={isCreating}>
+              Cancel
+            </Button>
             <Button variant="primary" onClick={handleCreateProject} loading={isCreating}>
               {isCreating ? 'Creating…' : 'Create Project'}
             </Button>
           </>
         }
       >
-        <Field label="Project name" value={projectName} onChange={e => setProjectName(e.target.value)} />
+        <Field
+          label="Project name"
+          value={projectName}
+          onChange={(e) => setProjectName(e.target.value)}
+        />
         <div className="grid grid-cols-2 gap-4">
           <Field
             label="Canvas width (px)"
             type="number"
             value={canvasWidth}
-            onChange={e => setCanvasWidth(Number(e.target.value))}
+            onChange={(e) => setCanvasWidth(Number(e.target.value))}
           />
           <Field
             label="Canvas height (px)"
             type="number"
             value={canvasHeight}
-            onChange={e => setCanvasHeight(Number(e.target.value))}
+            onChange={(e) => setCanvasHeight(Number(e.target.value))}
           />
         </div>
       </Modal>
@@ -306,7 +324,9 @@ function Dashboard() {
         busy={isCreating}
         footer={
           <>
-            <Button onClick={closeImport} disabled={isCreating}>Cancel</Button>
+            <Button onClick={closeImport} disabled={isCreating}>
+              Cancel
+            </Button>
             <Button
               variant="primary"
               onClick={handleImportFloorPlan}
@@ -318,19 +338,29 @@ function Dashboard() {
           </>
         }
       >
-        <Field label="Project name" value={projectName} onChange={e => setProjectName(e.target.value)} />
+        <Field
+          label="Project name"
+          value={projectName}
+          onChange={(e) => setProjectName(e.target.value)}
+        />
         <Field
           label="Floor-plan image"
           hint="PNG, JPG or WEBP, up to 15 MB."
           type="file"
           accept="image/png,image/jpeg,image/webp"
-          onChange={e => {
+          onChange={(e) => {
             setImportFile(e.target.files?.[0] ?? null)
             setImportError(null)
           }}
         />
-        {importError && <p className="text-sm text-danger" role="alert">{importError}</p>}
-        {isCreating && <p className="text-sm text-muted">Detecting walls… this can take up to 30 seconds.</p>}
+        {importError && (
+          <p className="text-sm text-danger" role="alert">
+            {importError}
+          </p>
+        )}
+        {isCreating && (
+          <p className="text-sm text-muted">Detecting walls… this can take up to 30 seconds.</p>
+        )}
       </Modal>
 
       {/* Create 3D Project Modal */}
@@ -341,26 +371,32 @@ function Dashboard() {
         busy={isCreating}
         footer={
           <>
-            <Button onClick={() => setIsModal3DOpen(false)} disabled={isCreating}>Cancel</Button>
+            <Button onClick={() => setIsModal3DOpen(false)} disabled={isCreating}>
+              Cancel
+            </Button>
             <Button variant="primary" onClick={handleCreateProject3D} loading={isCreating}>
               {isCreating ? 'Creating…' : 'Create Project'}
             </Button>
           </>
         }
       >
-        <Field label="Project name" value={projectName} onChange={e => setProjectName(e.target.value)} />
+        <Field
+          label="Project name"
+          value={projectName}
+          onChange={(e) => setProjectName(e.target.value)}
+        />
         <div className="grid grid-cols-2 gap-4">
           <Field
             label="Room width (m)"
             type="number"
             value={gridWidth}
-            onChange={e => setGridWidth(Number(e.target.value))}
+            onChange={(e) => setGridWidth(Number(e.target.value))}
           />
           <Field
             label="Room length (m)"
             type="number"
             value={gridLength}
-            onChange={e => setGridLength(Number(e.target.value))}
+            onChange={(e) => setGridLength(Number(e.target.value))}
           />
         </div>
         <Field
@@ -368,7 +404,7 @@ function Dashboard() {
           type="number"
           step={0.1}
           value={gridHeight}
-          onChange={e => setGridHeight(Number(e.target.value))}
+          onChange={(e) => setGridHeight(Number(e.target.value))}
         />
       </Modal>
     </div>

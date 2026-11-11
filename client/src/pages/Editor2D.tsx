@@ -13,8 +13,22 @@ import {
   Trash2,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
-import { Stage, Layer, Line, Rect, Text, Group, Arc, Label, Tag, Shape, Circle, Image as KonvaImage } from 'react-konva'
+import {
+  Stage,
+  Layer,
+  Line,
+  Rect,
+  Text,
+  Group,
+  Arc,
+  Label,
+  Tag,
+  Shape,
+  Circle,
+  Image as KonvaImage,
+} from 'react-konva'
 import apiClient from '../services/apiClient'
+import { resolveServerUrl } from '../services/serverUrl'
 import { getApiErrorMessage } from '../services/errors'
 import { toast } from '../components/toast/toast'
 import type { ImportResult } from '../types/api'
@@ -37,20 +51,36 @@ import NumberInput from '../components/ui/NumberInput'
 import '../styles/editor.css'
 
 // Fix for trackpads interpreting tiny finger movements as drags instead of clicks
-Konva.dragDistance = 5;
+Konva.dragDistance = 5
 
-type Tool = 'select' | 'wall' | 'door' | 'window' | 'label' | 'delete' | 'pan' | 'measure' | 'calibrate'
+type Tool =
+  'select' | 'wall' | 'door' | 'window' | 'label' | 'delete' | 'pan' | 'measure' | 'calibrate'
 
 // The left toolbar, top to bottom.
 const TOOLS: { tool: Tool; label: string; Icon: LucideIcon; title?: string }[] = [
-  { tool: 'select', label: 'Select', Icon: MousePointer2, title: 'Click to select, Shift+click to add, drag to move' },
+  {
+    tool: 'select',
+    label: 'Select',
+    Icon: MousePointer2,
+    title: 'Click to select, Shift+click to add, drag to move',
+  },
   { tool: 'wall', label: 'Wall', Icon: BrickWall },
   { tool: 'door', label: 'Door', Icon: DoorOpen },
   { tool: 'window', label: 'Window', Icon: AppWindow },
   { tool: 'label', label: 'Label', Icon: TagIcon },
   { tool: 'delete', label: 'Delete', Icon: Trash2 },
-  { tool: 'measure', label: 'Measure', Icon: RulerDimensionLine, title: 'Drag to measure a distance in metres' },
-  { tool: 'calibrate', label: 'Calibrate', Icon: Scaling, title: 'Set the real-world scale from a known length' },
+  {
+    tool: 'measure',
+    label: 'Measure',
+    Icon: RulerDimensionLine,
+    title: 'Drag to measure a distance in metres',
+  },
+  {
+    tool: 'calibrate',
+    label: 'Calibrate',
+    Icon: Scaling,
+    title: 'Set the real-world scale from a known length',
+  },
 ]
 
 // Arrow-key nudge distance in metres (Shift = coarse).
@@ -82,13 +112,6 @@ interface CalibrationLine {
   endY: number
 }
 
-// Uploads are served from the API's origin (e.g. http://localhost:5001/uploads/…),
-// while VITE_API_URL carries the /api prefix. Absolute URLs (R2 later) pass through.
-function resolveUploadUrl(url: string): string {
-  if (/^https?:\/\//.test(url)) return url
-  return new URL(url, import.meta.env.VITE_API_URL).toString()
-}
-
 // Load an image for Konva. crossOrigin keeps the stage exportable (an untainted
 // canvas) — the server's CORS middleware also covers /uploads.
 function useTraceImage(url: string | null | undefined): HTMLImageElement | null {
@@ -99,10 +122,13 @@ function useTraceImage(url: string | null | undefined): HTMLImageElement | null 
     img.crossOrigin = 'anonymous'
     img.onload = () => setImage(img)
     img.onerror = () =>
-      toast.error('Could not load the uploaded floor-plan image. You can still draw, but without the trace layer.', {
-        id: 'trace-image',
-      })
-    img.src = resolveUploadUrl(url)
+      toast.error(
+        'Could not load the uploaded floor-plan image. You can still draw, but without the trace layer.',
+        {
+          id: 'trace-image',
+        },
+      )
+    img.src = resolveServerUrl(url)
     return () => {
       img.onload = null
       img.onerror = null
@@ -226,9 +252,7 @@ function Editor() {
   useEffect(() => {
     const fetchProject = async () => {
       try {
-        const { data } = await apiClient.get<{ project: Editor2DProject }>(
-          `/projects/${projectId}`
-        )
+        const { data } = await apiClient.get<{ project: Editor2DProject }>(`/projects/${projectId}`)
         setProject(data.project)
 
         // The stored canvas is either the canvas-v2 contract or the legacy
@@ -241,8 +265,7 @@ function Editor() {
           setPixelsPerMetre(loaded.pixelsPerMetre)
           setWallHeight(loaded.wallHeight)
         } else {
-          loadedElements =
-            (raw as { elements?: EditorElement[] } | null)?.elements || []
+          loadedElements = (raw as { elements?: EditorElement[] } | null)?.elements || []
           // Legacy canvas carries no scale/height — fall back to the project's
           // canonical columns (or the built-in defaults).
           setPixelsPerMetre(data.project.scalePixelsPerMeter ?? DEFAULT_PIXELS_PER_METRE)
@@ -257,7 +280,7 @@ function Editor() {
         toast.error(message)
       }
     }
-    fetchProject()
+    void fetchProject()
   }, [projectId])
 
   // Fit to screen once, when the project has loaded and the canvas area has
@@ -274,35 +297,38 @@ function Editor() {
   // real scale & wall height), not the legacy element list.
   // Returns whether the save worked. A failure shows one toast that stays until
   // a later save succeeds (autosave retries on the next edit).
-  const saveProject = useCallback(async (newElements: EditorElement[]): Promise<boolean> => {
-    setSaveStatus('Saving...')
-    try {
-      await apiClient.put(`/projects/${projectId}`, {
-        canvas: toCanvasV2(newElements, pixelsPerMetre, wallHeight),
-      })
-      setSaveStatus('Saved')
-      if (saveFailedRef.current) {
-        saveFailedRef.current = false
-        toast.success('Saved. Your changes are safe again.', { id: 'autosave' })
+  const saveProject = useCallback(
+    async (newElements: EditorElement[]): Promise<boolean> => {
+      setSaveStatus('Saving...')
+      try {
+        await apiClient.put(`/projects/${projectId}`, {
+          canvas: toCanvasV2(newElements, pixelsPerMetre, wallHeight),
+        })
+        setSaveStatus('Saved')
+        if (saveFailedRef.current) {
+          saveFailedRef.current = false
+          toast.success('Saved. Your changes are safe again.', { id: 'autosave' })
+        }
+        return true
+      } catch (error) {
+        setSaveStatus('Error saving')
+        saveFailedRef.current = true
+        toast.error(
+          `${getApiErrorMessage(error, 'Your changes could not be saved.')} Keep this tab open; saving is retried on your next edit.`,
+          { id: 'autosave', duration: 0 },
+        )
+        return false
       }
-      return true
-    } catch (error) {
-      setSaveStatus('Error saving')
-      saveFailedRef.current = true
-      toast.error(
-        `${getApiErrorMessage(error, 'Your changes could not be saved.')} Keep this tab open; saving is retried on your next edit.`,
-        { id: 'autosave', duration: 0 },
-      )
-      return false
-    }
-  }, [projectId, pixelsPerMetre, wallHeight])
+    },
+    [projectId, pixelsPerMetre, wallHeight],
+  )
 
   // Save debounce. Editing scale/wallHeight also persists (they ride along in the
   // canvas-v2 payload), so they're part of the trigger.
   useEffect(() => {
     if (!project || historyStep < 0) return // skip initial render load
     const timer = setTimeout(() => {
-      saveProject(elements)
+      void saveProject(elements)
     }, 1500)
     return () => clearTimeout(timer)
   }, [elements, saveProject, project, historyStep])
@@ -323,13 +349,16 @@ function Editor() {
     }
   }, [projectId, elements, saveProject, navigate])
 
-  const updateElements = useCallback((newElements: EditorElement[]) => {
-    setElements(newElements)
-    const newHistory = history.slice(0, historyStep + 1)
-    newHistory.push(newElements)
-    setHistory(newHistory)
-    setHistoryStep(newHistory.length - 1)
-  }, [history, historyStep])
+  const updateElements = useCallback(
+    (newElements: EditorElement[]) => {
+      setElements(newElements)
+      const newHistory = history.slice(0, historyStep + 1)
+      newHistory.push(newElements)
+      setHistory(newHistory)
+      setHistoryStep(newHistory.length - 1)
+    },
+    [history, historyStep],
+  )
 
   // The current selection: one clicked element, or several (box-select or
   // Shift+click). One element lives in selectedElementId, several in
@@ -393,55 +422,58 @@ function Editor() {
     }
   }, [history, historyStep])
 
-  const handleZoom = useCallback((scaleBy: number) => {
-    const stage = stageRef.current
-    if (!stage) return
-    const oldScale = stage.scaleX()
-    let newScale = oldScale * scaleBy
+  const handleZoom = useCallback(
+    (scaleBy: number) => {
+      const stage = stageRef.current
+      if (!stage) return
+      const oldScale = stage.scaleX()
+      let newScale = oldScale * scaleBy
 
-    // Clamp: never zoom out beyond fit-to-screen, max zoom in 10x
-    const minScale = getMinScale()
-    newScale = Math.max(minScale, Math.min(10, newScale))
-    if (Math.abs(newScale - oldScale) < 0.001) return
+      // Clamp: never zoom out beyond fit-to-screen, max zoom in 10x
+      const minScale = getMinScale()
+      newScale = Math.max(minScale, Math.min(10, newScale))
+      if (Math.abs(newScale - oldScale) < 0.001) return
 
-    // center of viewport
-    const center = {
-      x: stage.width() / 2,
-      y: stage.height() / 2,
-    }
+      // center of viewport
+      const center = {
+        x: stage.width() / 2,
+        y: stage.height() / 2,
+      }
 
-    const mousePointTo = {
-      x: (center.x - stage.x()) / oldScale,
-      y: (center.y - stage.y()) / oldScale,
-    }
+      const mousePointTo = {
+        x: (center.x - stage.x()) / oldScale,
+        y: (center.y - stage.y()) / oldScale,
+      }
 
-    const newPos = {
-      x: center.x - mousePointTo.x * newScale,
-      y: center.y - mousePointTo.y * newScale,
-    }
+      const newPos = {
+        x: center.x - mousePointTo.x * newScale,
+        y: center.y - mousePointTo.y * newScale,
+      }
 
-    setStageScale(newScale)
-    setStagePosition(newPos)
-  }, [getMinScale])
+      setStageScale(newScale)
+      setStagePosition(newPos)
+    },
+    [getMinScale],
+  )
 
   const handleExport = useCallback(() => {
     if (!stageRef.current || !project) return
     const stage = stageRef.current
-    
+
     // Save current state
     const oldScale = stage.scaleX()
     const oldPosition = stage.position()
     const oldSelected = selectedElementId
-    
+
     // Clear selection so handles/colors don't export
     setSelectedElementId(null)
-    
+
     // Reset view for export; the trace image is reference only, not part of the plan.
     stage.scale({ x: 1, y: 1 })
     stage.position({ x: 0, y: 0 })
     const trace = stage.findOne('.trace-image')
     trace?.hide()
-    
+
     try {
       const dataURL = stage.toDataURL({
         x: 0,
@@ -450,7 +482,7 @@ function Editor() {
         height: project.canvasHeight,
         pixelRatio: 2, // High resolution
       })
-      
+
       const link = document.createElement('a')
       link.download = `${project.name.replace(/\s+/g, '_')}_Export.png`
       link.href = dataURL
@@ -471,7 +503,7 @@ function Editor() {
 
   const handleRotate = useCallback(() => {
     if (!selectedElementId) return
-    const newElements = elements.map(el => {
+    const newElements = elements.map((el) => {
       if (el.id === selectedElementId && (el.type === 'door' || el.type === 'window')) {
         return { ...el, rotation: (el.rotation || 0) + 90 }
       }
@@ -511,7 +543,10 @@ function Editor() {
       else if (ctrl && key === 'c') {
         if (copySelection()) {
           e.preventDefault()
-          toast.info(`Copied ${selectedIds.length} item${selectedIds.length === 1 ? '' : 's'}.`, { id: 'clipboard', duration: 1500 })
+          toast.info(`Copied ${selectedIds.length} item${selectedIds.length === 1 ? '' : 's'}.`, {
+            id: 'clipboard',
+            duration: 1500,
+          })
         }
       } else if (ctrl && key === 'v') {
         e.preventDefault()
@@ -551,55 +586,85 @@ function Editor() {
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [
-    handleUndo, handleRedo, handleRotate, handleZoom, elements, selectedIds, updateElements,
-    copySelection, pasteClipboard, duplicateSelection, deleteSelection, setSelection, pixelsPerMetre,
+    handleUndo,
+    handleRedo,
+    handleRotate,
+    handleZoom,
+    elements,
+    selectedIds,
+    updateElements,
+    copySelection,
+    pasteClipboard,
+    duplicateSelection,
+    deleteSelection,
+    setSelection,
+    pixelsPerMetre,
   ])
 
-  const snapToWallPoints = useCallback((x: number, y: number, elementsToSnap: EditorElement[], threshold = 20) => {
-    let minDistance = threshold;
-    let snappedX = x;
-    let snappedY = y;
-    for (const el of elementsToSnap) {
-      if (el.type === 'wall') {
-        const d1 = Math.hypot(el.startX - x, el.startY - y);
-        if (d1 < minDistance) { minDistance = d1; snappedX = el.startX; snappedY = el.startY; }
-        const d2 = Math.hypot(el.endX - x, el.endY - y);
-        if (d2 < minDistance) { minDistance = d2; snappedX = el.endX; snappedY = el.endY; }
-        const midX = (el.startX + el.endX) / 2;
-        const midY = (el.startY + el.endY) / 2;
-        const d3 = Math.hypot(midX - x, midY - y);
-        if (d3 < minDistance) { minDistance = d3; snappedX = midX; snappedY = midY; }
-      }
-    }
-    return { x: snappedX, y: snappedY };
-  }, []);
-
-  const snapToWallEdge = useCallback((x: number, y: number, elementsToSnap: EditorElement[], threshold = 20) => {
-    let minDistance = threshold;
-    let snappedX = x;
-    let snappedY = y;
-    let angle: number | null = null;
-    let wall: WallElement | null = null;
-    for (const el of elementsToSnap) {
-      if (el.type === 'wall') {
-        const l2 = Math.pow(el.endX - el.startX, 2) + Math.pow(el.endY - el.startY, 2);
-        if (l2 === 0) continue;
-        let t = ((x - el.startX) * (el.endX - el.startX) + (y - el.startY) * (el.endY - el.startY)) / l2;
-        t = Math.max(0, Math.min(1, t));
-        const projX = el.startX + t * (el.endX - el.startX);
-        const projY = el.startY + t * (el.endY - el.startY);
-        const dProj = Math.hypot(projX - x, projY - y);
-        if (dProj < minDistance) {
-          minDistance = dProj;
-          snappedX = projX;
-          snappedY = projY;
-          angle = Math.atan2(el.endY - el.startY, el.endX - el.startX) * (180 / Math.PI);
-          wall = el;
+  const snapToWallPoints = useCallback(
+    (x: number, y: number, elementsToSnap: EditorElement[], threshold = 20) => {
+      let minDistance = threshold
+      let snappedX = x
+      let snappedY = y
+      for (const el of elementsToSnap) {
+        if (el.type === 'wall') {
+          const d1 = Math.hypot(el.startX - x, el.startY - y)
+          if (d1 < minDistance) {
+            minDistance = d1
+            snappedX = el.startX
+            snappedY = el.startY
+          }
+          const d2 = Math.hypot(el.endX - x, el.endY - y)
+          if (d2 < minDistance) {
+            minDistance = d2
+            snappedX = el.endX
+            snappedY = el.endY
+          }
+          const midX = (el.startX + el.endX) / 2
+          const midY = (el.startY + el.endY) / 2
+          const d3 = Math.hypot(midX - x, midY - y)
+          if (d3 < minDistance) {
+            minDistance = d3
+            snappedX = midX
+            snappedY = midY
+          }
         }
       }
-    }
-    return { x: snappedX, y: snappedY, angle, wall };
-  }, []);
+      return { x: snappedX, y: snappedY }
+    },
+    [],
+  )
+
+  const snapToWallEdge = useCallback(
+    (x: number, y: number, elementsToSnap: EditorElement[], threshold = 20) => {
+      let minDistance = threshold
+      let snappedX = x
+      let snappedY = y
+      let angle: number | null = null
+      let wall: WallElement | null = null
+      for (const el of elementsToSnap) {
+        if (el.type === 'wall') {
+          const l2 = Math.pow(el.endX - el.startX, 2) + Math.pow(el.endY - el.startY, 2)
+          if (l2 === 0) continue
+          let t =
+            ((x - el.startX) * (el.endX - el.startX) + (y - el.startY) * (el.endY - el.startY)) / l2
+          t = Math.max(0, Math.min(1, t))
+          const projX = el.startX + t * (el.endX - el.startX)
+          const projY = el.startY + t * (el.endY - el.startY)
+          const dProj = Math.hypot(projX - x, projY - y)
+          if (dProj < minDistance) {
+            minDistance = dProj
+            snappedX = projX
+            snappedY = projY
+            angle = Math.atan2(el.endY - el.startY, el.endX - el.startX) * (180 / Math.PI)
+            wall = el
+          }
+        }
+      }
+      return { x: snappedX, y: snappedY, angle, wall }
+    },
+    [],
+  )
 
   const handleWheel = (e: Konva.KonvaEventObject<WheelEvent>) => {
     e.evt.preventDefault()
@@ -700,7 +765,7 @@ function Editor() {
         startY: snap.y,
         endX: snap.x,
         endY: snap.y,
-        thickness: 30
+        thickness: 30,
       }
       const newElements = [...elements, newWall]
       setElements(newElements)
@@ -713,7 +778,7 @@ function Editor() {
         y: snap.y,
         width: 120,
         height: 4,
-        rotation: snap.angle !== null ? snap.angle : 0
+        rotation: snap.angle !== null ? snap.angle : 0,
       }
       updateElements([...elements, newDoor])
     } else if (activeTool === 'window') {
@@ -721,7 +786,8 @@ function Editor() {
       const snap = snapToWallEdge(logicalX, logicalY, elements)
       let curvature = 0
       if (snap.wall && snap.wall.curvature) {
-        const wallLen = Math.hypot(snap.wall.endX - snap.wall.startX, snap.wall.endY - snap.wall.startY) || 1
+        const wallLen =
+          Math.hypot(snap.wall.endX - snap.wall.startX, snap.wall.endY - snap.wall.startY) || 1
         curvature = snap.wall.curvature * Math.pow(1 / wallLen, 2)
       }
       const newWindow: WindowElement = {
@@ -735,7 +801,7 @@ function Editor() {
         height: 30,
         rotation: snap.angle !== null ? snap.angle : 0,
         curvature: curvature,
-        attachedWallId: snap.wall ? snap.wall.id : null
+        attachedWallId: snap.wall ? snap.wall.id : null,
       }
       setElements([...elements, newWindow])
     } else if (activeTool === 'label') {
@@ -745,7 +811,7 @@ function Editor() {
         x: logicalX,
         y: logicalY,
         text: 'Room Name',
-        fontSize: 24
+        fontSize: 24,
       }
       updateElements([...elements, newLabel])
     }
@@ -806,33 +872,34 @@ function Editor() {
 
     if (isDrawing && activeTool === 'calibrate') {
       const snap = snapToWallPoints(logicalX, logicalY, elements)
-      setCalibration(prev => (prev ? { ...prev, endX: snap.x, endY: snap.y } : prev))
+      setCalibration((prev) => (prev ? { ...prev, endX: snap.x, endY: snap.y } : prev))
       return
     }
 
     if (!isDrawing || (activeTool !== 'wall' && activeTool !== 'window')) return
 
     if (activeTool === 'window') {
-      setElements(prevElements => {
+      setElements((prevElements) => {
         const newElements = [...prevElements]
         const lastWindow = { ...newElements[newElements.length - 1] } as WindowElement
 
-        const snap = snapToWallEdge(logicalX, logicalY, prevElements.slice(0, -1));
-        const endX = snap.x;
-        const endY = snap.y;
+        const snap = snapToWallEdge(logicalX, logicalY, prevElements.slice(0, -1))
+        const endX = snap.x
+        const endY = snap.y
 
-        const dx = endX - lastWindow.startX;
-        const dy = endY - lastWindow.startY;
-        const width = Math.max(10, Math.hypot(dx, dy));
-        
-        lastWindow.x = (lastWindow.startX + endX) / 2;
-        lastWindow.y = (lastWindow.startY + endY) / 2;
-        lastWindow.width = width;
+        const dx = endX - lastWindow.startX
+        const dy = endY - lastWindow.startY
+        const width = Math.max(10, Math.hypot(dx, dy))
+
+        lastWindow.x = (lastWindow.startX + endX) / 2
+        lastWindow.y = (lastWindow.startY + endY) / 2
+        lastWindow.width = width
         if (snap.angle !== null) {
-          lastWindow.rotation = snap.angle;
+          lastWindow.rotation = snap.angle
         }
         if (snap.wall && snap.wall.curvature) {
-          const wallLen = Math.hypot(snap.wall.endX - snap.wall.startX, snap.wall.endY - snap.wall.startY) || 1
+          const wallLen =
+            Math.hypot(snap.wall.endX - snap.wall.startX, snap.wall.endY - snap.wall.startY) || 1
           lastWindow.curvature = snap.wall.curvature * Math.pow(width / wallLen, 2)
           lastWindow.attachedWallId = snap.wall.id
         } else {
@@ -846,16 +913,16 @@ function Editor() {
       return
     }
 
-    setElements(prevElements => {
+    setElements((prevElements) => {
       const newElements = [...prevElements]
       const lastElement = { ...newElements[newElements.length - 1] } as WallElement
       let endX = logicalX
       let endY = logicalY
-      
+
       // Auto-snap to 90 degrees if close (within ~11 degrees) or if Shift is pressed
       const dx = Math.abs(endX - lastElement.startX)
       const dy = Math.abs(endY - lastElement.startY)
-      
+
       if (e.evt.shiftKey || dx < dy * 0.2 || dy < dx * 0.2) {
         if (dx < dy) {
           endX = lastElement.startX // Snap to vertical
@@ -863,12 +930,12 @@ function Editor() {
           endY = lastElement.startY // Snap to horizontal
         }
       }
-      
+
       // Also snap to other wall endpoints and midpoints
-      const snap = snapToWallPoints(endX, endY, prevElements.slice(0, -1));
+      const snap = snapToWallPoints(endX, endY, prevElements.slice(0, -1))
       if (snap.x !== endX || snap.y !== endY) {
-        endX = snap.x;
-        endY = snap.y;
+        endX = snap.x
+        endY = snap.y
       }
 
       lastElement.endX = endX
@@ -890,25 +957,29 @@ function Editor() {
     }
 
     if (selectionBox) {
-      const minX = Math.min(selectionBox.startX, selectionBox.endX);
-      const maxX = Math.max(selectionBox.startX, selectionBox.endX);
-      const minY = Math.min(selectionBox.startY, selectionBox.endY);
-      const maxY = Math.max(selectionBox.startY, selectionBox.endY);
-      
+      const minX = Math.min(selectionBox.startX, selectionBox.endX)
+      const maxX = Math.max(selectionBox.startX, selectionBox.endX)
+      const minY = Math.min(selectionBox.startY, selectionBox.endY)
+      const maxY = Math.max(selectionBox.startY, selectionBox.endY)
+
       // Select elements inside box
-      const selected = elements.filter(el => {
-        if (el.type === 'wall') {
-           return (el.startX >= minX && el.startX <= maxX && el.startY >= minY && el.startY <= maxY) || 
-                  (el.endX >= minX && el.endX <= maxX && el.endY >= minY && el.endY <= maxY);
-        } else {
-           return el.x >= minX && el.x <= maxX && el.y >= minY && el.y <= maxY;
-        }
-      }).map(el => el.id);
+      const selected = elements
+        .filter((el) => {
+          if (el.type === 'wall') {
+            return (
+              (el.startX >= minX && el.startX <= maxX && el.startY >= minY && el.startY <= maxY) ||
+              (el.endX >= minX && el.endX <= maxX && el.endY >= minY && el.endY <= maxY)
+            )
+          } else {
+            return el.x >= minX && el.x <= maxX && el.y >= minY && el.y <= maxY
+          }
+        })
+        .map((el) => el.id)
 
       // Shift adds the boxed elements to what was already selected.
       setSelection(e.evt.shiftKey ? [...new Set([...selectedIds, ...selected])] : selected)
-      setSelectionBox(null);
-      return;
+      setSelectionBox(null)
+      return
     }
 
     if (isDrawing && (activeTool === 'wall' || activeTool === 'window')) {
@@ -966,35 +1037,42 @@ function Editor() {
       return
     }
     if (activeTool === 'delete') {
-      updateElements(elements.filter(el => el.id !== id))
+      updateElements(elements.filter((el) => el.id !== id))
     } else if (additive) {
-      setSelection(selectedIds.includes(id) ? selectedIds.filter((s) => s !== id) : [...selectedIds, id])
+      setSelection(
+        selectedIds.includes(id) ? selectedIds.filter((s) => s !== id) : [...selectedIds, id],
+      )
     } else {
       setSelection([id])
     }
   }
 
   // Element is part of a multi-selection (moved as a group, not dragged alone).
-  const inMultiSelection = (id: string) => marqueeSelectionIds.length > 1 && marqueeSelectionIds.includes(id)
+  const inMultiSelection = (id: string) =>
+    marqueeSelectionIds.length > 1 && marqueeSelectionIds.includes(id)
 
   if (loadError) {
     return (
       <div className="editor-loading">
         <p>{loadError}</p>
-        <button className="topbar-btn" onClick={() => navigate('/dashboard')}>Back to Dashboard</button>
+        <button className="topbar-btn" onClick={() => navigate('/dashboard')}>
+          Back to Dashboard
+        </button>
       </div>
     )
   }
   if (!project) return <div className="editor-loading">Loading Project...</div>
 
-  const selectedElement = elements.find(el => el.id === selectedElementId)
+  const selectedElement = elements.find((el) => el.id === selectedElementId)
 
   return (
     <div className="editor-container">
       {/* Top Bar */}
       <div className="editor-topbar">
         <div className="topbar-left">
-          <button className="back-btn" onClick={() => navigate('/dashboard')}>&larr;</button>
+          <button className="back-btn" onClick={() => navigate('/dashboard')}>
+            &larr;
+          </button>
           <div className="project-title">{project.name}</div>
         </div>
         <div className="topbar-center">
@@ -1025,7 +1103,11 @@ function Editor() {
           {project.floorPlanUrl && (
             <div className="trace-controls" title="Uploaded floor plan shown under the drawing">
               <label className="trace-toggle">
-                <input type="checkbox" checked={showTrace} onChange={(e) => setShowTrace(e.target.checked)} />
+                <input
+                  type="checkbox"
+                  checked={showTrace}
+                  onChange={(e) => setShowTrace(e.target.checked)}
+                />
                 Trace
               </label>
               <input
@@ -1040,25 +1122,51 @@ function Editor() {
               />
             </div>
           )}
-          <button className="topbar-btn" onClick={handleUndo} disabled={historyStep <= 0}>Undo</button>
-          <button className="topbar-btn" onClick={handleRedo} disabled={historyStep >= history.length - 1}>Redo</button>
-          <button className="topbar-btn" onClick={() => handleZoom(1.2)}>Zoom In</button>
-          <button className="topbar-btn" onClick={() => handleZoom(1 / 1.2)}>Zoom Out</button>
-          <button className="topbar-btn" onClick={fitToScreen}>Fit</button>
+          <button className="topbar-btn" onClick={handleUndo} disabled={historyStep <= 0}>
+            Undo
+          </button>
+          <button
+            className="topbar-btn"
+            onClick={handleRedo}
+            disabled={historyStep >= history.length - 1}
+          >
+            Redo
+          </button>
+          <button className="topbar-btn" onClick={() => handleZoom(1.2)}>
+            Zoom In
+          </button>
+          <button className="topbar-btn" onClick={() => handleZoom(1 / 1.2)}>
+            Zoom Out
+          </button>
+          <button className="topbar-btn" onClick={fitToScreen}>
+            Fit
+          </button>
           <span className="zoom-label">{Math.round(stageScale * 100)}%</span>
-          <button className="topbar-btn export-btn" onClick={handleExport}>Export</button>
-          <button className="topbar-btn export-btn" onClick={handleConvertTo3D}>Convert to 3D</button>
+          <button className="topbar-btn export-btn" onClick={handleExport}>
+            Export
+          </button>
+          <button className="topbar-btn export-btn" onClick={handleConvertTo3D}>
+            Convert to 3D
+          </button>
         </div>
       </div>
 
       {importResult && (
-        <div className={`import-banner ${importResult.status === 'failed' ? 'import-banner-error' : ''}`}>
+        <div
+          className={`import-banner ${importResult.status === 'failed' ? 'import-banner-error' : ''}`}
+        >
           <span>
             {importResult.status === 'completed'
               ? `Detected ${importResult.wallCount} wall${importResult.wallCount === 1 ? '' : 's'} from your floor plan. Fix any mistakes against the trace image, add doors and windows, then use Calibrate to set the real-world scale.`
               : `Wall detection failed (${importResult.error}). Your image is loaded as a trace layer, so you can draw over it.`}
           </span>
-          <button className="import-banner-close" onClick={() => setImportResult(null)} aria-label="Dismiss">×</button>
+          <button
+            className="import-banner-close"
+            onClick={() => setImportResult(null)}
+            aria-label="Dismiss"
+          >
+            ×
+          </button>
         </div>
       )}
 
@@ -1089,14 +1197,14 @@ function Editor() {
             onWheel={handleWheel}
             onDblClick={(e) => {
               if (e.target === e.target.getStage() || e.target.name() === 'canvas-board') {
-                setActiveTool('select');
-                setSelectedElementId(null);
+                setActiveTool('select')
+                setSelectedElementId(null)
               }
             }}
             onDblTap={(e) => {
               if (e.target === e.target.getStage() || e.target.name() === 'canvas-board') {
-                setActiveTool('select');
-                setSelectedElementId(null);
+                setActiveTool('select')
+                setSelectedElementId(null)
               }
             }}
             scaleX={stageScale}
@@ -1133,7 +1241,7 @@ function Editor() {
                       points={[x, 0, x, project.canvasHeight]}
                       stroke={x % 200 === 0 ? '#d4d4d8' : '#e5e7eb'}
                       strokeWidth={x % 200 === 0 ? 0.5 : 0.3}
-                    />
+                    />,
                   )
                 }
                 for (let y = gridSize; y < project.canvasHeight; y += gridSize) {
@@ -1143,7 +1251,7 @@ function Editor() {
                       points={[0, y, project.canvasWidth, y]}
                       stroke={y % 200 === 0 ? '#d4d4d8' : '#e5e7eb'}
                       strokeWidth={y % 200 === 0 ? 0.5 : 0.3}
-                    />
+                    />,
                   )
                 }
                 return gridLines
@@ -1195,368 +1303,460 @@ function Editor() {
               />
 
               {/* Drawing elements — Multi-Pass Rendering for Architectural Styling */}
-              
+
               {/* Pass 1: Wall Outlines (Thick Dark) */}
-              {elements.filter(el => el.type === 'wall').map(el => {
-                const dx = el.endX - el.startX;
-                const dy = el.endY - el.startY;
-                const len = Math.sqrt(dx * dx + dy * dy);
-                const t = el.thickness || 30;
-                const curvature = el.curvature || 0;
-                let isCurved = curvature !== 0;
-                let points = [el.startX, el.startY, el.endX, el.endY];
-                if (isCurved) {
-                   const nx = -dy / Math.max(1, len);
-                   const ny = dx / Math.max(1, len);
-                   points = [el.startX, el.startY, (el.startX+el.endX)/2 + nx*curvature, (el.startY+el.endY)/2 + ny*curvature, el.endX, el.endY];
-                }
-                const isSelected = selectedElementId === el.id || marqueeSelectionIds.includes(el.id);
-                
-                return (
-                  <Line
-                    key={`outline_${el.id}`}
-                    points={points}
-                    tension={isCurved ? 0.5 : 0}
-                    stroke={isSelected ? '#14b8a6' : '#1e293b'}
-                    strokeWidth={t + 2}
-                    lineCap="round"
-                    lineJoin="round"
-                    listening={false}
-                  />
-                );
-              })}
-
-              {/* Pass 2: Wall Fills (Light inner core) */}
-              {elements.filter(el => el.type === 'wall').map(el => {
-                const dx = el.endX - el.startX;
-                const dy = el.endY - el.startY;
-                const len = Math.sqrt(dx * dx + dy * dy);
-                const angle = Math.atan2(dy, dx) * (180 / Math.PI);
-                const t = el.thickness || 30;
-                const curvature = el.curvature || 0;
-                let isCurved = curvature !== 0;
-                let midX = (el.startX + el.endX) / 2;
-                let midY = (el.startY + el.endY) / 2;
-                let points = [el.startX, el.startY, el.endX, el.endY];
-                
-                if (isCurved) {
-                   const nx = -dy / Math.max(1, len);
-                   const ny = dx / Math.max(1, len);
-                   midX += nx * curvature;
-                   midY += ny * curvature;
-                   points = [el.startX, el.startY, midX, midY, el.endX, el.endY];
-                }
-                const isSelected = selectedElementId === el.id || marqueeSelectionIds.includes(el.id);
-                const isActiveDrawing = isDrawing && elements.length > 0 && elements[elements.length - 1]?.id === el.id;
-
-                return (
-                  <Group key={`fill_${el.id}`} id={el.id}>
-                    <Line
-                      points={points}
-                      tension={isCurved ? 0.5 : 0}
-                      stroke={isSelected ? '#ccfbf1' : '#f8fafc'}
-                      strokeWidth={t - 2}
-                      lineCap="round"
-                      lineJoin="round"
-                      onClick={(e) => handleElementClick(el.id, e.evt.shiftKey)}
-                      onTap={() => handleElementClick(el.id)}
-                      onDblClick={(e) => { e.cancelBubble = true; handleElementClick(el.id); }}
-                      onDblTap={(e) => { e.cancelBubble = true; handleElementClick(el.id); }}
-                    />
-                    
-                    {/* Dimension Text */}
-                    {(isSelected || isActiveDrawing) && len > 0 && (
-                      <Label
-                        x={midX}
-                        y={midY}
-                        rotation={angle > 90 ? angle - 180 : angle < -90 ? angle + 180 : angle}
-                        offsetY={t / 2 + 15}
-                      >
-                        <Tag fill="#14b8a6" cornerRadius={4} pointerDirection="down" pointerWidth={10} pointerHeight={10} />
-                        <Text text={formatMetres(len, pixelsPerMetre)} fill="white" padding={6} fontSize={16} fontStyle="bold" fontFamily="monospace" />
-                      </Label>
-                    )}
-                  </Group>
-                );
-              })}
-
-              {/* Pass 3: Doors, Windows, and Room Labels */}
-              {elements.filter(el => el.type !== 'wall').map(el => {
-                const isSelected = selectedElementId === el.id || marqueeSelectionIds.includes(el.id);
-                const selColor = '#14b8a6';
-
-
-                {/* ── LABEL ── Room Text Label */ }
-                if (el.type === 'label') {
-                  return (
-                    <Group
-                      key={el.id}
-                      id={el.id}
-                      x={el.x}
-                      y={el.y}
-                      draggable={activeTool === 'select' && !inMultiSelection(el.id)}
-                      onDragEnd={(e) => {
-                        const newElements = elements.map(item => item.id === el.id ? { ...item, x: e.target.x(), y: e.target.y() } : item)
-                        updateElements(newElements)
-                      }}
-                      onClick={(e) => handleElementClick(el.id, e.evt.shiftKey)}
-                      onTap={() => handleElementClick(el.id)}
-                      onDblClick={(e) => { e.cancelBubble = true; handleElementClick(el.id); }}
-                      onDblTap={(e) => { e.cancelBubble = true; handleElementClick(el.id); }}
-                    >
-                      <Rect 
-                        x={-100} 
-                        y={-20} 
-                        width={200} 
-                        height={40} 
-                        fill={isSelected ? '#e0f2fe' : 'transparent'} 
-                        cornerRadius={4}
-                      />
-                      <Text
-                        x={-100}
-                        y={-12}
-                        width={200}
-                        text={el.text || 'Room'}
-                        fontSize={el.fontSize || 24}
-                        fill={isSelected ? selColor : '#475569'}
-                        align="center"
-                        fontStyle={isSelected ? 'bold' : 'normal'}
-                      />
-                    </Group>
-                  )
-                }
-
-                {/* ── DOOR ── door leaf line + quarter-circle swing arc */ }
-                if (el.type === 'door') {
-                  const w = el.width || 120
-                  const strokeCol = isSelected ? selColor : '#94a3b8' // Grey door
-                  return (
-                    <Group
-                      key={el.id}
-                      id={el.id}
-                      x={el.x}
-                      y={el.y}
-                      rotation={el.rotation || 0}
-                      draggable={activeTool === 'select' && !inMultiSelection(el.id)}
-                      onDragMove={(e) => {
-                        let newX = e.target.x()
-                        let newY = e.target.y()
-                        newX = Math.max(0, Math.min(project.canvasWidth, newX))
-                        newY = Math.max(0, Math.min(project.canvasHeight, newY))
-                        
-                        const snap = snapToWallEdge(newX, newY, elements);
-                        if (snap.angle !== null) {
-                          e.target.rotation(snap.angle);
-                        }
-                        
-                        e.target.x(snap.x)
-                        e.target.y(snap.y)
-                      }}
-                      onDragEnd={(e) => {
-                        const snap = snapToWallEdge(e.target.x(), e.target.y(), elements);
-                        const newRotation = snap.angle !== null ? snap.angle : e.target.rotation();
-                        
-                        const newElements = elements.map(item => item.id === el.id ? { ...item, x: snap.x, y: snap.y, rotation: newRotation } : item)
-                        updateElements(newElements)
-                      }}
-                      onClick={(e) => handleElementClick(el.id, e.evt.shiftKey)}
-                      onTap={() => handleElementClick(el.id)}
-                      onDblClick={(e) => { e.cancelBubble = true; handleElementClick(el.id); }}
-                      onDblTap={(e) => { e.cancelBubble = true; handleElementClick(el.id); }}
-                    >
-                      {/* Invisible hit area — makes the door easy to click */}
-                      <Rect
-                        x={-4}
-                        y={-w - 4}
-                        width={w + 8}
-                        height={w + 8}
-                        fill="transparent"
-                      />
-                      {/* White mask to cover the wall behind the door opening */}
-                      <Rect
-                        x={0}
-                        y={-16}
-                        width={w}
-                        height={32}
-                        fill="#ffffff"
-                        listening={false}
-                      />
-                      {/* Door leaf (the actual door panel — open at 90 degrees) */}
-                      <Rect
-                        x={-4}
-                        y={-w}
-                        width={8}
-                        height={w}
-                        fill={strokeCol}
-                        cornerRadius={2}
-                      />
-                      {/* Quarter-circle arc showing swing direction */}
-                      <Arc
-                        x={0}
-                        y={0}
-                        innerRadius={w - 2}
-                        outerRadius={w}
-                        angle={90}
-                        rotation={-90}
-                        fill={strokeCol}
-                        stroke={strokeCol}
-                        strokeWidth={1.5}
-                        dash={[6, 4]}
-                      />
-                      {/* Hinge dot */}
-                      <Rect
-                        x={-5}
-                        y={-5}
-                        width={10}
-                        height={10}
-                        fill={strokeCol}
-                        cornerRadius={5}
-                        listening={false}
-                      />
-                      {/* Wall break lines at door edges */}
-                      <Line
-                        points={[0, -18, 0, 18]}
-                        stroke={strokeCol}
-                        strokeWidth={2}
-                        listening={false}
-                      />
-                      <Line
-                        points={[w, -18, w, 18]}
-                        stroke={strokeCol}
-                        strokeWidth={2}
-                        listening={false}
-                      />
-                    </Group>
-                  )
-                }
-
-                {/* ── WINDOW ── curved or straight outer rectangle + internal parallel lines */ }
-                if (el.type === 'window') {
-                  const w = el.width || 120
-                  const h = el.height || 10
-                  const strokeCol = isSelected ? selColor : '#1e293b'
+              {elements
+                .filter((el) => el.type === 'wall')
+                .map((el) => {
+                  const dx = el.endX - el.startX
+                  const dy = el.endY - el.startY
+                  const len = Math.sqrt(dx * dx + dy * dy)
+                  const t = el.thickness || 30
                   const curvature = el.curvature || 0
                   const isCurved = curvature !== 0
-                  
+                  let points = [el.startX, el.startY, el.endX, el.endY]
+                  if (isCurved) {
+                    const nx = -dy / Math.max(1, len)
+                    const ny = dx / Math.max(1, len)
+                    points = [
+                      el.startX,
+                      el.startY,
+                      (el.startX + el.endX) / 2 + nx * curvature,
+                      (el.startY + el.endY) / 2 + ny * curvature,
+                      el.endX,
+                      el.endY,
+                    ]
+                  }
+                  const isSelected =
+                    selectedElementId === el.id || marqueeSelectionIds.includes(el.id)
+
                   return (
-                    <Group
-                      key={el.id}
-                      id={el.id}
-                      x={el.x}
-                      y={el.y}
-                      offsetX={w / 2}
-                      offsetY={h / 2}
-                      rotation={el.rotation || 0}
-                      draggable={activeTool === 'select' && !inMultiSelection(el.id)}
-                      onDragMove={(e) => {
-                        let newX = e.target.x()
-                        let newY = e.target.y()
-                        newX = Math.max(0, Math.min(project.canvasWidth, newX))
-                        newY = Math.max(0, Math.min(project.canvasHeight, newY))
-                        
-                        const snap = snapToWallEdge(newX, newY, elements);
-                        if (snap.angle !== null) {
-                          e.target.rotation(snap.angle);
-                        }
-                        
-                        e.target.x(snap.x)
-                        e.target.y(snap.y)
-                      }}
-                      onDragEnd={(e) => {
-                        const snap = snapToWallEdge(e.target.x(), e.target.y(), elements);
-                        const newRotation = snap.angle !== null ? snap.angle : e.target.rotation();
-                        let newCurvature = 0;
-                        if (snap.wall && snap.wall.curvature) {
-                          const wallLen = Math.hypot(snap.wall.endX - snap.wall.startX, snap.wall.endY - snap.wall.startY) || 1
-                          newCurvature = snap.wall.curvature * Math.pow(w / wallLen, 2)
-                        }
-                        
-                        const newElements = elements.map(item => item.id === el.id ? { ...item, x: snap.x, y: snap.y, rotation: newRotation, curvature: newCurvature, attachedWallId: snap.wall ? snap.wall.id : null } : item)
-                        updateElements(newElements)
-                      }}
-                      onClick={(e) => handleElementClick(el.id, e.evt.shiftKey)}
-                      onTap={() => handleElementClick(el.id)}
-                      onDblClick={(e) => { e.cancelBubble = true; handleElementClick(el.id); }}
-                      onDblTap={(e) => { e.cancelBubble = true; handleElementClick(el.id); }}
-                    >
-                      {/* Outer wall-thickness border */}
-                      <Shape
-                        sceneFunc={(ctx, shape) => {
-                          ctx.beginPath();
-                          ctx.moveTo(0, 0);
-                          if (isCurved) ctx.quadraticCurveTo(w / 2, curvature * 2, w, 0);
-                          else ctx.lineTo(w, 0);
-                          ctx.lineTo(w, h);
-                          if (isCurved) ctx.quadraticCurveTo(w / 2, h + curvature * 2, 0, h);
-                          else ctx.lineTo(0, h);
-                          ctx.closePath();
-                          ctx.fillStrokeShape(shape);
+                    <Line
+                      key={`outline_${el.id}`}
+                      points={points}
+                      tension={isCurved ? 0.5 : 0}
+                      stroke={isSelected ? '#14b8a6' : '#1e293b'}
+                      strokeWidth={t + 2}
+                      lineCap="round"
+                      lineJoin="round"
+                      listening={false}
+                    />
+                  )
+                })}
+
+              {/* Pass 2: Wall Fills (Light inner core) */}
+              {elements
+                .filter((el) => el.type === 'wall')
+                .map((el) => {
+                  const dx = el.endX - el.startX
+                  const dy = el.endY - el.startY
+                  const len = Math.sqrt(dx * dx + dy * dy)
+                  const angle = Math.atan2(dy, dx) * (180 / Math.PI)
+                  const t = el.thickness || 30
+                  const curvature = el.curvature || 0
+                  const isCurved = curvature !== 0
+                  let midX = (el.startX + el.endX) / 2
+                  let midY = (el.startY + el.endY) / 2
+                  let points = [el.startX, el.startY, el.endX, el.endY]
+
+                  if (isCurved) {
+                    const nx = -dy / Math.max(1, len)
+                    const ny = dx / Math.max(1, len)
+                    midX += nx * curvature
+                    midY += ny * curvature
+                    points = [el.startX, el.startY, midX, midY, el.endX, el.endY]
+                  }
+                  const isSelected =
+                    selectedElementId === el.id || marqueeSelectionIds.includes(el.id)
+                  const isActiveDrawing =
+                    isDrawing && elements.length > 0 && elements[elements.length - 1]?.id === el.id
+
+                  return (
+                    <Group key={`fill_${el.id}`} id={el.id}>
+                      <Line
+                        points={points}
+                        tension={isCurved ? 0.5 : 0}
+                        stroke={isSelected ? '#ccfbf1' : '#f8fafc'}
+                        strokeWidth={t - 2}
+                        lineCap="round"
+                        lineJoin="round"
+                        onClick={(e) => handleElementClick(el.id, e.evt.shiftKey)}
+                        onTap={() => handleElementClick(el.id)}
+                        onDblClick={(e) => {
+                          e.cancelBubble = true
+                          handleElementClick(el.id)
                         }}
-                        fill="#ffffff"
-                        stroke={strokeCol}
-                        strokeWidth={2}
-                      />
-                      {/* Center line (glass pane) */}
-                      <Shape
-                        sceneFunc={(ctx, shape) => {
-                          ctx.beginPath();
-                          ctx.moveTo(0, h / 2);
-                          if (isCurved) ctx.quadraticCurveTo(w / 2, h / 2 + curvature * 2, w, h / 2);
-                          else ctx.lineTo(w, h / 2);
-                          ctx.strokeShape(shape);
+                        onDblTap={(e) => {
+                          e.cancelBubble = true
+                          handleElementClick(el.id)
                         }}
-                        stroke={strokeCol}
-                        strokeWidth={1}
-                        listening={false}
                       />
-                      {/* Top inner line */}
-                      <Shape
-                        sceneFunc={(ctx, shape) => {
-                          ctx.beginPath();
-                          ctx.moveTo(0, h * 0.2);
-                          if (isCurved) ctx.quadraticCurveTo(w / 2, h * 0.2 + curvature * 2, w, h * 0.2);
-                          else ctx.lineTo(w, h * 0.2);
-                          ctx.strokeShape(shape);
-                        }}
-                        stroke={strokeCol}
-                        strokeWidth={0.5}
-                        opacity={0.5}
-                        listening={false}
-                      />
-                      {/* Bottom inner line */}
-                      <Shape
-                        sceneFunc={(ctx, shape) => {
-                          ctx.beginPath();
-                          ctx.moveTo(0, h * 0.8);
-                          if (isCurved) ctx.quadraticCurveTo(w / 2, h * 0.8 + curvature * 2, w, h * 0.8);
-                          else ctx.lineTo(w, h * 0.8);
-                          ctx.strokeShape(shape);
-                        }}
-                        stroke={strokeCol}
-                        strokeWidth={0.5}
-                        opacity={0.5}
-                        listening={false}
-                      />
+
+                      {/* Dimension Text */}
+                      {(isSelected || isActiveDrawing) && len > 0 && (
+                        <Label
+                          x={midX}
+                          y={midY}
+                          rotation={angle > 90 ? angle - 180 : angle < -90 ? angle + 180 : angle}
+                          offsetY={t / 2 + 15}
+                        >
+                          <Tag
+                            fill="#14b8a6"
+                            cornerRadius={4}
+                            pointerDirection="down"
+                            pointerWidth={10}
+                            pointerHeight={10}
+                          />
+                          <Text
+                            text={formatMetres(len, pixelsPerMetre)}
+                            fill="white"
+                            padding={6}
+                            fontSize={16}
+                            fontStyle="bold"
+                            fontFamily="monospace"
+                          />
+                        </Label>
+                      )}
                     </Group>
                   )
-                }
-                return null
-              })}
+                })}
+
+              {/* Pass 3: Doors, Windows, and Room Labels */}
+              {elements
+                .filter((el) => el.type !== 'wall')
+                .map((el) => {
+                  const isSelected =
+                    selectedElementId === el.id || marqueeSelectionIds.includes(el.id)
+                  const selColor = '#14b8a6'
+
+                  {
+                    /* ── LABEL ── Room Text Label */
+                  }
+                  if (el.type === 'label') {
+                    return (
+                      <Group
+                        key={el.id}
+                        id={el.id}
+                        x={el.x}
+                        y={el.y}
+                        draggable={activeTool === 'select' && !inMultiSelection(el.id)}
+                        onDragEnd={(e) => {
+                          const newElements = elements.map((item) =>
+                            item.id === el.id
+                              ? { ...item, x: e.target.x(), y: e.target.y() }
+                              : item,
+                          )
+                          updateElements(newElements)
+                        }}
+                        onClick={(e) => handleElementClick(el.id, e.evt.shiftKey)}
+                        onTap={() => handleElementClick(el.id)}
+                        onDblClick={(e) => {
+                          e.cancelBubble = true
+                          handleElementClick(el.id)
+                        }}
+                        onDblTap={(e) => {
+                          e.cancelBubble = true
+                          handleElementClick(el.id)
+                        }}
+                      >
+                        <Rect
+                          x={-100}
+                          y={-20}
+                          width={200}
+                          height={40}
+                          fill={isSelected ? '#e0f2fe' : 'transparent'}
+                          cornerRadius={4}
+                        />
+                        <Text
+                          x={-100}
+                          y={-12}
+                          width={200}
+                          text={el.text || 'Room'}
+                          fontSize={el.fontSize || 24}
+                          fill={isSelected ? selColor : '#475569'}
+                          align="center"
+                          fontStyle={isSelected ? 'bold' : 'normal'}
+                        />
+                      </Group>
+                    )
+                  }
+
+                  {
+                    /* ── DOOR ── door leaf line + quarter-circle swing arc */
+                  }
+                  if (el.type === 'door') {
+                    const w = el.width || 120
+                    const strokeCol = isSelected ? selColor : '#94a3b8' // Grey door
+                    return (
+                      <Group
+                        key={el.id}
+                        id={el.id}
+                        x={el.x}
+                        y={el.y}
+                        rotation={el.rotation || 0}
+                        draggable={activeTool === 'select' && !inMultiSelection(el.id)}
+                        onDragMove={(e) => {
+                          let newX = e.target.x()
+                          let newY = e.target.y()
+                          newX = Math.max(0, Math.min(project.canvasWidth, newX))
+                          newY = Math.max(0, Math.min(project.canvasHeight, newY))
+
+                          const snap = snapToWallEdge(newX, newY, elements)
+                          if (snap.angle !== null) {
+                            e.target.rotation(snap.angle)
+                          }
+
+                          e.target.x(snap.x)
+                          e.target.y(snap.y)
+                        }}
+                        onDragEnd={(e) => {
+                          const snap = snapToWallEdge(e.target.x(), e.target.y(), elements)
+                          const newRotation = snap.angle !== null ? snap.angle : e.target.rotation()
+
+                          const newElements = elements.map((item) =>
+                            item.id === el.id
+                              ? { ...item, x: snap.x, y: snap.y, rotation: newRotation }
+                              : item,
+                          )
+                          updateElements(newElements)
+                        }}
+                        onClick={(e) => handleElementClick(el.id, e.evt.shiftKey)}
+                        onTap={() => handleElementClick(el.id)}
+                        onDblClick={(e) => {
+                          e.cancelBubble = true
+                          handleElementClick(el.id)
+                        }}
+                        onDblTap={(e) => {
+                          e.cancelBubble = true
+                          handleElementClick(el.id)
+                        }}
+                      >
+                        {/* Invisible hit area — makes the door easy to click */}
+                        <Rect x={-4} y={-w - 4} width={w + 8} height={w + 8} fill="transparent" />
+                        {/* White mask to cover the wall behind the door opening */}
+                        <Rect
+                          x={0}
+                          y={-16}
+                          width={w}
+                          height={32}
+                          fill="#ffffff"
+                          listening={false}
+                        />
+                        {/* Door leaf (the actual door panel — open at 90 degrees) */}
+                        <Rect
+                          x={-4}
+                          y={-w}
+                          width={8}
+                          height={w}
+                          fill={strokeCol}
+                          cornerRadius={2}
+                        />
+                        {/* Quarter-circle arc showing swing direction */}
+                        <Arc
+                          x={0}
+                          y={0}
+                          innerRadius={w - 2}
+                          outerRadius={w}
+                          angle={90}
+                          rotation={-90}
+                          fill={strokeCol}
+                          stroke={strokeCol}
+                          strokeWidth={1.5}
+                          dash={[6, 4]}
+                        />
+                        {/* Hinge dot */}
+                        <Rect
+                          x={-5}
+                          y={-5}
+                          width={10}
+                          height={10}
+                          fill={strokeCol}
+                          cornerRadius={5}
+                          listening={false}
+                        />
+                        {/* Wall break lines at door edges */}
+                        <Line
+                          points={[0, -18, 0, 18]}
+                          stroke={strokeCol}
+                          strokeWidth={2}
+                          listening={false}
+                        />
+                        <Line
+                          points={[w, -18, w, 18]}
+                          stroke={strokeCol}
+                          strokeWidth={2}
+                          listening={false}
+                        />
+                      </Group>
+                    )
+                  }
+
+                  {
+                    /* ── WINDOW ── curved or straight outer rectangle + internal parallel lines */
+                  }
+                  if (el.type === 'window') {
+                    const w = el.width || 120
+                    const h = el.height || 10
+                    const strokeCol = isSelected ? selColor : '#1e293b'
+                    const curvature = el.curvature || 0
+                    const isCurved = curvature !== 0
+
+                    return (
+                      <Group
+                        key={el.id}
+                        id={el.id}
+                        x={el.x}
+                        y={el.y}
+                        offsetX={w / 2}
+                        offsetY={h / 2}
+                        rotation={el.rotation || 0}
+                        draggable={activeTool === 'select' && !inMultiSelection(el.id)}
+                        onDragMove={(e) => {
+                          let newX = e.target.x()
+                          let newY = e.target.y()
+                          newX = Math.max(0, Math.min(project.canvasWidth, newX))
+                          newY = Math.max(0, Math.min(project.canvasHeight, newY))
+
+                          const snap = snapToWallEdge(newX, newY, elements)
+                          if (snap.angle !== null) {
+                            e.target.rotation(snap.angle)
+                          }
+
+                          e.target.x(snap.x)
+                          e.target.y(snap.y)
+                        }}
+                        onDragEnd={(e) => {
+                          const snap = snapToWallEdge(e.target.x(), e.target.y(), elements)
+                          const newRotation = snap.angle !== null ? snap.angle : e.target.rotation()
+                          let newCurvature = 0
+                          if (snap.wall && snap.wall.curvature) {
+                            const wallLen =
+                              Math.hypot(
+                                snap.wall.endX - snap.wall.startX,
+                                snap.wall.endY - snap.wall.startY,
+                              ) || 1
+                            newCurvature = snap.wall.curvature * Math.pow(w / wallLen, 2)
+                          }
+
+                          const newElements = elements.map((item) =>
+                            item.id === el.id
+                              ? {
+                                  ...item,
+                                  x: snap.x,
+                                  y: snap.y,
+                                  rotation: newRotation,
+                                  curvature: newCurvature,
+                                  attachedWallId: snap.wall ? snap.wall.id : null,
+                                }
+                              : item,
+                          )
+                          updateElements(newElements)
+                        }}
+                        onClick={(e) => handleElementClick(el.id, e.evt.shiftKey)}
+                        onTap={() => handleElementClick(el.id)}
+                        onDblClick={(e) => {
+                          e.cancelBubble = true
+                          handleElementClick(el.id)
+                        }}
+                        onDblTap={(e) => {
+                          e.cancelBubble = true
+                          handleElementClick(el.id)
+                        }}
+                      >
+                        {/* Outer wall-thickness border */}
+                        <Shape
+                          sceneFunc={(ctx, shape) => {
+                            ctx.beginPath()
+                            ctx.moveTo(0, 0)
+                            if (isCurved) ctx.quadraticCurveTo(w / 2, curvature * 2, w, 0)
+                            else ctx.lineTo(w, 0)
+                            ctx.lineTo(w, h)
+                            if (isCurved) ctx.quadraticCurveTo(w / 2, h + curvature * 2, 0, h)
+                            else ctx.lineTo(0, h)
+                            ctx.closePath()
+                            ctx.fillStrokeShape(shape)
+                          }}
+                          fill="#ffffff"
+                          stroke={strokeCol}
+                          strokeWidth={2}
+                        />
+                        {/* Center line (glass pane) */}
+                        <Shape
+                          sceneFunc={(ctx, shape) => {
+                            ctx.beginPath()
+                            ctx.moveTo(0, h / 2)
+                            if (isCurved)
+                              ctx.quadraticCurveTo(w / 2, h / 2 + curvature * 2, w, h / 2)
+                            else ctx.lineTo(w, h / 2)
+                            ctx.strokeShape(shape)
+                          }}
+                          stroke={strokeCol}
+                          strokeWidth={1}
+                          listening={false}
+                        />
+                        {/* Top inner line */}
+                        <Shape
+                          sceneFunc={(ctx, shape) => {
+                            ctx.beginPath()
+                            ctx.moveTo(0, h * 0.2)
+                            if (isCurved)
+                              ctx.quadraticCurveTo(w / 2, h * 0.2 + curvature * 2, w, h * 0.2)
+                            else ctx.lineTo(w, h * 0.2)
+                            ctx.strokeShape(shape)
+                          }}
+                          stroke={strokeCol}
+                          strokeWidth={0.5}
+                          opacity={0.5}
+                          listening={false}
+                        />
+                        {/* Bottom inner line */}
+                        <Shape
+                          sceneFunc={(ctx, shape) => {
+                            ctx.beginPath()
+                            ctx.moveTo(0, h * 0.8)
+                            if (isCurved)
+                              ctx.quadraticCurveTo(w / 2, h * 0.8 + curvature * 2, w, h * 0.8)
+                            else ctx.lineTo(w, h * 0.8)
+                            ctx.strokeShape(shape)
+                          }}
+                          stroke={strokeCol}
+                          strokeWidth={0.5}
+                          opacity={0.5}
+                          listening={false}
+                        />
+                      </Group>
+                    )
+                  }
+                  return null
+                })}
 
               {/* Calibration reference line */}
               {calibration && activeTool === 'calibrate' && (
                 <Group listening={false}>
                   <Line
-                    points={[calibration.startX, calibration.startY, calibration.endX, calibration.endY]}
+                    points={[
+                      calibration.startX,
+                      calibration.startY,
+                      calibration.endX,
+                      calibration.endY,
+                    ]}
                     stroke="#f59e0b"
                     strokeWidth={3}
                     dash={[10, 6]}
                   />
                   <Circle x={calibration.startX} y={calibration.startY} radius={6} fill="#f59e0b" />
                   <Circle x={calibration.endX} y={calibration.endY} radius={6} fill="#f59e0b" />
-                  <Label x={(calibration.startX + calibration.endX) / 2} y={(calibration.startY + calibration.endY) / 2 - 30}>
+                  <Label
+                    x={(calibration.startX + calibration.endX) / 2}
+                    y={(calibration.startY + calibration.endY) / 2 - 30}
+                  >
                     <Tag fill="#f59e0b" cornerRadius={4} />
-                    <Text text={`${Math.round(calibrationPx)} px`} fontSize={14} padding={4} fill="#ffffff" />
+                    <Text
+                      text={`${Math.round(calibrationPx)} px`}
+                      fontSize={14}
+                      padding={4}
+                      fill="#ffffff"
+                    />
                   </Label>
                 </Group>
               )}
@@ -1565,13 +1765,28 @@ function Editor() {
               {measureLine && activeTool === 'measure' && (
                 <Group listening={false}>
                   <Line
-                    points={[measureLine.startX, measureLine.startY, measureLine.endX, measureLine.endY]}
+                    points={[
+                      measureLine.startX,
+                      measureLine.startY,
+                      measureLine.endX,
+                      measureLine.endY,
+                    ]}
                     stroke="#14b8a6"
                     strokeWidth={3 / stageScale}
                     dash={[10 / stageScale, 6 / stageScale]}
                   />
-                  <Circle x={measureLine.startX} y={measureLine.startY} radius={5 / stageScale} fill="#14b8a6" />
-                  <Circle x={measureLine.endX} y={measureLine.endY} radius={5 / stageScale} fill="#14b8a6" />
+                  <Circle
+                    x={measureLine.startX}
+                    y={measureLine.startY}
+                    radius={5 / stageScale}
+                    fill="#14b8a6"
+                  />
+                  <Circle
+                    x={measureLine.endX}
+                    y={measureLine.endY}
+                    radius={5 / stageScale}
+                    fill="#14b8a6"
+                  />
                   <Label
                     x={(measureLine.startX + measureLine.endX) / 2}
                     y={(measureLine.startY + measureLine.endY) / 2}
@@ -1580,7 +1795,13 @@ function Editor() {
                     offsetY={28}
                   >
                     <Tag fill="#14b8a6" cornerRadius={4} />
-                    <Text text={formatMetres(measurePx, pixelsPerMetre)} fontSize={14} padding={5} fill="#ffffff" fontStyle="bold" />
+                    <Text
+                      text={formatMetres(measurePx, pixelsPerMetre)}
+                      fontSize={14}
+                      padding={5}
+                      fill="#ffffff"
+                      fontStyle="bold"
+                    />
                   </Label>
                 </Group>
               )}
@@ -1616,20 +1837,23 @@ function Editor() {
           {activeTool === 'measure' ? (
             <div className="properties-panel">
               <p className="calibrate-help">
-                Drag across the plan to measure a distance. Hold Shift for a straight line. Measurements aren't saved.
+                Drag across the plan to measure a distance. Hold Shift for a straight line.
+                Measurements aren't saved.
               </p>
               <div className="prop-row">
                 <span>Distance</span>
                 <span>{measurePx >= 1 ? formatMetres(measurePx, pixelsPerMetre) : '—'}</span>
               </div>
               <p className="calibrate-help">
-                Based on the scale {pixelsPerMetre} px/m. If it looks wrong, set the scale with Calibrate first.
+                Based on the scale {pixelsPerMetre} px/m. If it looks wrong, set the scale with
+                Calibrate first.
               </p>
             </div>
           ) : activeTool === 'calibrate' ? (
             <div className="properties-panel">
               <p className="calibrate-help">
-                Drag along something whose real length you know (e.g. a wall with a dimension on the plan), then enter that length.
+                Drag along something whose real length you know (e.g. a wall with a dimension on the
+                plan), then enter that length.
               </p>
               <div className="prop-row">
                 <span>Measured</span>
@@ -1655,7 +1879,11 @@ function Editor() {
                   <span>{(calibrationPx / calibrationValue).toFixed(2)} px/m</span>
                 </div>
               )}
-              <button className="topbar-btn export-btn calibrate-apply" onClick={applyCalibration} disabled={!canApplyCalibration}>
+              <button
+                className="topbar-btn export-btn calibrate-apply"
+                onClick={applyCalibration}
+                disabled={!canApplyCalibration}
+              >
                 Apply scale
               </button>
               <div className="prop-row">
@@ -1676,8 +1904,8 @@ function Editor() {
                 <Trash2 size={14} aria-hidden="true" /> Delete (Del)
               </button>
               <p className="calibrate-help">
-                Drag any selected item to move them all. Arrow keys nudge by 5 cm (Shift: 50 cm). Ctrl+C / Ctrl+V
-                copy and paste. Shift+click adds or removes an item.
+                Drag any selected item to move them all. Arrow keys nudge by 5 cm (Shift: 50 cm).
+                Ctrl+C / Ctrl+V copy and paste. Shift+click adds or removes an item.
               </p>
             </div>
           ) : selectedElement ? (
@@ -1693,16 +1921,27 @@ function Editor() {
                     <NumberInput
                       min={0.01}
                       step={0.05}
-                      value={Math.hypot(selectedElement.endX - selectedElement.startX, selectedElement.endY - selectedElement.startY) / pixelsPerMetre}
+                      value={
+                        Math.hypot(
+                          selectedElement.endX - selectedElement.startX,
+                          selectedElement.endY - selectedElement.startY,
+                        ) / pixelsPerMetre
+                      }
                       onChange={(metres) => {
-                        const newLen = Math.max(1, metres * pixelsPerMetre);
-                        const dx = selectedElement.endX - selectedElement.startX;
-                        const dy = selectedElement.endY - selectedElement.startY;
-                        const currLen = Math.hypot(dx, dy);
-                        const ratio = newLen / Math.max(1, currLen);
-                        const newEndX = selectedElement.startX + dx * ratio;
-                        const newEndY = selectedElement.startY + dy * ratio;
-                        updateElements(elements.map(el => el.id === selectedElement.id ? { ...el, endX: newEndX, endY: newEndY } : el))
+                        const newLen = Math.max(1, metres * pixelsPerMetre)
+                        const dx = selectedElement.endX - selectedElement.startX
+                        const dy = selectedElement.endY - selectedElement.startY
+                        const currLen = Math.hypot(dx, dy)
+                        const ratio = newLen / Math.max(1, currLen)
+                        const newEndX = selectedElement.startX + dx * ratio
+                        const newEndY = selectedElement.startY + dy * ratio
+                        updateElements(
+                          elements.map((el) =>
+                            el.id === selectedElement.id
+                              ? { ...el, endX: newEndX, endY: newEndY }
+                              : el,
+                          ),
+                        )
                       }}
                     />
                   </div>
@@ -1713,7 +1952,13 @@ function Editor() {
                       step={0.01}
                       value={selectedElement.thickness / pixelsPerMetre}
                       onChange={(metres) => {
-                        updateElements(elements.map(el => el.id === selectedElement.id ? { ...el, thickness: metres * pixelsPerMetre } : el))
+                        updateElements(
+                          elements.map((el) =>
+                            el.id === selectedElement.id
+                              ? { ...el, thickness: metres * pixelsPerMetre }
+                              : el,
+                          ),
+                        )
                       }}
                     />
                   </div>
@@ -1725,7 +1970,13 @@ function Editor() {
                       max="200"
                       value={selectedElement.curvature || 0}
                       onChange={(e) => {
-                        updateElements(elements.map(el => el.id === selectedElement.id ? { ...el, curvature: Number(e.target.value) } : el))
+                        updateElements(
+                          elements.map((el) =>
+                            el.id === selectedElement.id
+                              ? { ...el, curvature: Number(e.target.value) }
+                              : el,
+                          ),
+                        )
                       }}
                     />
                   </div>
@@ -1740,7 +1991,13 @@ function Editor() {
                       step={0.05}
                       value={selectedElement.width / pixelsPerMetre}
                       onChange={(metres) => {
-                        updateElements(elements.map(el => el.id === selectedElement.id ? { ...el, width: metres * pixelsPerMetre } : el))
+                        updateElements(
+                          elements.map((el) =>
+                            el.id === selectedElement.id
+                              ? { ...el, width: metres * pixelsPerMetre }
+                              : el,
+                          ),
+                        )
                       }}
                     />
                   </div>
@@ -1752,7 +2009,13 @@ function Editor() {
                         step={0.01}
                         value={selectedElement.height / pixelsPerMetre}
                         onChange={(metres) => {
-                          updateElements(elements.map(el => el.id === selectedElement.id ? { ...el, height: metres * pixelsPerMetre } : el))
+                          updateElements(
+                            elements.map((el) =>
+                              el.id === selectedElement.id
+                                ? { ...el, height: metres * pixelsPerMetre }
+                                : el,
+                            ),
+                          )
                         }}
                       />
                     </div>
@@ -1763,10 +2026,18 @@ function Editor() {
                       type="number"
                       value={selectedElement.rotation || 0}
                       onChange={(e) => {
-                        updateElements(elements.map(el => el.id === selectedElement.id ? { ...el, rotation: Number(e.target.value) } : el))
+                        updateElements(
+                          elements.map((el) =>
+                            el.id === selectedElement.id
+                              ? { ...el, rotation: Number(e.target.value) }
+                              : el,
+                          ),
+                        )
                       }}
                     />
-                    <span style={{ fontSize: '11px', color: '#a1a1aa', marginTop: '4px' }}>Hint: Press 'R' to rotate 90°</span>
+                    <span style={{ fontSize: '11px', color: '#a1a1aa', marginTop: '4px' }}>
+                      Hint: Press 'R' to rotate 90°
+                    </span>
                   </div>
                 </>
               )}
@@ -1778,7 +2049,11 @@ function Editor() {
                       type="text"
                       value={selectedElement.text || ''}
                       onChange={(e) => {
-                        updateElements(elements.map(el => el.id === selectedElement.id ? { ...el, text: e.target.value } : el))
+                        updateElements(
+                          elements.map((el) =>
+                            el.id === selectedElement.id ? { ...el, text: e.target.value } : el,
+                          ),
+                        )
                       }}
                     />
                   </div>
@@ -1788,7 +2063,13 @@ function Editor() {
                       type="number"
                       value={selectedElement.fontSize || 24}
                       onChange={(e) => {
-                        updateElements(elements.map(el => el.id === selectedElement.id ? { ...el, fontSize: Number(e.target.value) } : el))
+                        updateElements(
+                          elements.map((el) =>
+                            el.id === selectedElement.id
+                              ? { ...el, fontSize: Number(e.target.value) }
+                              : el,
+                          ),
+                        )
                       }}
                     />
                   </div>
@@ -1799,14 +2080,28 @@ function Editor() {
             <>
               <div className="no-selection">Select an object to view properties</div>
               <ul className="shortcut-list" aria-label="Keyboard shortcuts">
-                <li><kbd>Shift</kbd>+click or drag a box: select several</li>
+                <li>
+                  <kbd>Shift</kbd>+click or drag a box: select several
+                </li>
                 <li>Drag a selected item: move</li>
-                <li><kbd>↑↓←→</kbd> nudge 5 cm (<kbd>Shift</kbd>: 50 cm)</li>
-                <li><kbd>Ctrl</kbd>+<kbd>C</kbd> / <kbd>V</kbd> copy, paste</li>
-                <li><kbd>Ctrl</kbd>+<kbd>D</kbd> duplicate</li>
-                <li><kbd>Ctrl</kbd>+<kbd>A</kbd> select all</li>
-                <li><kbd>R</kbd> rotate a door or window</li>
-                <li><kbd>Del</kbd> delete, <kbd>Esc</kbd> deselect</li>
+                <li>
+                  <kbd>↑↓←→</kbd> nudge 5 cm (<kbd>Shift</kbd>: 50 cm)
+                </li>
+                <li>
+                  <kbd>Ctrl</kbd>+<kbd>C</kbd> / <kbd>V</kbd> copy, paste
+                </li>
+                <li>
+                  <kbd>Ctrl</kbd>+<kbd>D</kbd> duplicate
+                </li>
+                <li>
+                  <kbd>Ctrl</kbd>+<kbd>A</kbd> select all
+                </li>
+                <li>
+                  <kbd>R</kbd> rotate a door or window
+                </li>
+                <li>
+                  <kbd>Del</kbd> delete, <kbd>Esc</kbd> deselect
+                </li>
               </ul>
             </>
           )}

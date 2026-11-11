@@ -1,52 +1,26 @@
-import * as THREE from "three";
-import type { SceneObject } from "../../types/scene";
-import { createLight } from "../lights";
+import type { SceneObject } from '../../types/scene'
+import { createLight } from '../lights'
+import { createPrimitiveObject } from '../scene/models'
 
-const generateId = () => crypto.randomUUID();
-
-/**
- * Create a cube primitive
- */
-export function createCube(): SceneObject {
-  const geometry = new THREE.BoxGeometry(1, 1, 1);
-  const material = new THREE.MeshStandardMaterial({ color: 0x8aaaff });
-  const mesh = new THREE.Mesh(geometry, material);
-
-  mesh.name = "Cube";
-  mesh.position.set(Math.random() * 2 - 1, 0.5, Math.random() * 2 - 1);
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
-
-  return {
-    id: generateId(),
-    name: "Cube",
-    object3d: mesh,
-  };
+// Drop new shapes at a random spot near the middle so repeated adds don't stack.
+function scatter(obj: SceneObject): SceneObject {
+  obj.object3d.position.set(Math.random() * 2 - 1, 0, Math.random() * 2 - 1)
+  return obj
 }
 
-/**
- * Create a sphere primitive
- */
+/** A 1 m cube standing on the floor. */
+export function createCube(): SceneObject {
+  return scatter(createPrimitiveObject('cube'))
+}
+
+/** A 1 m-diameter sphere resting on the floor. */
 export function createSphere(): SceneObject {
-  const geometry = new THREE.SphereGeometry(0.5, 32, 32);
-  const material = new THREE.MeshStandardMaterial({ color: 0xff8aaf });
-  const mesh = new THREE.Mesh(geometry, material);
-
-  mesh.name = "Sphere";
-  mesh.position.set(Math.random() * 2 - 1, 0.5, Math.random() * 2 - 1);
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
-
-  return {
-    id: generateId(),
-    name: "Sphere",
-    object3d: mesh,
-  };
+  return scatter(createPrimitiveObject('sphere'))
 }
 
 /**
  * Create a light object (delegated to lights domain)
  */
 export function createSceneLight(): SceneObject {
-  return createLight();
+  return createLight()
 }

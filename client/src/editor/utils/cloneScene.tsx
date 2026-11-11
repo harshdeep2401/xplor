@@ -1,4 +1,4 @@
-import type { SceneObject } from "../../types/scene";
+import type { SceneObject } from '../../types/scene'
 
 /**
  * Deep clone scene objects
@@ -9,5 +9,5 @@ export function cloneScene(objects: SceneObject[]): SceneObject[] {
     ...o,
     object3d: o.object3d.clone(true),
     animations: o.animations?.map((a) => a.clone()),
-  }));
+  }))
 }

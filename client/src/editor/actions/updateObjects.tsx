@@ -1,6 +1,7 @@
-import * as THREE from "three";
-import type { SceneObject, TransformAxis, TransformField } from "../../types/scene";
-import { traverseMeshes } from "../utils";
+import type * as THREE from 'three'
+import type { SceneObject, TransformAxis, TransformField } from '../../types/scene'
+import { paintObject, textureObject } from '../scene/appearance'
+import { patchPlacedMeta } from '../scene/objectMeta'
 
 /**
  * Update position / rotation / scale
@@ -10,62 +11,68 @@ export function updateTransform(
   id: string,
   field: TransformField,
   axis: TransformAxis,
-  value: number
+  value: number,
 ): SceneObject[] {
   return objects.map((o) => {
-    if (o.id !== id) return o;
+    if (o.id !== id) return o
 
-    const cloned = o.object3d.clone(true);
-    (cloned as any)[field][axis] = value;
+    const cloned = o.object3d.clone(true)
+    cloned[field][axis] = value
 
-    return { ...o, object3d: cloned };
-  });
+    return { ...o, object3d: cloned }
+  })
 }
 
 /**
  * Update display + internal name
  */
-export function updateObjectName(
-  objects: SceneObject[],
-  id: string,
-  name: string
-): SceneObject[] {
+export function updateObjectName(objects: SceneObject[], id: string, name: string): SceneObject[] {
   return objects.map((o) => {
-    if (o.id !== id) return o;
+    if (o.id !== id) return o
 
-    const cloned = o.object3d.clone(true);
-    cloned.name = name;
+    const cloned = o.object3d.clone(true)
+    cloned.name = name
 
-    return { ...o, name, object3d: cloned };
-  });
+    return { ...o, name, object3d: cloned }
+  })
 }
 
 /**
- * Update material color (supports multi-material meshes)
+ * Recolour every mesh of an object (remembered so it's saved with the scene).
  */
 export function updateObjectColor(
   objects: SceneObject[],
   id: string,
-  colorHex: string
+  colorHex: string,
 ): SceneObject[] {
   return objects.map((o) => {
-    if (o.id !== id) return o;
+    if (o.id !== id) return o
 
-    const cloned = o.object3d.clone(true);
+    const cloned = o.object3d.clone(true)
+    paintObject(cloned, colorHex)
+    patchPlacedMeta(cloned, { color: colorHex })
 
-    traverseMeshes(cloned, (mesh) => {
-      const materials = Array.isArray(mesh.material)
-        ? mesh.material
-        : [mesh.material];
+    return { ...o, object3d: cloned }
+  })
+}
 
-      materials.forEach((mat: any) => {
-        if (mat?.color) {
-          mat.color = new THREE.Color(colorHex);
-          mat.needsUpdate = true;
-        }
-      });
-    });
+/**
+ * Apply a texture to an object, or remove it (texture/url null).
+ * `url` is where the image is stored, so the texture is saved with the scene.
+ */
+export function updateObjectTexture(
+  objects: SceneObject[],
+  id: string,
+  texture: THREE.Texture | null,
+  url: string | null,
+): SceneObject[] {
+  return objects.map((o) => {
+    if (o.id !== id) return o
 
-    return { ...o, object3d: cloned };
-  });
+    const cloned = o.object3d.clone(true)
+    textureObject(cloned, texture)
+    patchPlacedMeta(cloned, { textureUrl: url ?? undefined })
+
+    return { ...o, object3d: cloned }
+  })
 }

@@ -9,6 +9,7 @@ import type {
 } from './types'
 import { DEFAULT_WALL_MATERIAL_ID } from './defaults'
 import { detectRooms } from './detectRooms'
+import { describeRoom } from './roomSemantics'
 
 // Deterministic canvas-v2 -> scene-v1 conversion. Same input always produces an
 // identical scene (no time, no randomness, stable ordering). This is the heart of
@@ -56,8 +57,15 @@ export function convertToScene(canvas: CanvasV2): SceneV1 {
   })
 
   // Enclosed wall loops → room floor polygons (empty if the plan isn't closed).
+  // Each room is named by a 2D label placed inside it, and typed from that name
+  // or, failing that, from its size and shape.
+  const labels = (canvas.labels ?? []).map((l) => ({
+    position: { x: toM(l.position.x), z: toM(l.position.y) },
+    text: l.text,
+  }))
   const rooms: SceneRoom[] = detectRooms(walls).map((r, i) => ({
     id: `room-${i}`,
+    ...describeRoom(r.floorPolygon, r.area, labels),
     floorPolygon: r.floorPolygon,
     area: r.area,
   }))

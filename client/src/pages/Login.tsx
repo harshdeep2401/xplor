@@ -69,7 +69,11 @@ function Login() {
           <h2>Welcome Back</h2>
           <p>Log in to continue to XPLOR</p>
 
-          {error && <div className="error-message" role="alert">{error}</div>}
+          {error && (
+            <div className="error-message" role="alert">
+              {error}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit}>
             <input

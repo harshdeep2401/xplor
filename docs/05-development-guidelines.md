@@ -85,6 +85,18 @@ chore(deps): bump prisma to 6.4.1
 
 - **Linting is the source of truth.** JS/TS: ESLint (+ Prettier). Python: a formatter + linter
   (e.g. Black + Ruff). CI runs them; fix warnings, don't suppress them without a reason.
+- **One command before every commit:** `npm run check` in `client/` and in `server/` runs typecheck,
+  ESLint, the Prettier check and the tests — the same steps CI runs. `npm run lint:fix` and
+  `npm run format` fix what can be fixed automatically.
+- **The setup:** one Prettier config for the repo (`.prettierrc.json`: single quotes, no semicolons,
+  width 100, LF line endings — `.gitattributes` keeps LF on Windows checkouts); an ESLint flat config per
+  package (`eslint.config.*`, typescript-eslint, plus the React hooks rules in the client). Beyond the
+  defaults it rejects un-awaited promises (`void` a fire-and-forget call on purpose), `any`, `==`, and
+  value imports used only as types. TypeScript runs `strict` plus `noUnusedLocals`,
+  `noUnusedParameters`, `noFallthroughCasesInSwitch`, `noImplicitOverride` (and `noImplicitReturns` in
+  the client). Prefix an intentionally unused parameter with `_`.
+- **A rule switched off needs a reason** written next to it — in the config, or in an
+  `// eslint-disable-next-line <rule>` comment that says why.
 - **Formatting is automated** — never hand-format; never mix a formatting sweep into a feature PR.
 - **Naming:** clear and consistent. Match the surrounding code's conventions.
 - **File & import casing must match on disk exactly.** macOS is case-insensitive but **Linux/CI is
@@ -194,7 +206,8 @@ The stack must work the same on macOS, Windows and Linux (CI and containers are 
   created on one machine show missing images/GLBs on another until storage moves to R2.
 - **Run commands:** API `npm run dev` (port 5001), client `npm run dev`, AI service
   `uv run uvicorn app.main:app --port 8000`, or everything backend via `docker compose up --build`.
-  Tests: `npm test` in `server/`, `uv run pytest` in `Ai-service/`.
+  Tests: `npm test` in `server/`, `uv run pytest` in `Ai-service/`; `npm run check` in `client/` and
+  `server/` for everything CI checks.
 - **npm scripts must be shell-neutral.** npm runs scripts with `cmd.exe` on Windows, so POSIX shell syntax
   (`$(…)`, `find`, `rm -rf`, `VAR=x cmd`) breaks there. Prefer Node-native flags or cross-platform tools
   (e.g. `server`'s `npm test` passes a quoted glob to `node --test`, which needs Node ≥ 22).
