@@ -1,9 +1,11 @@
 import { afterEach, expect, test, vi } from 'vitest'
 import type * as EnvModule from './env'
 
-const initializeApp = vi.fn(() => ({ auth: () => 'auth-instance' }))
+const initializeApp = vi.fn(() => ({ name: 'app' }))
 const cert = vi.fn((c: unknown) => ({ cert: c }))
-vi.mock('firebase-admin', () => ({ default: { initializeApp, credential: { cert } } }))
+const getAuth = vi.fn(() => 'auth-instance')
+vi.mock('firebase-admin/app', () => ({ initializeApp, cert }))
+vi.mock('firebase-admin/auth', () => ({ getAuth }))
 
 afterEach(() => {
   vi.resetModules()

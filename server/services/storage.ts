@@ -16,8 +16,16 @@ export interface PutObjectArgs {
 }
 
 // Persist an object and return its public URL.
+// The file for a key, refusing keys that would escape the storage root
+// ("../../etc"). Keys are built by the helpers below, so this is a backstop.
+function pathFor(key: string): string {
+  const dest = path.resolve(STORAGE_ROOT, key)
+  if (!dest.startsWith(STORAGE_ROOT + path.sep)) throw new Error(`Invalid storage key: ${key}`)
+  return dest
+}
+
 export async function putObject({ key, body }: PutObjectArgs): Promise<string> {
-  const dest = path.join(STORAGE_ROOT, key)
+  const dest = pathFor(key)
   await fs.promises.mkdir(path.dirname(dest), { recursive: true })
   await fs.promises.writeFile(dest, body)
   return getPublicUrl(key)
@@ -49,7 +57,7 @@ export function projectFileKey(projectId: string, originalName: string): string 
 // Delete a stored object. No-op if it's already gone (force). Used when pruning
 // old GLB exports.
 export async function deleteObject(key: string): Promise<void> {
-  const dest = path.join(STORAGE_ROOT, key)
+  const dest = pathFor(key)
   await fs.promises.rm(dest, { force: true })
 }
 

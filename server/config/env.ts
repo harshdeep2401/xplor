@@ -25,6 +25,16 @@ const schema = z
           .filter(Boolean),
       ),
 
+    // How much the server logs: fatal, error, warn, info, debug, trace or
+    // silent. Default: info (silent while testing).
+    LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).optional(),
+    // How many reverse proxies sit in front of the server (a load balancer, the
+    // Cloudflare tunnel...). Needed so rate limits see each user's real IP and
+    // not the proxy's. 0 = the server is reached directly.
+    TRUST_PROXY: z.coerce.number().int().min(0).max(10).default(0),
+    // Rate limiting (middleware/security.ts). "off" only for tests and load tests.
+    RATE_LIMIT: z.enum(['on', 'off']).default('on'),
+
     DATABASE_URL: z.string({ error: 'DATABASE_URL is required' }).min(1),
     JWT_SECRET: z.string({ error: 'JWT_SECRET is required' }).min(1),
 
@@ -67,7 +77,12 @@ const schema = z
     demand(longSecret, 'JWT_SECRET', 'must be at least 32 characters in production')
     demand(Boolean(env.FASTAPI_SECRET), 'FASTAPI_SECRET', 'is required in production')
     demand(!env.CORS_ORIGINS.includes('*'), 'CORS_ORIGINS', 'must not contain * in production')
+    demand(env.RATE_LIMIT === 'on', 'RATE_LIMIT', 'must be on in production')
   })
+  .transform((env) => ({
+    ...env,
+    LOG_LEVEL: env.LOG_LEVEL ?? (env.NODE_ENV === 'test' ? 'silent' : 'info'),
+  }))
 
 export type Env = z.infer<typeof schema>
 
@@ -83,8 +98,3 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
 }
 
 export const env = loadEnv()
-
-if (env.NODE_ENV === 'development' && env.JWT_SECRET.length < 32) {
-  // eslint-disable-next-line no-console -- runs before the logger exists
-  console.warn('JWT_SECRET is shorter than 32 characters; production will refuse to start.')
-}

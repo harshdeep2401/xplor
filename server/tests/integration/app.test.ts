@@ -72,3 +72,30 @@ describe('error responses', () => {
     expect(blocked.headers['access-control-allow-origin']).toBeUndefined()
   })
 })
+
+describe('hardening', () => {
+  test('every response has a request id and the security headers', async () => {
+    const res = await api().get('/live').expect(200)
+    expect(res.headers['x-request-id']).toMatch(/^[0-9a-f-]{36}$/)
+    expect(res.headers['x-content-type-options']).toBe('nosniff')
+    expect(res.headers['x-powered-by']).toBeUndefined()
+    // The client (another origin) may read the request id.
+    const cors = await api().get('/live').set('Origin', 'http://localhost:5173')
+    expect(cors.headers['access-control-expose-headers']).toMatch(/X-Request-Id/i)
+  })
+
+  test('JSON bodies over 2 MB are refused with 413', async () => {
+    const user = await signUp()
+    const res = await api()
+      .post('/api/projects')
+      .set(user.auth)
+      .send({ name: 'x'.repeat(2.1 * 1024 * 1024) })
+      .expect(413)
+    expect(errorOf(res).code).toBe('BODY_TOO_LARGE')
+  })
+
+  test('the furniture files are served with a week of caching', async () => {
+    const res = await api().get('/static/furniture/models/loungeSofa.glb').expect(200)
+    expect(res.headers['cache-control']).toBe('public, max-age=604800')
+  })
+})

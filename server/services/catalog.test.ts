@@ -10,6 +10,7 @@ const deleteMany = vi.fn()
 vi.mock('../config/db', () => ({ prisma: { asset: { findMany, upsert, deleteMany } } }))
 
 const { listCatalog } = await import('./catalog')
+const { logger } = await import('../config/logger')
 const { readCatalog, catalogProblems, seedCatalog, CATALOG_FILE } = await import('./catalogSeed')
 
 beforeEach(() => {
@@ -27,7 +28,7 @@ const row = (id: string, metadata: unknown) => ({
 
 describe('listCatalog', () => {
   test('maps rows to catalog items, fills defaults, skips broken rows, and caches', async () => {
-    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const warn = vi.spyOn(logger, 'warn').mockImplementation(() => {})
     findMany.mockResolvedValueOnce([
       row('a', { dimensions: { x: 1, y: 1, z: 1 }, roomTypes: ['living'], placement: 'wall' }),
       row('b', null),
@@ -37,7 +38,10 @@ describe('listCatalog', () => {
     expect(items.map((i) => i.id)).toEqual(['a', 'b'])
     expect(items[0]).toMatchObject({ placement: 'wall', roomTypes: ['living'], tags: [] })
     expect(items[1]).toMatchObject({ dimensions: null, placement: 'floor', roomTypes: [] })
-    expect(console.warn).toHaveBeenCalledWith(expect.stringMatching(/Skipping catalog item c/))
+    expect(warn).toHaveBeenCalledWith(
+      expect.objectContaining({ assetId: 'c' }),
+      'Skipping a broken catalog item',
+    )
 
     // Served from the cache for the next minute.
     expect(await listCatalog()).toBe(items)

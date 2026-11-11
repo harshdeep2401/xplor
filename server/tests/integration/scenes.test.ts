@@ -6,6 +6,9 @@ import { env } from '../../config/env'
 import type { SceneV1 } from '../../services/converter'
 import { api, convertedProject, createProject, errorOf, signUp, twoRoomCanvas } from './helpers'
 
+// The first bytes of a real PNG: uploads are checked by content, not just name.
+const PNG = Buffer.from('89504e470d0a1a0a0000000d49484452', 'hex')
+
 // A sofa placed in the living room (absolute scene-v1 coordinates, metres).
 function withSofa(scene: SceneV1, x = 2.5, z = 2): SceneV1 {
   return {
@@ -190,7 +193,7 @@ describe('GLB exports and project files', () => {
     const res = await api()
       .post(`/api/projects/${projectId}/files`)
       .set(user.auth)
-      .attach('file', Buffer.from('fake png'), {
+      .attach('file', PNG, {
         filename: 'wood grain.png',
         contentType: 'image/png',
       })

@@ -202,6 +202,16 @@ describe('POST /api/projects/:id/upload-floor-plan', () => {
       .expect(400)
     expect(errorOf(pdf).code).toBe('INVALID_FILE_TYPE')
 
+    const disguised = await api()
+      .post(`/api/projects/${fresh}/upload-floor-plan`)
+      .set(user.auth)
+      .attach('floorPlan', Buffer.from('<html><script>alert(1)</script>'), {
+        filename: 'plan.png',
+        contentType: 'image/png',
+      })
+      .expect(400)
+    expect(errorOf(disguised).code).toBe('INVALID_FILE_CONTENT')
+
     const none = await api()
       .post(`/api/projects/${fresh}/upload-floor-plan`)
       .set(user.auth)

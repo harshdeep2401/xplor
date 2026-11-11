@@ -46,6 +46,8 @@ const sharedEnv = {
   FASTAPI_SECRET: 'test-ai-secret-for-tests-only-0123456789',
   FASTAPI_WEBHOOK_URL: 'http://ai.test.invalid/process-floor-plan',
   CORS_ORIGINS: 'http://localhost:5173',
+  // Tests sign up many users from one address; limits get their own tests.
+  RATE_LIMIT: 'off',
 }
 
 const uploadDir = (kind: string) => path.join(os.tmpdir(), `xplor-${kind}-uploads-${process.pid}`)

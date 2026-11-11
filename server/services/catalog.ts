@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { prisma } from '../config/db'
+import { logger } from '../config/logger'
 import type { CatalogItem } from './recommender/types'
 
 // The furniture catalog = the Asset table (seeded by scripts/seedAssets.ts).
@@ -45,7 +46,10 @@ export async function listCatalog(): Promise<CatalogItem[]> {
     const parsed = assetMetadataSchema.safeParse(a.metadata ?? {})
     if (!parsed.success) {
       // A hand-edited row shouldn't take the whole catalog down; skip it.
-      console.warn(`Skipping catalog item ${a.id}: ${z.prettifyError(parsed.error)}`)
+      logger.warn(
+        { assetId: a.id, problems: z.prettifyError(parsed.error) },
+        'Skipping a broken catalog item',
+      )
       return []
     }
     const meta = parsed.data

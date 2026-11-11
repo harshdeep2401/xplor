@@ -57,6 +57,13 @@ export class PayloadTooLargeError extends AppError {
   }
 }
 
+// 429: too many requests in a short time (middleware/security.ts).
+export class TooManyRequestsError extends AppError {
+  constructor(message: string, code = 'RATE_LIMITED') {
+    super(429, code, message)
+  }
+}
+
 // 422: well-formed, but can't be processed (e.g. a plan that won't convert).
 export class UnprocessableError extends AppError {
   constructor(message: string, code = 'UNPROCESSABLE', details?: unknown) {

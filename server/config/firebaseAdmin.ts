@@ -1,12 +1,13 @@
-import admin from 'firebase-admin'
+import { cert, initializeApp, type App } from 'firebase-admin/app'
+import { getAuth, type Auth } from 'firebase-admin/auth'
 import { env } from './env'
 
 // Firebase Admin, used only to verify Google sign-in tokens. Started on first
 // use, so the server (and its tests) run without Firebase credentials; Google
 // sign-in then fails with a clear message instead of the whole server.
-let app: admin.app.App | null = null
+let app: App | null = null
 
-export function firebaseAuth(): admin.auth.Auth {
+export function firebaseAuth(): Auth {
   if (!app) {
     const projectId = env.FIREBASE_PROJECT_ID
     const clientEmail = env.FIREBASE_CLIENT_EMAIL
@@ -14,9 +15,7 @@ export function firebaseAuth(): admin.auth.Auth {
     if (!projectId || !clientEmail || !privateKey) {
       throw new Error('Google sign-in is not configured on this server.')
     }
-    app = admin.initializeApp({
-      credential: admin.credential.cert({ projectId, clientEmail, privateKey }),
-    })
+    app = initializeApp({ credential: cert({ projectId, clientEmail, privateKey }) })
   }
-  return app.auth()
+  return getAuth(app)
 }

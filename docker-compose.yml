@@ -32,6 +32,9 @@ services:
         required: true
     environment:
       PORT: "5001"
+      # This stack runs on a developer's PC: relax the image's production rules
+      # (readable logs, error details, dev-strength secrets allowed).
+      NODE_ENV: "development"
       # Reach the AI service by its compose service name, not localhost.
       FASTAPI_WEBHOOK_URL: "http://ai-service:8000/process-floor-plan"
     volumes:

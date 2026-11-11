@@ -26,6 +26,8 @@ export interface AiCall extends AiRoute {
   error: string | null
 }
 
+import { logger } from '../config/logger'
+
 const MAX_CALLS = 25
 const calls: AiCall[] = []
 
@@ -36,8 +38,20 @@ export const recordAiCall = (call: AiCall) => {
     call.via === 'cloudflare-tunnel'
       ? `Cloudflare tunnel${call.cfColo ? ` (${call.cfColo})` : ''}`
       : 'direct'
-  console.log(
-    `[ai] job ${call.jobId}: ${call.ok ? 'ok' : `failed (${call.error})`} via ${route} in ${call.roundTripMs} ms` +
+  logger[call.ok ? 'info' : 'warn'](
+    {
+      ai: {
+        jobId: call.jobId,
+        ok: call.ok,
+        via: call.via,
+        cfColo: call.cfColo,
+        httpStatus: call.httpStatus,
+        roundTripMs: call.roundTripMs,
+        processingMs: call.processingMs,
+        error: call.error,
+      },
+    },
+    `AI call for job ${call.jobId}: ${call.ok ? 'ok' : `failed (${call.error})`} via ${route} in ${call.roundTripMs} ms` +
       (call.processingMs != null ? ` (${call.processingMs} ms on the AI machine)` : ''),
   )
 }

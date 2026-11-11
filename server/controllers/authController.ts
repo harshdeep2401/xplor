@@ -1,9 +1,8 @@
 import type { Request, Response } from 'express'
 import bcrypt from 'bcryptjs'
-import jwt from 'jsonwebtoken'
 import { prisma } from '../config/db'
-import { env } from '../config/env'
 import { firebaseAuth } from '../config/firebaseAdmin'
+import { signAppToken } from '../services/tokens'
 import {
   BadRequestError,
   ConflictError,
@@ -15,8 +14,12 @@ import type { GoogleLoginBody, LoginBody, RegisterBody } from '../schemas/auth'
 // Bodies are checked by schemas/auth.ts before these run; failures are thrown
 // and answered by middleware/errorHandler.ts.
 
-const signAppToken = (user: { id: string; email: string }) =>
-  jwt.sign({ id: user.id, email: user.email }, env.JWT_SECRET, { expiresIn: '7d' })
+// bcrypt work factor: ~250 ms per hash on a typical server. Older hashes (10)
+// keep working; the cost is stored inside each hash.
+const BCRYPT_ROUNDS = 12
+// Compared against when the email is unknown, so a wrong email takes as long
+// as a wrong password and response times don't reveal who has an account.
+const DUMMY_HASH = bcrypt.hashSync('not-a-real-password', BCRYPT_ROUNDS)
 
 // The user fields sent to the client after signing in.
 const publicUser = (user: {
@@ -41,7 +44,7 @@ const registerUser = async (req: Request<object, unknown, RegisterBody>, res: Re
       email,
       countryCode,
       phone,
-      password: await bcrypt.hash(password, 10),
+      password: await bcrypt.hash(password, BCRYPT_ROUNDS),
       authProvider: 'local',
     },
   })
@@ -124,7 +127,10 @@ const loginUser = async (req: Request<object, unknown, LoginBody>, res: Response
   const invalid = () => new UnauthorizedError('Incorrect email or password.', 'INVALID_CREDENTIALS')
 
   const user = await prisma.user.findUnique({ where: { email } })
-  if (!user) throw invalid()
+  if (!user) {
+    await bcrypt.compare(password, DUMMY_HASH)
+    throw invalid()
+  }
   if (!user.password) {
     throw new BadRequestError(
       'This account uses Google sign-in. Continue with Google instead.',

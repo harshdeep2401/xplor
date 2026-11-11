@@ -7,7 +7,7 @@
     "start": "tsx server.ts",
     "dev": "tsx watch server.ts",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint .",
+    "lint": "eslint . --max-warnings 0",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -37,6 +37,7 @@
     "eslint-config-prettier": "^10.1.8",
     "globals": "^17.14.0",
     "nodemon": "^3.1.14",
+    "pino-pretty": "^13.2.0",
     "prettier": "^3.10.0",
     "prisma": "^6.4.1",
     "supertest": "^7.3.2",
@@ -52,9 +53,13 @@
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
-    "firebase-admin": "^13.8.0",
+    "express-rate-limit": "^8.7.4",
+    "firebase-admin": "^14.5.0",
+    "helmet": "^8.3.0",
     "jsonwebtoken": "^9.0.3",
     "multer": "^1.4.5-lts.1",
+    "pino": "^10.4.0",
+    "pino-http": "^11.0.0",
     "zod": "^4.6.7"
   }
 }

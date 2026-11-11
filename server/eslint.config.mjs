@@ -25,12 +25,13 @@ export default tseslint.config(
       ],
       '@typescript-eslint/consistent-type-imports': ['error', { fixStyle: 'inline-type-imports' }],
       eqeqeq: ['error', 'smart'],
-      'no-console': 'warn',
+      // Log through config/logger.ts (redaction, request ids, levels).
+      'no-console': 'error',
     },
   },
   {
-    // Command-line scripts report to the terminal.
-    files: ['scripts/**/*.ts'],
+    // Command-line scripts report to the terminal; tests spy on the console.
+    files: ['scripts/**/*.ts', '**/*.test.ts'],
     rules: { 'no-console': 'off' },
   },
   {

@@ -82,8 +82,11 @@ export function errorBody(error: AppError) {
 export const errorHandler: ErrorRequestHandler = (err, req, res, next) => {
   const error = toAppError(err)
   if (error.status >= 500) {
-    // eslint-disable-next-line no-console -- replaced by the request logger in step 6
-    console.error(`${req.method} ${req.originalUrl} failed:`, err)
+    // The request log line (middleware/requestLogger.ts) carries the error and
+    // its stack; the client only ever sees the safe message.
+    res.err = err instanceof Error ? err : new Error(String(err))
+  } else if (error.status !== 404) {
+    req.log?.debug({ code: error.code, details: error.details }, error.message)
   }
   // Too late to send a JSON error (a stream was half sent): let Express close it.
   if (res.headersSent) {

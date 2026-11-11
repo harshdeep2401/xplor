@@ -12,6 +12,7 @@
 
 import { z } from 'zod'
 import { env } from '../config/env'
+import { logger } from '../config/logger'
 import { aiBaseUrl, describeRoute, recordAiCall } from './aiActivity'
 
 // FASTAPI_WEBHOOK_URL is the *full* endpoint (e.g. http://127.0.0.1:8000/process-floor-plan),
@@ -102,7 +103,7 @@ export const processFloorPlan = async ({
         cause: error,
       })
     }
-    console.error(`AI service request to ${AI_SERVICE_ENDPOINT} failed:`, error)
+    logger.warn({ err: error, jobId }, 'Could not reach the AI service')
     record(false, 'unreachable')
     throw new Error('Could not reach the AI service (is it running?)', { cause: error })
   } finally {

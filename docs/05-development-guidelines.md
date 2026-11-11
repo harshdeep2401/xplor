@@ -160,6 +160,41 @@ chore(deps): bump prisma to 6.4.1
   a Zod schema (types, defaults, production-only rules) and stops start-up with a message naming any bad
   value. Add a new variable there and to `.env.example`, never as a stray `process.env.X`.
 - **If a secret is ever committed or leaked, rotate it immediately** — deleting the commit is not enough.
+
+### Logging (server)
+
+- **Log through `server/config/logger.ts` (pino), never `console`** — ESLint rejects `console` in server
+  code (scripts and tests excepted). Inside a request use `req.log`, which carries the request id.
+  Write `logger.info({ jobId, ms }, 'What happened')`: facts in the object, a short sentence as the
+  message.
+- Every request gets one line (method, full path, status, time, user id) at `info`, 4xx at `warn`, 5xx
+  at `error` with the stack. Health probes aren't logged. Every response carries **`X-Request-Id`**
+  (a caller may send its own); ask users for it when they report a problem.
+- **Never log secrets or personal data**: passwords, tokens, `Authorization`/cookie headers and keys are
+  redacted (`REDACT_PATHS`), but don't log request bodies, emails or whole user rows in the first place.
+- Development prints readable lines; production (the Docker image sets `NODE_ENV=production`) prints
+  JSON. `LOG_LEVEL` picks the level; tests are silent.
+
+### Security (server)
+
+- **Headers:** helmet on every response (nosniff, frame protection, HSTS, CSP, no `X-Powered-By`). Files
+  are readable cross-origin so the client can load models and thumbnails; CORS still decides who may
+  call the API.
+- **Rate limits** (`middleware/security.ts`): all of `/api` (600 / 5 min per user or IP), failed sign-ins
+  (10 / 15 min), floor-plan detection (20 / hour), other uploads (120 / 15 min). Over the limit → `429
+  RATE_LIMITED` with `Retry-After`. Behind a proxy, set **`TRUST_PROXY`** or every user shares the
+  proxy's allowance. `RATE_LIMIT=off` is refused in production.
+- **Uploads:** type allow-lists per route, size limits, and `checkFileContent` checks the file's first
+  bytes really are PNG / JPEG / WEBP / GLB. Storage keys can't escape `UPLOAD_DIR`. JSON bodies are
+  capped at 2 MB.
+- **Auth:** tokens are HS256 only (`services/tokens.ts`), 7 days; passwords bcrypt with 12 rounds; a
+  wrong email takes as long as a wrong password and gets the same answer.
+- **Dependencies:** CI runs `npm audit --omit=dev --audit-level=high` in client and server; fix findings
+  with `npm audit fix` or an upgrade (the client pins `@grpc/grpc-js` via `overrides` until Firebase
+  ships a fixed version).
+- **Known gaps** (tracked, not yet fixed): uploaded files are public to anyone with the URL (until
+  storage moves to R2 with signed URLs); the client keeps the session token in `localStorage`, so an
+  XSS bug would expose it — keep React's escaping, never `dangerouslySetInnerHTML` user content.
 - Client-side keys (e.g. Firebase web config) are public by nature but still belong in env config, not
   scattered through code.
 

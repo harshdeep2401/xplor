@@ -34,3 +34,10 @@ test('keys are namespaced, timestamped and safe to use as paths', () => {
   expect(glbKey('p1')).toMatch(/^glb\/p1\/\d+\.glb$/)
   expect(projectFileKey('p1', 'wood grain.jpg')).toMatch(/^project-files\/p1\/\d+-wood_grain\.jpg$/)
 })
+
+test('keys can never escape the storage folder', async () => {
+  await expect(putObject({ key: '../outside.txt', body: Buffer.from('x') })).rejects.toThrow(
+    'Invalid storage key',
+  )
+  await expect(deleteObject('a/../../outside.txt')).rejects.toThrow('Invalid storage key')
+})
