@@ -106,6 +106,33 @@ chore(deps): bump prisma to 6.4.1
   `http://localhost:...` in application code.
 - **No dead code.** Remove obsolete/legacy files rather than leaving them orphaned in the tree.
 - **Handle errors explicitly.** Don't swallow failures silently; surface actionable messages.
+- **Server errors are thrown, and answered in one place.** Controllers and middleware `throw` an error
+  from `server/errors/` (`BadRequestError`, `UnauthorizedError`, `NotFoundError`, `ConflictError`,
+  `PayloadTooLargeError`, `UnprocessableError`, `ServiceUnavailableError`); Express 5 forwards thrown
+  and rejected async errors to `middleware/errorHandler.ts`, which sends
+  `{ message, code, details? }`. No `try/catch` just to send a 500, and no `res.status(4xx/5xx)` in
+  controllers. Library errors (Zod, multer, bad JSON, Prisma P2025/P2002) are mapped there too;
+  anything else is a 500 whose real message only appears outside production.
+  - `message` is for the user (a sentence); `code` is stable UPPER_SNAKE_CASE the client may branch
+    on (`getApiErrorCode` in `client/src/services/errors.ts`) — add a new code rather than reword a
+    message the client depends on.
+  - **401 means "not signed in" only** — the client signs the user out on it. Someone else's project or
+    job is a **404** (`services/access.ts`: `getOwnedProject`, `assertOwnsProject`, `getOwnedJob`),
+    so other users' ids are never confirmed.
+- **Client render crashes** are caught by `components/ErrorBoundary.tsx` (around all routes; navigating
+  clears it). Errors in handlers and async code still go to a toast.
+- **Validate everything that crosses a boundary, with Zod.**
+  - *Server input:* each route declares its params / query / body schemas (`server/schemas/*.ts`) and
+    runs `validate({ params, query, body })` before the handler, which then gets typed, cleaned input
+    (`Request<Params, unknown, Body>` with the `z.infer` types). Messages in user-facing schemas are full
+    sentences: the first one is shown to the user. Failures answer 400 with
+    `{ message, code: 'VALIDATION_FAILED', details: [{ path, message }] }`.
+  - *Contracts stay JSON Schema* (`contracts/`, checked by Ajv) because the Python service shares them;
+    `contract(validateX, 'name')` in `schemas/common.ts` plugs one into a Zod schema.
+  - *Other inputs:* the AI service's response, the furniture catalog file and `Asset.metadata` rows are
+    parsed with Zod too.
+  - *Client:* responses the editors depend on are checked with `parseResponse(schema, data, what)` from
+    `services/apiSchemas.ts`; keep those schemas in step with the server types they mirror.
 - **UI (client):**
   - **Tell the user, not the console.** Any user action that fails shows a toast:
     `toast.error(getApiErrorMessage(err, 'Could not …'))` from `components/toast/toast.ts`
@@ -129,6 +156,9 @@ chore(deps): bump prisma to 6.4.1
   Update it in the same PR that adds new config.
 - **Config comes from environment variables**, injected via the host dashboard (Vercel/Render) in
   deployed environments and a local `.env` in development.
+- **The server reads config only through `server/config/env.ts`**, which declares every variable with
+  a Zod schema (types, defaults, production-only rules) and stops start-up with a message naming any bad
+  value. Add a new variable there and to `.env.example`, never as a stray `process.env.X`.
 - **If a secret is ever committed or leaked, rotate it immediately** — deleting the commit is not enough.
 - Client-side keys (e.g. Firebase web config) are public by nature but still belong in env config, not
   scattered through code.
@@ -139,12 +169,36 @@ chore(deps): bump prisma to 6.4.1
 
 - **Every feature ships with tests.** At minimum: one happy path and one failure path per feature (see
   the Definition of Done in `04-feature-specification.md`).
-- **Server:** unit + integration tests for controllers/services (auth, ownership, validation,
-  versioning/409, plan limits).
+- **Server** (Vitest, `server/vitest.config.mts`): two kinds of tests.
+  - *Unit* — `*.test.ts` next to the code. No database, network or `.env`: config is fixed in the
+    Vitest config, the database is mocked (`vi.mock('../config/db')`), `fetch` is stubbed for the AI
+    service. `npm run test:unit` (also `test:watch`).
+  - *Integration* — `server/tests/integration/`. The real app (`createApp()` from `app.ts`, no port)
+    over HTTP with Supertest, against the **test database**: a separate Neon branch whose URL is
+    `DATABASE_URL` in `server/.env.test` (gitignored) locally, or the `TEST_DATABASE_URL` secret in CI.
+    Every test starts from empty tables (the furniture catalog is seeded once and kept). Uploads go to
+    a temporary `UPLOAD_DIR`; the AI service and Firebase are mocked. The config **refuses to run if
+    the test URL points at the same Neon endpoint as `server/.env`**, and skips integration tests when
+    no test database is configured. `npm run test:integration`.
+  - Cover each route's happy path, its validation (400), auth (401), ownership (someone else's id →
+    404) and its conflicts (409) — see the existing files for the pattern and `helpers.ts` for
+    `signUp`, `createProject`, `convertedProject`.
+  - `npm test` runs both; `npm run test:coverage` adds coverage with floors (statements 93%,
+    branches 80%, functions 95%, lines 95%) — raise them as coverage grows, never lower them to pass.
 - **Python service:** tests for schema validation and the render/detection outputs.
-- **Client:** component/logic tests for editor behavior and API integration where practical. Keep editor
-  logic in pure modules (e.g. `editor/canvas/editing.ts`, `editor/scene/wallPieces.ts`) next to a
-  `*.test.ts`; `npm test` in `client/` runs them (Node's test runner via `tsx`, Node ≥ 22).
+- **Client** (Vitest + jsdom, `client/vitest.config.js`):
+  - *Logic* — keep editor logic in pure modules (e.g. `editor/canvas/editing.ts`,
+    `editor/scene/wallPieces.ts`) next to a `*.test.ts`.
+  - *Components* — `*.test.tsx` next to the component, with React Testing Library: find things the way a
+    user does (`getByRole`, `getByLabelText`, visible text) and act with `userEvent`, not by reaching into
+    state or class names. The API is faked with **MSW** (`src/test/server.ts`: `server.use(http.get(…))`
+    per test; any request a test didn't fake fails it). Firebase is mocked with `vi.mock`.
+  - Pages are rendered inside a `MemoryRouter` with stub routes, so navigation is asserted by what
+    appears (e.g. "Dashboard").
+  - The WebGL (3D) and Konva (2D) canvases don't run in jsdom: test their logic as pure functions and
+    check the canvases by hand in the browser.
+  - `npm test`, `npm run test:watch`, `npm run test:coverage` (floors: statements 95%, branches 85%,
+    functions 95%, lines 96%; CI runs it).
 - **CI runs the full suite on every PR.** A feature is not "done" until its tests exist and pass.
 - Don't claim something is tested if it isn't — say what's covered and what isn't.
 
@@ -210,7 +264,8 @@ The stack must work the same on macOS, Windows and Linux (CI and containers are 
   `server/` for everything CI checks.
 - **npm scripts must be shell-neutral.** npm runs scripts with `cmd.exe` on Windows, so POSIX shell syntax
   (`$(…)`, `find`, `rm -rf`, `VAR=x cmd`) breaks there. Prefer Node-native flags or cross-platform tools
-  (e.g. `server`'s `npm test` passes a quoted glob to `node --test`, which needs Node ≥ 22).
+  (e.g. run tests through `vitest`, never `rm -rf coverage && …`). Node ≥ 22 everywhere (CI and the
+  server's Docker image use 22).
 - **Casing and line endings:** keep import casing exact (see §4); let git normalize line endings rather
   than committing CRLF churn.
 - **Docker on Windows** uses Docker Desktop (WSL 2 backend). Compose must be ≥ 2.17 for the server's

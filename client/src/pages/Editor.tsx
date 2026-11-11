@@ -19,7 +19,7 @@ import {
 } from '../services/suggestions'
 import LightsFromObjects from '../components/Editor/LightsFromObjects'
 import apiClient from '../services/apiClient'
-import { getApiErrorMessage } from '../services/errors'
+import { getApiErrorCode, getApiErrorMessage } from '../services/errors'
 import { toast } from '../components/toast/toast'
 import Button from '../components/ui/Button'
 import Field from '../components/ui/Field'
@@ -57,7 +57,13 @@ import { planBoundsFromSceneV1 } from '../editor/scene/buildFromSceneV1'
 import { createModelObject } from '../editor/scene/models'
 import { loadTexture } from '../editor/scene/appearance'
 import { isLocked } from '../editor/scene/objectMeta'
-import { ASSET_DRAG_TYPE, type CatalogAsset } from '../components/Editor/AssetList'
+import { ASSET_DRAG_TYPE } from '../components/Editor/AssetList'
+import {
+  activeSceneResponse,
+  catalogAssetSchema,
+  parseResponse,
+  type SavedScene,
+} from '../services/apiSchemas'
 import type { SceneObject } from '../types/scene'
 
 // Rule 3 (grid-fit) tuning: metres of breathing room around the plan, and the
@@ -158,20 +164,18 @@ export default function EditorPage() {
 
         // The canonical 3D scene lives in the Scene table (project.canvas holds
         // only the 2D drawing): walls/rooms from the converted plan plus the
-        // furniture, lights and colours added here. 404 → nothing yet.
-        let sceneRes: {
-          scene?: { version?: number; sceneData?: unknown; metadata?: unknown }
-        } = {}
+        // furniture, lights and colours added here. SCENE_NOT_FOUND → nothing yet.
+        let saved: SavedScene | null = null
         try {
-          ;({ data: sceneRes } = await apiClient.get(`/projects/${projectId}/scene`))
+          const { data } = await apiClient.get<unknown>(`/projects/${projectId}/scene`)
+          saved = parseResponse(activeSceneResponse, data, '3D scene').scene
         } catch (e) {
-          const status = (e as { response?: { status?: number } })?.response?.status
-          if (status !== 404) throw e
+          if (getApiErrorCode(e) !== 'SCENE_NOT_FOUND') throw e
         }
         if (cancelled) return
-        setSceneVersion(sceneRes.scene?.version ?? 0)
-        const sd = sceneRes.scene?.sceneData
-        const grid = (sceneRes.scene?.metadata as { grid?: Record<string, unknown> } | null)?.grid
+        setSceneVersion(saved?.version ?? 0)
+        const sd = saved?.sceneData
+        const grid = saved?.metadata?.grid
 
         if (isSceneV1(sd)) {
           const offset = planOffset(sd)
@@ -197,9 +201,9 @@ export default function EditorPage() {
             })
           } else if (grid) {
             setRoom({
-              gridWidth: Number(grid.width ?? 10),
-              gridLength: Number(grid.length ?? 10),
-              gridHeight: Number(grid.height ?? 2.8),
+              gridWidth: grid.width ?? 10,
+              gridLength: grid.length ?? 10,
+              gridHeight: grid.height ?? 2.8,
             })
           }
           // Frame the camera around the freshly loaded scene.
@@ -267,8 +271,7 @@ export default function EditorPage() {
         toast.info('Saved. The downloadable GLB copy could not be updated this time.')
       }
     } catch (e) {
-      const status = (e as { response?: { status?: number } })?.response?.status
-      if (status === 409) {
+      if (getApiErrorCode(e) === 'SCENE_VERSION_CONFLICT') {
         toast.error(
           'Not saved: this scene was changed elsewhere (e.g. converted again from 2D). Reload the page to get the latest version.',
           { duration: 0 },
@@ -466,9 +469,13 @@ export default function EditorPage() {
     e.preventDefault()
     const raw = e.dataTransfer.getData(ASSET_DRAG_TYPE)
     if (!raw) return
-    let item: CatalogAsset
+    // The payload crosses a drag-and-drop boundary; ignore anything that isn't
+    // a catalog item (a drop from another page or app, say).
+    let item
     try {
-      item = JSON.parse(raw) as CatalogAsset
+      const parsed = catalogAssetSchema.safeParse(JSON.parse(raw))
+      if (!parsed.success) return
+      item = parsed.data
     } catch {
       return
     }

@@ -1,4 +1,4 @@
-import { test } from 'node:test'
+import { test } from 'vitest'
 import assert from 'node:assert/strict'
 import { weldWalls } from './weldWalls'
 import { detectionToCanvas, convertCanvasToScene } from './index'

@@ -27,8 +27,9 @@ jobs:
         working-directory: client
       - run: npm run format:check
         working-directory: client
-      # Pure editor logic (2D editing, 3D wall pieces).
-      - run: npm test
+      # Editor logic and components (Vitest + jsdom; the API is faked with MSW),
+      # with the coverage floors in vitest.config.js.
+      - run: npm run test:coverage
         working-directory: client
       # `build` runs `tsc --noEmit && vite build`, so this covers typecheck too.
       - run: npm run build
@@ -37,11 +38,18 @@ jobs:
   server:
     name: Server (typecheck + lint + format + tests)
     runs-on: ubuntu-latest
+    # Integration tests wipe the shared test database: never run two at once.
+    concurrency:
+      group: server-test-database
+      cancel-in-progress: false
+    env:
+      # Repository secret: the Neon *test* branch (never production). When it's
+      # not set (e.g. on a fork), only the unit tests run.
+      TEST_DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          # >= 22: `npm test` passes a glob to `node --test` (works on Windows too).
           node-version: "22"
           cache: npm
           cache-dependency-path: server/package-lock.json
@@ -55,8 +63,16 @@ jobs:
         working-directory: server
       - run: npm run format:check
         working-directory: server
-      # Converter unit tests are pure (no DB/env) — safe to run in CI.
-      - run: npm test
+      # Unit tests: no database, no network.
+      - name: Unit tests
+        if: env.TEST_DATABASE_URL == ''
+        run: npm run test:unit
+        working-directory: server
+      # Unit + integration (the API over HTTP against the test database), with
+      # the coverage floors in vitest.config.mts.
+      - name: All tests + coverage
+        if: env.TEST_DATABASE_URL != ''
+        run: npm run test:coverage
         working-directory: server
 
   ai-service:

@@ -1,6 +1,6 @@
 # XPLOR API (Express + Prisma), run via tsx — no compile step for MVP.
 # Node 20 to match the codebase's @types/node ^20 and docs/06 Phase 1.
-FROM node:20-slim
+FROM node:22-slim
 
 # Prisma's query engine needs OpenSSL at runtime on slim images.
 RUN apt-get update \

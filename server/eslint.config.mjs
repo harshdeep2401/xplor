@@ -29,11 +29,6 @@ export default tseslint.config(
     },
   },
   {
-    // Test runners own the promises their test() calls return.
-    files: ['**/*.test.ts'],
-    rules: { '@typescript-eslint/no-floating-promises': 'off' },
-  },
-  {
     // Command-line scripts report to the terminal.
     files: ['scripts/**/*.ts'],
     rules: { 'no-console': 'off' },

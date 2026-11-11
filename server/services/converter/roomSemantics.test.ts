@@ -1,4 +1,4 @@
-import { test } from 'node:test'
+import { test } from 'vitest'
 import assert from 'node:assert/strict'
 import { convertCanvasToScene } from './index'
 import { describeRoom, pointInPolygon, roomTypeFromName, roomTypeFromShape } from './roomSemantics'

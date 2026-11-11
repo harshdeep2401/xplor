@@ -51,9 +51,9 @@ export default tseslint.config(
     },
   },
   {
-    // Test runners own the promises their test() calls return.
-    files: ['src/**/*.test.ts'],
-    rules: { '@typescript-eslint/no-floating-promises': 'off' },
+    // Tests spy on and assert about console output.
+    files: ['src/**/*.test.{ts,tsx}', 'src/test/**'],
+    rules: { 'no-console': 'off' },
   },
   {
     files: ['*.js'],

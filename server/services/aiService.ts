@@ -10,13 +10,14 @@
 // back in one call. See ai-service/README.md ("Why sync, not async/webhook")
 // for when/why that should change.
 
+import { z } from 'zod'
+import { env } from '../config/env'
 import { aiBaseUrl, describeRoute, recordAiCall } from './aiActivity'
 
 // FASTAPI_WEBHOOK_URL is the *full* endpoint (e.g. http://127.0.0.1:8000/process-floor-plan),
-// so we call it as-is and do NOT append a path. Falls back to the local default.
-export const AI_SERVICE_ENDPOINT =
-  process.env.FASTAPI_WEBHOOK_URL || 'http://localhost:8000/process-floor-plan'
-const AI_SERVICE_TIMEOUT_MS = Number(process.env.AI_SERVICE_TIMEOUT_MS) || 30000
+// so we call it as-is and do NOT append a path.
+export const AI_SERVICE_ENDPOINT = env.FASTAPI_WEBHOOK_URL
+const AI_SERVICE_TIMEOUT_MS = env.AI_SERVICE_TIMEOUT_MS
 
 interface ProcessFloorPlanArgs {
   jobId: string
@@ -26,20 +27,23 @@ interface ProcessFloorPlanArgs {
   mimeType: string
 }
 
-// Shape of the FastAPI response. `detection` is checked against detection-v1 by
-// the caller; `metadata` is stored on the job as-is.
-export interface FloorPlanResult {
-  status: string
-  detection?: unknown
-  metadata?: {
-    imageWidth?: number
-    imageHeight?: number
-    processingTimeMs?: number
-    method?: string
-    [key: string]: unknown
-  }
-  error?: string
-}
+// Shape of the FastAPI response, checked on arrival (it crosses a network
+// boundary). `detection` is checked against detection-v1 by the caller;
+// `metadata` is stored on the job, unknown keys included.
+const floorPlanResultSchema = z.object({
+  status: z.string(),
+  detection: z.unknown().optional(),
+  metadata: z
+    .looseObject({
+      imageWidth: z.number().optional(),
+      imageHeight: z.number().optional(),
+      processingTimeMs: z.number().optional(),
+      method: z.string().optional(),
+    })
+    .optional(),
+  error: z.string().optional(),
+})
+export type FloorPlanResult = z.infer<typeof floorPlanResultSchema>
 
 // Throws on transport-level problems (service unreachable, timeout, non-2xx
 // HTTP status, missing secret). A *detection* failure (bad image) is NOT
@@ -54,7 +58,7 @@ export const processFloorPlan = async ({
   filename,
   mimeType,
 }: ProcessFloorPlanArgs): Promise<FloorPlanResult> => {
-  const secret = process.env.FASTAPI_SECRET
+  const secret = env.FASTAPI_SECRET
   if (!secret) {
     throw new Error('AI service is not configured on the server (FASTAPI_SECRET is not set)')
   }
@@ -118,7 +122,12 @@ export const processFloorPlan = async ({
     throw new Error(`AI service returned HTTP ${response.status}${detail ? `: ${detail}` : ''}`)
   }
 
-  const result = (await response.json()) as FloorPlanResult
+  const parsed = floorPlanResultSchema.safeParse(await response.json().catch(() => null))
+  if (!parsed.success) {
+    record(false, 'bad response')
+    throw new Error(`AI service sent an unexpected response: ${z.prettifyError(parsed.error)}`)
+  }
+  const result = parsed.data
   record(
     result.status === 'completed',
     result.status === 'completed' ? null : 'detection failed',
@@ -132,7 +141,7 @@ export const processFloorPlan = async ({
 // page; never throws.
 export const getAiStatus = async () => {
   const started = Date.now()
-  const secret = process.env.FASTAPI_SECRET
+  const secret = env.FASTAPI_SECRET
   let route = describeRoute(AI_SERVICE_ENDPOINT, null)
   if (!secret) {
     return {

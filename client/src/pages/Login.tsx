@@ -53,8 +53,10 @@ function Login() {
       setSession(data.token, data.user)
 
       navigate('/dashboard')
-    } catch {
-      setError('Google login failed. Please try again.')
+    } catch (err) {
+      // Server problems (e.g. Google sign-in switched off) carry their own
+      // message; a closed popup or Firebase error falls back to the generic one.
+      setError(getApiErrorMessage(err, 'Google login failed. Please try again.'))
       setSubmitting(null)
     }
   }

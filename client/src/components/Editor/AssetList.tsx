@@ -3,20 +3,7 @@ import { Box } from 'lucide-react'
 import apiClient from '../../services/apiClient'
 import { getApiErrorMessage } from '../../services/errors'
 import { resolveServerUrl } from '../../services/serverUrl'
-
-// One item of the furniture catalog (GET /api/assets).
-export interface CatalogAsset {
-  id: string
-  name: string
-  category: string | null
-  fileUrl: string
-  thumbnailUrl: string | null
-  // Real-world size in metres (x = width, y = height, z = depth).
-  dimensions: { x: number; y: number; z: number } | null
-  roomTypes: string[]
-  tags: string[]
-  placement: 'floor' | 'wall' | 'surface' | 'ceiling'
-}
+import { assetsResponse, parseResponse, type CatalogAsset } from '../../services/apiSchemas'
 
 // Drag-and-drop payload type: the dragged item as JSON (read by the 3D editor).
 export const ASSET_DRAG_TYPE = 'application/x-xplor-asset'
@@ -44,9 +31,10 @@ export default function AssetList({ query = '' }: { query?: string }) {
   useEffect(() => {
     let cancelled = false
     apiClient
-      .get<{ assets: CatalogAsset[] }>('/assets')
+      .get<unknown>('/assets')
       .then(({ data }) => {
-        if (!cancelled) setAssets(data.assets ?? [])
+        const { assets } = parseResponse(assetsResponse, data, 'furniture list')
+        if (!cancelled) setAssets(assets)
       })
       .catch((e) => {
         if (!cancelled) setError(getApiErrorMessage(e, 'Could not load the furniture library.'))

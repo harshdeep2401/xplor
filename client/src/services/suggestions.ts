@@ -1,41 +1,18 @@
 import apiClient from './apiClient'
-import type { CatalogAsset } from '../components/Editor/AssetList'
 import type { SceneV1 } from '../editor/persist/sceneV1'
+import { parseResponse, suggestionsResponse, type RoomSuggestions } from './apiSchemas'
 
-// POST /api/projects/:id/suggestions — mirrors server/services/recommender/types.ts.
+export type { FurnitureSuggestion, RoomSuggestions } from './apiSchemas'
 
-export interface SuggestionPlacement {
-  // Absolute scene-v1 position of the item's bottom-centre (metres).
-  position: { x: number; y: number; z: number }
-  rotationY: number
-}
-
-export interface FurnitureSuggestion {
-  item: CatalogAsset
-  score: number
-  role: string
-  reason: string
-  placement: SuggestionPlacement
-  alternatives: string[]
-}
-
-export interface RoomSuggestions {
-  roomId: string
-  name?: string
-  type: string
-  area: number
-  suggestions: FurnitureSuggestion[]
-}
-
+// POST /api/projects/:id/suggestions: furniture for each room of `scene`.
 export async function fetchSuggestions(
   projectId: string,
   scene: SceneV1,
 ): Promise<RoomSuggestions[]> {
-  const { data } = await apiClient.post<{ rooms: RoomSuggestions[] }>(
-    `/projects/${projectId}/suggestions`,
-    { scene },
-  )
-  return data.rooms ?? []
+  const { data } = await apiClient.post<unknown>(`/projects/${projectId}/suggestions`, {
+    scene,
+  })
+  return parseResponse(suggestionsResponse, data, 'suggestions list').rooms
 }
 
 const TYPE_NAMES: Record<string, string> = {

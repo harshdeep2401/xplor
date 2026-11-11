@@ -1,47 +1,41 @@
-import type { Request, Response, NextFunction } from 'express'
+import type { NextFunction, Request, Response } from 'express'
 import jwt from 'jsonwebtoken'
 import { prisma } from '../config/db'
+import { env } from '../config/env'
+import { UnauthorizedError } from '../errors'
 
+// Signed into the token by authController.signAppToken.
 interface AppTokenPayload {
   id: string
   email: string
 }
 
-export const protect = async (req: Request, res: Response, next: NextFunction) => {
-  let token: string | undefined
+const isTokenPayload = (value: unknown): value is AppTokenPayload =>
+  typeof value === 'object' && value !== null && typeof (value as { id?: unknown }).id === 'string'
 
-  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-    try {
-      // Get token from header
-      token = req.headers.authorization.split(' ')[1]
+// Requires `Authorization: Bearer <token>`; sets req.user. Every failure is a
+// 401 (thrown; the client signs the user out on it).
+export const protect = async (req: Request, _res: Response, next: NextFunction) => {
+  const header = req.headers.authorization ?? ''
+  const token = header.startsWith('Bearer ') ? header.slice('Bearer '.length).trim() : ''
+  if (!token) throw new UnauthorizedError('Please sign in to continue.', 'NO_TOKEN')
 
-      // Verify token
-      const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as AppTokenPayload
-
-      // Get user from the token
-      req.user =
-        (await prisma.user.findUnique({
-          where: { id: decoded.id },
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            profileImage: true,
-          },
-        })) ?? undefined
-
-      if (!req.user) {
-        return res.status(401).json({ message: 'Not authorized, user not found' })
-      }
-
-      next()
-    } catch (error) {
-      console.error(error)
-      res.status(401).json({ message: 'Not authorized, token failed' })
-    }
+  let payload: unknown
+  try {
+    payload = jwt.verify(token, env.JWT_SECRET)
+  } catch {
+    throw new UnauthorizedError('Your session has expired. Please sign in again.', 'INVALID_TOKEN')
+  }
+  if (!isTokenPayload(payload)) {
+    throw new UnauthorizedError('Your session has expired. Please sign in again.', 'INVALID_TOKEN')
   }
 
-  if (!token) {
-    res.status(401).json({ message: 'Not authorized, no token' })
-  }
+  const user = await prisma.user.findUnique({
+    where: { id: payload.id },
+    select: { id: true, name: true, email: true, profileImage: true },
+  })
+  if (!user) throw new UnauthorizedError('Your account no longer exists.', 'USER_NOT_FOUND')
+
+  req.user = user
+  next()
 }

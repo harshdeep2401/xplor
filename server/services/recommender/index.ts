@@ -1,3 +1,4 @@
+import { env } from '../../config/env'
 import type { Recommender } from './types'
 import { ruleBasedRecommender } from './ruleBased'
 
@@ -10,5 +11,5 @@ const RECOMMENDERS: Record<string, Recommender> = {
 }
 
 export function getRecommender(): Recommender {
-  return RECOMMENDERS[process.env.RECOMMENDER ?? ''] ?? ruleBasedRecommender
+  return RECOMMENDERS[env.RECOMMENDER ?? ''] ?? ruleBasedRecommender
 }

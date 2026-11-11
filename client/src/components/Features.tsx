@@ -1,4 +1,4 @@
-import '../styles/features.css'
+import '../styles/features-section.css'
 
 function Features() {
   return (

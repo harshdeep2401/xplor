@@ -23,14 +23,25 @@ import {
 } from '../controllers/conversionController'
 import { suggestFurniture } from '../controllers/suggestionController'
 
+import { validate } from '../middleware/validate'
+import { idParams } from '../schemas/common'
+import {
+  createProjectBody,
+  saveProjectBody,
+  saveSceneBody,
+  suggestionsBody,
+} from '../schemas/projects'
+
 const router = express.Router()
 
 router.use(protect)
+// Every route with :id gets its project id checked first.
+router.param('id', validate({ params: idParams }))
 
-router.post('/', createProject)
+router.post('/', validate({ body: createProjectBody }), createProject)
 router.get('/', getProjects)
 router.get('/:id', getProject)
-router.put('/:id', saveProject)
+router.put('/:id', validate({ body: saveProjectBody }), saveProject)
 router.delete('/:id', deleteProject)
 router.post(
   '/:id/upload-floor-plan',
@@ -39,10 +50,10 @@ router.post(
 )
 router.post('/:id/convert', convertProject)
 router.get('/:id/scene', getActiveScene)
-router.put('/:id/scene', saveScene)
+router.put('/:id/scene', validate({ body: saveSceneBody }), saveScene)
 router.post('/:id/glb', uploadGlb.single('glb'), storeGlb)
 router.get('/:id/glb', getLatestGlb)
 router.post('/:id/files', uploadProjectFileMiddleware.single('file'), uploadProjectFile)
-router.post('/:id/suggestions', suggestFurniture)
+router.post('/:id/suggestions', validate({ body: suggestionsBody }), suggestFurniture)
 
 export default router

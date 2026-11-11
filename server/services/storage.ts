@@ -1,12 +1,11 @@
 import fs from 'fs'
 import path from 'path'
+import { env } from '../config/env'
 
-// Blob-storage abstraction. Today it writes to local disk under server/uploads
-// (served statically at /uploads — see server.ts). To move to Cloudflare R2 / S3,
+// Blob-storage abstraction. Today it writes to local disk under UPLOAD_DIR
+// (server/uploads by default; served statically at /uploads — see app.ts). To move to Cloudflare R2 / S3,
 // reimplement putObject + getPublicUrl here; callers (controllers) don't change.
-//
-// storage.ts lives in server/services, so ".." is the server root.
-const STORAGE_ROOT = path.join(__dirname, '..', 'uploads')
+export const STORAGE_ROOT = env.UPLOAD_DIR
 
 export interface PutObjectArgs {
   // Path under the storage root, e.g. "floor-plans/<userId>/<file>"

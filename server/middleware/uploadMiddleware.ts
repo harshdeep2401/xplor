@@ -1,9 +1,12 @@
 import multer from 'multer'
+import { BadRequestError } from '../errors'
 
-// A rejected upload (wrong file type) is the client's mistake: the central error
-// handler in server.ts answers it with this status instead of 500.
-export class UploadError extends Error {
-  readonly status = 400
+// A rejected upload (wrong file type) is the client's mistake: a 400 with code
+// INVALID_FILE_TYPE. Too-large files are a multer error the handler maps to 413.
+export class UploadError extends BadRequestError {
+  constructor(message: string) {
+    super(message, 'INVALID_FILE_TYPE')
+  }
 }
 
 // Floor-plan uploads are buffered in memory, then persisted via the storage
