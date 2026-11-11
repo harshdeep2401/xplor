@@ -155,6 +155,12 @@ When the server is deployed elsewhere, the AI service keeps running on the GPU P
 a Cloudflare Tunnel (`Ai-service/compose.host.yml`). Step-by-step guide:
 [`docs/guides/ai-hosting.md`](./docs/guides/ai-hosting.md).
 
+### 7. Giving a demo
+
+[`docs/guides/demo.md`](./docs/guides/demo.md): how to run a demo, and how to show it's real. The
+**System status** page (Dashboard → System status) shows live that the backend is up, that calls go
+through the Cloudflare tunnel, and that the model runs on this PC's GPU.
+
 ---
 
 ## Conventions

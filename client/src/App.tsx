@@ -5,6 +5,7 @@ import Signup from './pages/Signup'
 import Dashboard from './pages/Dashboard'
 import Editor2D from './pages/Editor2D'
 import Editor3D from './pages/Editor'
+import SystemStatus from './pages/SystemStatus'
 import { ProtectedRoute, RedirectIfAuthenticated } from './components/routing/guards'
 
 function App() {
@@ -32,6 +33,14 @@ function App() {
         element={
           <ProtectedRoute>
             <Dashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/status"
+        element={
+          <ProtectedRoute>
+            <SystemStatus />
           </ProtectedRoute>
         }
       />

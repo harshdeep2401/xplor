@@ -67,6 +67,39 @@ class FloorPlanResponse(BaseModel):
     error: Optional[str] = None
 
 
+class GpuInfo(BaseModel):
+    name: str
+    memoryUsedMb: int  # whole GPU, all processes
+    memoryTotalMb: int
+    modelMemoryMb: int  # held by this service
+
+
+class ModelInfo(BaseModel):
+    method: str
+    file: str
+    sizeMb: float
+    sha256: str  # first 12 hex characters; identifies the weights
+
+
+class StatusResponse(BaseModel):
+    """GET /status (needs the secret): what's running and where, for the
+    server's System Status page."""
+    service: str = "xplor-ai-service"
+    ready: bool
+    error: Optional[str] = None
+    host: str
+    runningIn: str  # "docker" | "local"
+    startedAt: str  # ISO 8601, UTC
+    uptimeS: int
+    detector: str
+    device: Optional[str] = None
+    gpu: Optional[GpuInfo] = None
+    model: Optional[ModelInfo] = None
+    detectionsServed: int
+    lastDetectionMs: Optional[int] = None
+    lastDetectionAt: Optional[str] = None
+
+
 class HealthResponse(BaseModel):
     status: str = "ok"  # "ok" | "unavailable" (then HTTP 503)
     service: str = "xplor-ai-service"

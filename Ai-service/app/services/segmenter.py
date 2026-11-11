@@ -14,6 +14,7 @@ and every request is refused with it, rather than falling back to the
 heuristic detector.
 """
 
+import hashlib
 import logging
 import threading
 
@@ -87,6 +88,7 @@ class Segmenter:
 
 _segmenter: Segmenter | None = None
 _load_error: str | None = "Model not loaded yet"
+_fingerprint: str | None = None  # sha256 of the weights file, set by load()
 
 
 def _pick_device() -> torch.device:
@@ -101,7 +103,7 @@ def _pick_device() -> torch.device:
 def load() -> None:
     """Load the weights and run one warm-up pass. Never raises: on failure
     the reason is kept for status() / get()."""
-    global _segmenter, _load_error
+    global _segmenter, _load_error, _fingerprint
     path = settings.model_file
     try:
         if not path.is_file():
@@ -128,6 +130,7 @@ def load() -> None:
         return
 
     _segmenter, _load_error = segmenter, None
+    _fingerprint = _sha256(path)
     name = torch.cuda.get_device_name(device) if device.type == "cuda" else "CPU"
     logger.info("Floor-plan model loaded from %s on %s", path.name, name)
 
@@ -136,6 +139,38 @@ def get() -> Segmenter:
     if _segmenter is None:
         raise ModelUnavailable(_load_error or "Model not loaded")
     return _segmenter
+
+
+def _sha256(path) -> str:
+    digest = hashlib.sha256()
+    with open(path, "rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def describe() -> tuple[dict | None, dict | None]:
+    """(gpu, model) details for GET /status, or None when not available."""
+    if _segmenter is None:
+        return None, None
+    path = settings.model_file
+    model = {
+        "method": METHOD,
+        "file": path.name,  # the name only, never the full path
+        "sizeMb": round(path.stat().st_size / 2**20, 1),
+        "sha256": (_fingerprint or "")[:12],
+    }
+    device = _segmenter.device
+    if device.type != "cuda":
+        return None, model
+    free, total = torch.cuda.mem_get_info(device)
+    gpu = {
+        "name": torch.cuda.get_device_name(device),
+        "memoryUsedMb": (total - free) // 2**20,
+        "memoryTotalMb": total // 2**20,
+        "modelMemoryMb": torch.cuda.memory_reserved(device) // 2**20,
+    }
+    return gpu, model
 
 
 def status() -> tuple[bool, str | None, str | None]:

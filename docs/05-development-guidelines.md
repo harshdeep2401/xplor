@@ -94,6 +94,18 @@ chore(deps): bump prisma to 6.4.1
   `http://localhost:...` in application code.
 - **No dead code.** Remove obsolete/legacy files rather than leaving them orphaned in the tree.
 - **Handle errors explicitly.** Don't swallow failures silently; surface actionable messages.
+- **UI (client):**
+  - **Tell the user, not the console.** Any user action that fails shows a toast:
+    `toast.error(getApiErrorMessage(err, 'Could not …'))` from `components/toast/toast.ts`
+    (`toast.success` / `toast.info` too). Pass an `id` for something that can repeat (e.g. autosave), so it
+    replaces itself instead of stacking. Form validation errors stay inline on the form.
+  - **Use the shared pieces** in `components/ui/`: `Button` (`primary` / `secondary` / `ghost` / `danger`,
+    `loading`), `Modal` (Esc / click-outside close, `busy`), `Field` (labelled input). Style links that look
+    like buttons with `buttonClass(...)`.
+  - **Colours come from the design tokens** in `styles/tokens.css`: Tailwind classes (`bg-surface`,
+    `text-muted`, `border-line`, `bg-primary`…) or `rgb(var(--color-…))` in CSS. No new hard-coded hex
+    colours. Tailwind's preflight is off, so add `border-solid` next to `border`.
+  - **Icons are `lucide-react`**, not emoji.
 
 ---
 
@@ -118,7 +130,9 @@ chore(deps): bump prisma to 6.4.1
 - **Server:** unit + integration tests for controllers/services (auth, ownership, validation,
   versioning/409, plan limits).
 - **Python service:** tests for schema validation and the render/detection outputs.
-- **Client:** component/logic tests for editor behavior and API integration where practical.
+- **Client:** component/logic tests for editor behavior and API integration where practical. Keep editor
+  logic in pure modules (e.g. `editor/canvas/editing.ts`, `editor/scene/wallPieces.ts`) next to a
+  `*.test.ts`; `npm test` in `client/` runs them (Node's test runner via `tsx`, Node ≥ 22).
 - **CI runs the full suite on every PR.** A feature is not "done" until its tests exist and pass.
 - Don't claim something is tested if it isn't — say what's covered and what isn't.
 

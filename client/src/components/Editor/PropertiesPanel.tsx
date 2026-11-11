@@ -78,29 +78,29 @@ export default function PropertiesPanel({
       key={selectedId || "empty-panel"}
       className="space-y-4 transition-opacity duration-300 ease-in-out"
     >
-      <h3 className="font-semibold text-white mt-4 text-lg">Properties</h3>
+      <h3 className="font-semibold text-ink mt-6 text-lg">Properties</h3>
 
       {!selectedObject ? (
-        <div className="mt-2 p-4 rounded-xl bg-gray-800 text-sm text-gray-400 shadow-md">
+        <div className="p-4 rounded-xl bg-surface-2 text-sm text-muted">
           Select an object to see its properties.
         </div>
       ) : (
         <>
           {/* NAME */}
-          <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
-            <h4 className="text-sm text-gray-200 mb-2">Name</h4>
+          <div className="bg-surface-2 rounded-xl p-4 border border-solid border-line">
+            <h4 className="text-sm font-medium text-ink-soft mb-2">Name</h4>
             <input
               type="text"
               value={selectedObject.name}
               onChange={(e) => updateObjectName?.(selectedId!, e.target.value)}
-              className="w-full p-2 bg-gray-700 border-gray-600 rounded text-white"
+              className="w-full p-2 rounded-lg border border-solid border-line bg-field/60 text-ink text-sm outline-none focus:border-primary"
             />
           </div>
 
           {/* COLOR (material) */}
           {!isLight && (
-            <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
-              <h4 className="text-sm text-gray-200 mb-2">Color</h4>
+            <div className="bg-surface-2 rounded-xl p-4 border border-solid border-line">
+              <h4 className="text-sm font-medium text-ink-soft mb-2">Color</h4>
               <div className="flex items-center space-x-3">
                 <input
                   type="color"
@@ -110,15 +110,15 @@ export default function PropertiesPanel({
                   }
                   className="w-12 h-8 cursor-pointer"
                 />
-                <span className="text-xs text-gray-400">Material color</span>
+                <span className="text-xs text-muted">Material color</span>
               </div>
             </div>
           )}
 
           {/* TEXTURE UPLOAD */}
           {!isLight && (
-            <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
-              <h4 className="text-sm text-gray-200 mb-2">Texture (Diffuse)</h4>
+            <div className="bg-surface-2 rounded-xl p-4 border border-solid border-line">
+              <h4 className="text-sm font-medium text-ink-soft mb-2">Texture (Diffuse)</h4>
 
               <div className="flex items-center gap-2">
                 <input
@@ -132,14 +132,14 @@ export default function PropertiesPanel({
                     }
                     (e.target as HTMLInputElement).value = "";
                   }}
-                  className="text-sm text-gray-200 cursor-pointer"
+                  className="text-sm text-ink-soft cursor-pointer"
                 />
               </div>
 
               {/* Remove texture */}
               <button
                 onClick={() => updateObjectTexture?.(selectedId!, null)}
-                className="mt-3 px-3 py-1 rounded bg-red-600 hover:bg-red-700 text-xs text-white"
+                className="mt-3 cursor-pointer rounded-md border-0 bg-danger/90 px-3 py-1 text-xs font-semibold text-white hover:bg-danger"
               >
                 Remove Texture
               </button>
@@ -147,12 +147,12 @@ export default function PropertiesPanel({
           )}
 
           {/* POSITION */}
-          <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
-            <h4 className="text-sm text-gray-200 mb-3">Position</h4>
+          <div className="bg-surface-2 rounded-xl p-4 border border-solid border-line">
+            <h4 className="text-sm font-medium text-ink-soft mb-3">Position</h4>
             <div className="grid grid-cols-3 gap-2">
               {(["x", "y", "z"] as TransformAxis[]).map((axis) => (
                 <div key={axis} className="relative">
-                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-gray-400">
+                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted">
                     {axis.toUpperCase()}
                   </span>
                   <input
@@ -169,7 +169,7 @@ export default function PropertiesPanel({
                         parseFloat(e.target.value) || 0,
                       )
                     }
-                    className="w-full pl-6 bg-gray-700 border-gray-600 rounded text-white text-right"
+                    className="w-full py-1.5 pl-6 pr-2 text-right rounded-lg border border-solid border-line bg-field/60 text-ink text-sm outline-none focus:border-primary"
                   />
                 </div>
               ))}
@@ -177,8 +177,8 @@ export default function PropertiesPanel({
           </div>
 
           {/* SCALE */}
-          <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
-            <h4 className="text-sm text-gray-200 mb-3">Scale</h4>
+          <div className="bg-surface-2 rounded-xl p-4 border border-solid border-line">
+            <h4 className="text-sm font-medium text-ink-soft mb-3">Scale</h4>
 
             <input
               type="number"
@@ -194,7 +194,7 @@ export default function PropertiesPanel({
                   ),
                 )
               }
-              className="w-full p-2 bg-gray-700 border-gray-600 rounded text-white mb-2"
+              className="w-full p-2 mb-2 rounded-lg border border-solid border-line bg-field/60 text-ink text-sm outline-none focus:border-primary"
             />
 
             <input
@@ -213,17 +213,17 @@ export default function PropertiesPanel({
                   ),
                 )
               }
-              className="w-full accent-green-500 cursor-pointer"
+              className="w-full accent-primary cursor-pointer"
             />
           </div>
 
           {/* LIGHT SETTINGS */}
           {isLight && (
-            <div className="bg-gray-800 rounded-xl p-4 border border-gray-700">
-              <h4 className="text-sm text-gray-200 mb-3">Light Settings</h4>
+            <div className="bg-surface-2 rounded-xl p-4 border border-solid border-line">
+              <h4 className="text-sm font-medium text-ink-soft mb-3">Light Settings</h4>
 
               {/* INTENSITY */}
-              <label className="text-xs text-gray-300 block mb-2">
+              <label className="text-xs text-ink-soft block mb-2">
                 Intensity
               </label>
               <div className="flex items-center space-x-3 mb-4">
@@ -239,7 +239,7 @@ export default function PropertiesPanel({
                       parseFloat(e.target.value),
                     )
                   }
-                  className="flex-1 cursor-pointer accent-blue-500"
+                  className="flex-1 cursor-pointer accent-primary"
                 />
                 <input
                   type="number"
@@ -253,12 +253,12 @@ export default function PropertiesPanel({
                       parseFloat(e.target.value) || 0,
                     )
                   }
-                  className="w-16 p-2 bg-gray-700 border border-gray-600 rounded text-white text-right"
+                  className="w-16 p-2 text-right rounded-lg border border-solid border-line bg-field/60 text-ink text-sm outline-none focus:border-primary"
                 />
               </div>
 
               {/* LIGHT COLOR */}
-              <label className="text-xs text-gray-300">Light Color</label>
+              <label className="text-xs text-ink-soft">Light Color</label>
               <div className="flex items-center space-x-3">
                 <input
                   type="color"
@@ -271,7 +271,7 @@ export default function PropertiesPanel({
                   }
                   className="w-12 h-8 cursor-pointer"
                 />
-                <span className="text-xs text-gray-400">
+                <span className="text-xs text-muted">
                   Emitted light color
                 </span>
               </div>

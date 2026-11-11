@@ -1,13 +1,16 @@
 import logging
+import socket
 from contextlib import asynccontextmanager
+
+from pathlib import Path
 
 from fastapi import FastAPI, Response
 
 from app.config import settings
 from app.routers import floor_plan
-from app.schemas import HealthResponse
+from app.schemas import HealthResponse, StatusResponse
 from app.security import ApiKeyMiddleware, config_error
-from app.services import detector
+from app.services import activity, detector
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("xplor.ai_service")
@@ -61,4 +64,24 @@ async def health(response: Response) -> HealthResponse:
         detector=settings.detector,
         device=device,
         error=error,
+    )
+
+
+@app.get("/status", response_model=StatusResponse)
+async def status() -> StatusResponse:
+    """What is running and where (machine, GPU, weights, activity). Needs
+    the secret, like detection: it's for the server's System Status page,
+    not the public."""
+    ready, device, error = detector.status()
+    gpu, model = detector.describe()
+    return StatusResponse(
+        ready=ready,
+        error=error,
+        host=settings.host_label or socket.gethostname(),
+        runningIn="docker" if Path("/.dockerenv").exists() else "local",
+        detector=settings.detector,
+        device=device,
+        gpu=gpu,
+        model=model,
+        **activity.snapshot(),
     )

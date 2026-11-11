@@ -162,6 +162,11 @@ in place.
   **before reading the body**, and refuses oversized uploads from their `Content-Length`; only `/` and
   `/health` are public. Without a valid secret configured it reports 503. Error messages stored on the Job
   never include the AI service's URL.
+- **System status:** `GET /api/system/status` (logged-in users) returns the server's machine/uptime, the
+  database check, the AI service's own `GET /status` (machine, GPU, weights fingerprint, detections
+  served; secret required), how the server reached it (Cloudflare tunnel, detected from the `CF-Ray`
+  header, or direct), and an in-memory log of recent AI calls (`services/aiActivity.ts`). The client
+  shows it at `/status` (`pages/SystemStatus.tsx`); demo use: `docs/guides/demo.md`.
 - The Node API validates the result against `detection-v1`, then a deterministic **bridge**
   (`services/converter/detectionToCanvas.ts`) produces the **same `canvas-v2` contract** the 2D editor
   produces, so it plugs into Module 4 unchanged:

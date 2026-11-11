@@ -1,9 +1,10 @@
-import { FaInstagram, FaLinkedin, FaEnvelope, FaPhone, FaMapMarkerAlt } from 'react-icons/fa'
+import { Link } from 'react-router-dom'
+import { Mail, MapPin, Phone } from 'lucide-react'
 import '../styles/footer.css'
 
 function Footer() {
   return (
-    <footer className="footer">
+    <footer className="footer" id="contact">
       <div className="footer-top">
         <div className="footer-brand">
           <h2>XPLOR</h2>
@@ -15,31 +16,17 @@ function Footer() {
 
         <div className="footer-links">
           <h3>Quick Links</h3>
-          <a href="#">Home</a>
-          <a href="#">Features</a>
-          <a href="#">About</a>
-          <a href="#">Contact</a>
+          <a href="#top">Home</a>
+          <a href="#features">Features</a>
+          <Link to="/signup">Get Started</Link>
+          <Link to="/login">Log In</Link>
         </div>
 
         <div className="footer-contact">
           <h3>Contact</h3>
-          <p><FaEnvelope /> hello@xplor.ai</p>
-          <p><FaPhone /> +91 98765 43210</p>
-          <p><FaMapMarkerAlt /> Punjab, India</p>
-        </div>
-
-        <div className="footer-socials">
-          <h3>Socials</h3>
-
-          <div className="social-icons">
-            <a href="#">
-              <FaInstagram />
-            </a>
-
-            <a href="#">
-              <FaLinkedin />
-            </a>
-          </div>
+          <p><Mail size="1em" aria-hidden="true" /> hello@xplor.ai</p>
+          <p><Phone size="1em" aria-hidden="true" /> +91 98765 43210</p>
+          <p><MapPin size="1em" aria-hidden="true" /> Punjab, India</p>
         </div>
       </div>
 

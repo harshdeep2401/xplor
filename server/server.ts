@@ -11,6 +11,7 @@ import { connectDB, prisma } from './config/db'
 import authRoutes from './routes/authRoutes'
 import projectRoutes from './routes/projectRoutes'
 import jobRoutes from './routes/jobRoutes'
+import systemRoutes from './routes/systemRoutes'
 
 connectDB()
 
@@ -59,6 +60,7 @@ app.get('/ready', async (_req: Request, res: Response) => {
 app.use('/api/auth', authRoutes)
 app.use('/api/projects', projectRoutes)
 app.use('/api/jobs', jobRoutes)
+app.use('/api/system', systemRoutes)
 
 // JSON 404 for anything unmatched above.
 app.use((_req: Request, res: Response) => {

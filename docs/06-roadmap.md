@@ -6,14 +6,23 @@
 > [`status-reports/`](./status-reports); the newest is
 > [`STATUS-REPORT-2026-10-16-phase3b.md`](./status-reports/STATUS-REPORT-2026-10-16-phase3b.md).
 
-- **Last updated:** 2026-10-16
-- **Nature of this update:** **Phase 3b largely done** — the trained MiT-B3 U-Net replaces the OpenCV
+- **Last updated:** 2026-10-20
+- **Nature of this update:** **Phase 5 done (2026-10-20)** — the 2D editor works in metres (labels,
+  properties, cursor) and has a Measure tool; selections can be built with Shift+click, moved by dragging
+  or arrow keys, copied/pasted/duplicated; the 3D editor switches its handles between move, rotate and
+  resize (W/E/R); the furniture search filters the list. Client unit tests now run in CI.
+- **Earlier on 2026-10-20:** **Phase 4 done** — toast notifications replace silent
+  failures everywhere; design tokens + shared `Button`/`Modal`/`Field`; the 3D editor moved onto the same
+  look as the rest of the app; loading states; dead dependencies, duplicate files, emoji icons and dead
+  landing links removed; the 2D canvas follows window resizes. Details in Phase 4 below.
+- **Previous update (2026-10-16):** **Phase 3b largely done** — the trained MiT-B3 U-Net replaces the OpenCV
   heuristic (PyTorch on the GPU machine, mask → vector post-processing), with an evaluation script that
   scores it far above the heuristic. Plan change: **no ONNX**; the model runs in PyTorch on the team's GPU
   PC and is served to a cloud-hosted API **through a Cloudflare Tunnel** with a shared secret (3b.5,
   verified end to end). All development is now on Windows. *(Previous update, earlier 2026-10-16: Phase 3 complete.)*
 - **Phase status:** Phase 0 ✅ · Phase 1 ✅ · Phase 2 ✅ · Phase 3 ✅ · **Phase 3b 🟡** (model integrated,
-  evaluated, and remotely hostable; real-world images later) · **next: Phase 4** (UX foundation).
+  evaluated, and remotely hostable; real-world images later) · **Phase 4 ✅** · **Phase 5 ✅** · **next:
+  Phase 6** (furniture suggestions).
 
 ---
 
@@ -80,11 +89,11 @@ foundational docs as *deferred*, not deleted. **VR** stays a deferred stub. See 
    the Phase 3b report for scores); remaining errors are model-level (balcony railings as walls/wide
    windows, occasional furniture outlines as walls). It is served from one PC through a quick tunnel whose
    URL changes on restart until a domain + named tunnel exist. *(Phase 3b.5/3b.6.)*
-2. **UI is split-brain and gives no feedback.** Two visual identities, no shared primitives, and **every
-   failure is a silent `console.error`** (no toast system). *(Phase 4.)*
-3. **Obvious editor features missing.** 2D shows **pixels not metres**, and multi-select can only be
-   deleted (no group move/copy-paste); 3D gizmo is translate-only and the asset search is a dead control.
-   *(Phase 5.)*
+2. ~~**UI is split-brain and gives no feedback.**~~ Fixed in Phase 4 (toasts, tokens, shared
+   primitives). Remaining: the landing page keeps its own hand-written CSS (now on the token colours).
+3. ~~**Obvious editor features missing.**~~ Done in Phase 5. Remaining: no grid snapping in 2D; the
+   furniture list still comes from a hard-coded external URL (moves to an owned `/assets` route in
+   Phase 6.3).
 4. **Furniture is manual and lossy.** Placement is a naive grid; assets are baked to an opaque glTF blob on
    save (no structured round-trip), rooms have no type, and there's no recommender. *(Phase 6.)*
 5. **Docker stack not rebuilt** since the converter started loading `contracts/` (fix applied, unverified).
@@ -166,8 +175,23 @@ Convert to 3D produces a scene; a golden `DetectionResult → canvas-v2` unit te
 ✅ `detect()` returns valid `detection-v1`; ✅ typical imports form closed rooms without manual welding;
 ✅ a remote API can use the model securely over the tunnel.
 
-### Phase 4 — UX Foundation & Visual Unification  *(polish, structural first)*
+### Phase 4 — UX Foundation & Visual Unification  ✅ **DONE (2026-10-20)**
 **Goal:** the app feels like one finished product, and every failure is visible.
+
+**Done:** (1) `components/toast/` — one store + `<Toaster />`, used by the dashboard, both editors and
+exports; autosave failures show one sticky toast that clears on the next successful save; Convert to 3D
+refuses to run on an unsaved drawing; unreachable server → "Cannot reach the server". (2)
+`styles/tokens.css` + Tailwind colour mapping; `components/ui/` `Button`, `Modal`, `Field`; dashboard
+dialogs, 3D editor (navbar, toolbar, panels, export dialog), status page and toasts use them; the 2D editor
+CSS uses the tokens. (3) Loading states: login/sign-up buttons, dashboard project list, 3D editor; a 2D
+project that fails to load shows the reason + a way back. (4) Removed `framer-motion`, `gsap`,
+`react-icons`, the duplicate `firebase.js` / `authservice.js` / empty `AuthVisual.jsx`, debug logging and
+emoji icons (now `lucide-react`); landing links/CTAs point at real sections/pages, placeholder social
+links removed. (5) The 2D stage follows its container's size (ResizeObserver); dashboard and footer stack
+on narrow screens. Not done: ESLint has no flat config yet (`npm run lint` fails), and the landing page
+keeps its own CSS.
+
+*Original plan:*
 
 1. **Notification/toast system** — one shared mechanism; replace silent `console.error` on all user-facing
    failure paths. *(Biggest single UX win.)*
@@ -179,7 +203,19 @@ Convert to 3D produces a scene; a golden `DetectionResult → canvas-v2` unit te
    dead landing links/CTAs; standardize on `lucide-react`, retire emoji-as-UI.
 5. **Responsiveness** — resize handling for the 2D Konva canvas; responsive layouts.
 
-### Phase 5 — Obvious Editor Features  *(polish, per-tool)*
+### Phase 5 — Obvious Editor Features  ✅ **DONE (2026-10-20)**
+**Done:** 2D — wall dimension labels, canvas size, cursor coordinates and the properties panel (length,
+thickness, opening width) are in **metres** via the project's px/m scale, with a `NumberInput` that allows
+typing decimals; a **Measure** tool (drag, Shift = straight, not saved); **Shift+click** and Shift+box add
+to a selection; dragging a wall or any part of a multi-selection **moves** it (one undo step); **arrow
+keys nudge** 5 cm (Shift 50 cm); **Ctrl+C / Ctrl+V / Ctrl+D / Ctrl+A**; a Selection panel (duplicate,
+delete) and a shortcut list. Pure logic in `editor/canvas/editing.ts` with tests; `client/npm test` added
+to CI (Node 22). 3D — **Move / Rotate / Resize** toolbar + W/E/R keys (rotation snaps to 15°; collision
+revert only applies while moving); the toolbar search **filters the furniture list** by name, file name
+and tags. Removed the unused `TransformControlWrapper.tsx`. **Deferred:** 2D grid snapping (optional);
+the owned asset route (it is Phase 6.3 below).
+
+*Original plan:*
 **2D:** real-world **metre** measurements (via the stored px/m scale) + a measurement tool; **group
 move / copy-paste / duplicate / nudge** (multi-select is delete-only today); optional grid snapping.
 **3D:** **gizmo mode toggle** (translate/rotate/scale); **functional asset search/filter**; route the asset
@@ -237,7 +273,8 @@ VR/WebXR preview (keep the stub), template-based generation, AI copilot. Revisit
 
 ## 6. Immediate Next Step
 
-1. **Phase 4:** toast system first.
+1. **Phase 6:** foundations first: structured asset persistence (6.1), room names/types (6.2), an owned
+   asset catalog route (6.3); then the recommender + Suggestions panel (6.4).
 2. Run the root `docker-compose.yml` stack (server + AI) end to end; deploy the server and point it at the
    tunnel; get a domain for a permanent (named) tunnel.
 3. Later: real-world test images (3b.6); tune the vectorizer where the evaluation shows losses (rooms that
@@ -262,9 +299,14 @@ Keep the migration-baseline caveat in mind (§8a — never accept a `prisma migr
 
 ## 8. Risks & Honest Flags
 
-- ~~**Merge-cleanup not yet committed.**~~ Resolved (`2909750`). Three harmless leftovers remain to delete:
-  `client/src/firebase.js` (identical to `firebase.ts`, but Vite resolves it first),
-  `client/src/services/authservice.js` and `client/src/components/AuthVisual.jsx` (both unused).
+- ~~**Merge-cleanup not yet committed.**~~ Resolved (`2909750`); the three leftover duplicate files were
+  deleted in Phase 4.
+- **Client dependency audit (2026-10-20):** `npm audit fix` (non-breaking) took the client from 24 issues
+  to 11. The 4 left in the shipped app are all `@grpc/grpc-js` under Firebase's Firestore, a server-side
+  library the browser app doesn't use (it only uses Firebase Auth); npm's suggested "fix" is a downgrade to
+  firebase 9, so it was not applied. The other 7 are in build tools (old Tailwind 3 internals), which
+  never ship to users; clearing them means the Tailwind 4 upgrade. Never run `npm audit fix --force`
+  blindly (it jumps major versions).
 - ~~**Phase 3 is uncommitted.**~~ Resolved (`fde4080`).
 - **The AI host is one PC.** When it's off or asleep, imports fail (with a clear message; the editor still
   opens for manual tracing). Acceptable for a capstone; a cloud GPU is the scale path (`03`).

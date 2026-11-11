@@ -14,6 +14,8 @@ function Login() {
     password: '',
   })
   const [error, setError] = useState('')
+  // Which login is running, so the buttons can't be pressed twice.
+  const [submitting, setSubmitting] = useState<'email' | 'google' | null>(null)
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setError('') // clear error on type
@@ -26,6 +28,7 @@ function Login() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setError('')
+    setSubmitting('email')
 
     try {
       const data = await loginRequest(formData.email, formData.password)
@@ -34,12 +37,13 @@ function Login() {
 
       navigate('/dashboard')
     } catch (err) {
-      console.log(err)
       setError(getApiErrorMessage(err, 'Login failed. Please check your credentials.'))
+      setSubmitting(null)
     }
   }
 
   const handleGoogleLogin = async () => {
+    setSubmitting('google')
     try {
       setError('')
       const result = await signInWithPopup(auth, provider)
@@ -49,9 +53,9 @@ function Login() {
       setSession(data.token, data.user)
 
       navigate('/dashboard')
-    } catch (err) {
-      console.log(err)
+    } catch {
       setError('Google login failed. Please try again.')
+      setSubmitting(null)
     }
   }
 
@@ -65,7 +69,7 @@ function Login() {
           <h2>Welcome Back</h2>
           <p>Log in to continue to XPLOR</p>
 
-          {error && <div className="error-message">{error}</div>}
+          {error && <div className="error-message" role="alert">{error}</div>}
 
           <form onSubmit={handleSubmit}>
             <input
@@ -86,8 +90,8 @@ function Login() {
               required
             />
 
-            <button type="submit" className="auth-btn">
-              Log In
+            <button type="submit" className="auth-btn" disabled={submitting !== null}>
+              {submitting === 'email' ? 'Logging in…' : 'Log In'}
             </button>
           </form>
 
@@ -95,8 +99,8 @@ function Login() {
             <span>OR</span>
           </div>
 
-          <button className="google-btn" onClick={handleGoogleLogin}>
-            Continue with Google
+          <button className="google-btn" onClick={handleGoogleLogin} disabled={submitting !== null}>
+            {submitting === 'google' ? 'Waiting for Google…' : 'Continue with Google'}
           </button>
 
           <p className="auth-footer-text">

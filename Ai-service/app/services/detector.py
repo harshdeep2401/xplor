@@ -17,7 +17,7 @@ import numpy as np
 
 from app.config import settings
 from app.schemas import DetectionMetadata, DetectionResult
-from app.services import opencv_detecter
+from app.services import activity, opencv_detecter
 from app.services.errors import ModelUnavailable  # noqa: F401  (re-exported for the router)
 
 if settings.detector == "unet":
@@ -65,11 +65,21 @@ def decode_image(image_bytes: bytes) -> np.ndarray:
     return img
 
 
+def describe() -> tuple[dict | None, dict | None]:
+    """(gpu, model) details for GET /status."""
+    if settings.detector == "opencv":
+        return None, None
+    return segmenter.describe()
+
+
 def detect(image_bytes: bytes) -> tuple[DetectionResult, DetectionMetadata]:
     img = decode_image(image_bytes)
     if settings.detector == "opencv":
-        return opencv_detecter.detect(img)
-    return _detect_unet(img)
+        result = opencv_detecter.detect(img)
+    else:
+        result = _detect_unet(img)
+    activity.record(result[1].processingTimeMs)
+    return result
 
 
 def _detect_unet(img: np.ndarray) -> tuple[DetectionResult, DetectionMetadata]:

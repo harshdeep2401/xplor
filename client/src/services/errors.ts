@@ -6,6 +6,8 @@ export function getApiErrorMessage(err: unknown, fallback: string): string {
   if (axios.isAxiosError(err)) {
     const data = err.response?.data as { message?: string } | undefined
     if (data?.message) return data.message
+    // No response at all: the request never reached the server.
+    if (!err.response) return 'Cannot reach the server. Check that it is running and try again.'
   }
   return fallback
 }

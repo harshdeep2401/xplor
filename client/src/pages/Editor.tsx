@@ -2,6 +2,10 @@ import { useState, useEffect, useCallback, Suspense, lazy, useRef } from "react"
 import { Canvas } from "@react-three/fiber";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import * as THREE from "three";
+import { LoaderCircle, Move3d, Rotate3d, Scale3d } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+// Type only (erased at build), so the canvas itself stays lazily loaded.
+import type { TransformMode } from "../components/Editor/EditorCanvas";
 
 import Navbar from "../components/Editor/Navbar";
 import Toolbar from "../components/Editor/Toolbar";
@@ -9,8 +13,21 @@ import SceneList from "../components/Editor/SceneList";
 import PropertiesPanel from "../components/Editor/PropertiesPanel";
 import LightsFromObjects from "../components/Editor/LightsFromObjects";
 import apiClient from "../services/apiClient";
+import { getApiErrorMessage } from "../services/errors";
+import { toast } from "../components/toast/toast";
+import Button from "../components/ui/Button";
+import Field from "../components/ui/Field";
+import Modal from "../components/ui/Modal";
 
 const EditorCanvas = lazy(() => import("../components/Editor/EditorCanvas"));
+
+
+const TRANSFORM_MODES: { mode: TransformMode; label: string; key: string; Icon: LucideIcon }[] = [
+  { mode: "translate", label: "Move", key: "W", Icon: Move3d },
+  { mode: "rotate", label: "Rotate", key: "E", Icon: Rotate3d },
+  { mode: "scale", label: "Resize", key: "R", Icon: Scale3d },
+];
+const TRANSFORM_KEYS: Record<string, TransformMode> = { w: "translate", e: "rotate", r: "scale" };
 
 import {
   useSceneState,
@@ -79,6 +96,9 @@ export default function EditorPage() {
   const [sceneVersion, setSceneVersion] = useState(0);
 
   const [projectName, setProjectName] = useState("Untitled");
+  // What the handles on the selected object do (W / E / R, like most 3D tools).
+  const [transformMode, setTransformMode] = useState<TransformMode>("translate");
+  const [isLoading, setIsLoading] = useState(Boolean(projectId));
   const [saveStatus, setSaveStatus] = useState<
     "idle" | "saving" | "saved" | "error"
   >("idle");
@@ -158,7 +178,11 @@ export default function EditorPage() {
           // else: nothing converted yet → empty scene.
         }
       } catch (e) {
-        console.error("Failed to load 3D project:", e);
+        if (!cancelled) {
+          toast.error(getApiErrorMessage(e, "Could not open this 3D project."));
+        }
+      } finally {
+        if (!cancelled) setIsLoading(false);
       }
     })();
 
@@ -195,15 +219,18 @@ export default function EditorPage() {
         const form = new FormData();
         form.append("glb", blob, "scene.glb");
         await apiClient.post(`/projects/${projectId}/glb`, form);
-      } catch (glbErr) {
-        console.warn("GLB auto-store failed (non-blocking):", glbErr);
+      } catch {
+        toast.info("Saved. The downloadable GLB copy could not be updated this time.");
       }
     } catch (e) {
       const status = (e as { response?: { status?: number } })?.response?.status;
       if (status === 409) {
-        console.warn("Scene changed since load — reload before saving.");
+        toast.error(
+          "Not saved: this scene was changed elsewhere (e.g. converted again from 2D). Reload the page to get the latest version.",
+          { duration: 0 },
+        );
       } else {
-        console.error("Save to backend failed:", e);
+        toast.error(getApiErrorMessage(e, "Your scene could not be saved. Please try again."));
       }
       setSaveStatus("error");
     }
@@ -311,20 +338,41 @@ export default function EditorPage() {
     },
   });
 
+  // W = move, E = rotate, R = resize (ignored while typing in a field).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const mode = TRANSFORM_KEYS[e.key.toLowerCase()];
+      if (mode) setTransformMode(mode);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportFilename, setExportFilename] = useState("");
 
   const handleFileImport = async (file: File | null) => {
     if (!file) return;
-    const { importFromFile } = await import("../editor/import/importFromFile");
-    const newObjects = await importFromFile(file);
-    scene.setObjects((prev) => [...prev, ...newObjects]);
+    try {
+      const { importFromFile } = await import("../editor/import/importFromFile");
+      const newObjects = await importFromFile(file);
+      scene.setObjects((prev) => [...prev, ...newObjects]);
+    } catch {
+      toast.error(`Could not import "${file.name}". Use a .glb or .gltf model file.`);
+    }
   };
 
   const handleUrlImport = async (url: string) => {
-    const { importFromUrl } = await import("../editor/import/importFromUrl");
-    const newObjects = await importFromUrl(url);
-    scene.setObjects((prev) => [...prev, ...newObjects]);
+    try {
+      const { importFromUrl } = await import("../editor/import/importFromUrl");
+      const newObjects = await importFromUrl(url);
+      scene.setObjects((prev) => [...prev, ...newObjects]);
+    } catch {
+      toast.error("Could not load a model from that link. Check the URL points to a .glb or .gltf file.");
+    }
   };
 
   // Drop handler for the asset library: the dragged asset carries its model URL
@@ -362,31 +410,46 @@ export default function EditorPage() {
       });
 
       scene.setObjects((prev) => [...prev, ...imported]);
-    } catch (err) {
-      console.error("Asset drop failed:", err);
+    } catch {
+      toast.error("Could not add that item to the scene. Please try again.");
     }
   };
 
   const handleTextureUpdate = async (id: string, file: File | null) => {
-    const { applyTexture } = await import("../editor/import/applyTexture");
-    const updated = await applyTexture(scene.objects, id, file);
-    scene.setObjects(updated);
+    try {
+      const { applyTexture } = await import("../editor/import/applyTexture");
+      const updated = await applyTexture(scene.objects, id, file);
+      scene.setObjects(updated);
+    } catch {
+      toast.error("Could not apply that texture. Use a PNG or JPG image.");
+    }
   };
 
   const handleExportGLTF = async () => {
-    const { exportGLTF } = await import("../editor/export/exportGLTF");
-    exportGLTF(scene.objectsRef.current);
+    try {
+      const { exportGLTF } = await import("../editor/export/exportGLTF");
+      await exportGLTF(scene.objectsRef.current);
+      toast.success("Exported the scene as GLTF.");
+    } catch {
+      toast.error("Could not export the scene as GLTF.");
+    }
   };
 
   const handleExportGLB = async () => {
-    const { exportGLB } = await import("../editor/export/exportGLB");
-    exportGLB(scene.objectsRef.current, `${exportFilename || "scene"}.glb`);
+    const filename = `${exportFilename || "scene"}.glb`;
     setShowExportModal(false);
     setExportFilename("");
+    try {
+      const { exportGLB } = await import("../editor/export/exportGLB");
+      await exportGLB(scene.objectsRef.current, filename);
+      toast.success(`Exported ${filename}.`);
+    } catch {
+      toast.error("Could not export the scene as GLB.");
+    }
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gray-700 text-white">
+    <div className="flex flex-col h-screen bg-app text-ink">
       <Navbar
         projectName={projectName}
         subtitle={`${gridWidth} × ${gridLength} × ${gridHeight} m`}
@@ -395,7 +458,7 @@ export default function EditorPage() {
         onSave={handleSave}
         onUndo={history.undo}
         onRedo={history.redo}
-        onVrPreview={() => console.log("VR Preview")}
+        onVrPreview={() => toast.info("VR preview is coming in a later version.")}
       />
 
       <div className="flex flex-1 min-h-0">
@@ -424,6 +487,42 @@ export default function EditorPage() {
           onDragOver={(e) => e.preventDefault()}
           onDrop={handleAssetDrop}
         >
+          {/* Move / Rotate / Resize for the selected object */}
+          <div
+            role="toolbar"
+            aria-label="Transform mode"
+            className="absolute left-3 top-3 z-10 flex gap-1 rounded-xl border border-solid border-line bg-surface/90 p-1 backdrop-blur"
+          >
+            {TRANSFORM_MODES.map(({ mode, label, key, Icon }) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setTransformMode(mode)}
+                aria-pressed={transformMode === mode}
+                title={`${label} (${key})`}
+                className={`flex cursor-pointer items-center gap-1.5 rounded-lg border-0 px-3 py-1.5 text-xs font-semibold ${
+                  transformMode === mode
+                    ? "bg-primary text-white"
+                    : "bg-transparent text-ink-soft hover:bg-white/5"
+                }`}
+              >
+                <Icon className="h-4 w-4" aria-hidden="true" />
+                {label}
+                <kbd className="font-mono text-[10px] opacity-60">{key}</kbd>
+              </button>
+            ))}
+          </div>
+          {!scene.selectedId && !isLoading && scene.objects.length > 0 && (
+            <p className="pointer-events-none absolute bottom-3 left-1/2 z-10 -translate-x-1/2 rounded-lg bg-surface/80 px-3 py-1.5 text-xs text-muted">
+              Click an object to select it, then drag its handles.
+            </p>
+          )}
+          {isLoading && (
+            <div className="absolute inset-0 z-20 flex items-center justify-center gap-3 bg-app/70 text-ink-soft">
+              <LoaderCircle className="h-6 w-6 animate-spin text-primary" aria-hidden="true" />
+              Loading project…
+            </div>
+          )}
           <Canvas
             shadows
             camera={{ position: [gridWidth, gridWidth, gridLength], fov: 50 }}
@@ -441,6 +540,7 @@ export default function EditorPage() {
                 gridHeight={gridHeight}
                 hasRoom={scene.objects.some((o) => o.name === "Room")}
                 frameKey={frameKey}
+                transformMode={transformMode}
               />
             </Suspense>
 
@@ -448,7 +548,7 @@ export default function EditorPage() {
           </Canvas>
         </div>
 
-        <div className="w-80 bg-gray-900 p-4 overflow-y-auto">
+        <div className="w-80 bg-surface border-0 border-l border-solid border-line p-4 overflow-y-auto">
           <SceneList
             objects={scene.objects}
             selectedId={scene.selectedId}
@@ -482,38 +582,28 @@ export default function EditorPage() {
         </div>
       </div>
 
-      {/* ✅ EXPORT MODAL */}
-      {showExportModal && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black/60 z-50">
-          <div className="bg-gray-800 p-6 rounded-lg w-96 shadow-xl">
-            <h2 className="text-lg font-semibold mb-4">Export Scene as GLB</h2>
-
-            <input
-              type="text"
-              placeholder="Enter file name"
-              value={exportFilename}
-              onChange={(e) => setExportFilename(e.target.value)}
-              className="w-full p-2 rounded bg-gray-700 text-white mb-4 outline-none"
-            />
-
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => setShowExportModal(false)}
-                className="px-4 py-2 bg-gray-600 rounded hover:bg-gray-500"
-              >
-                Cancel
-              </button>
-
-              <button
-                onClick={handleExportGLB}
-                className="px-4 py-2 bg-blue-600 rounded hover:bg-blue-500"
-              >
-                Export
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <Modal
+        open={showExportModal}
+        title="Export Scene as GLB"
+        onClose={() => setShowExportModal(false)}
+        footer={
+          <>
+            <Button onClick={() => setShowExportModal(false)}>Cancel</Button>
+            <Button variant="primary" onClick={handleExportGLB}>Export</Button>
+          </>
+        }
+      >
+        <Field
+          label="File name"
+          placeholder="scene"
+          hint=".glb is added for you."
+          value={exportFilename}
+          onChange={(e) => setExportFilename(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleExportGLB();
+          }}
+        />
+      </Modal>
     </div>
   );
 }

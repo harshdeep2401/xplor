@@ -132,3 +132,30 @@ def test_decode_rejects_oversized_images(monkeypatch):
     monkeypatch.setattr(settings, "max_image_pixels", 100)
     with pytest.raises(ValueError, match="limit"):
         detector.decode_image(png_bytes(np.zeros((20, 20, 3), np.uint8)))
+
+
+# --- status (System Status page) -------------------------------------------
+
+def test_status_requires_the_secret(client_opencv):
+    assert client_opencv.get("/status").status_code == 401
+    assert client_opencv.get("/status", headers={"Authorization": "Bearer wrong"}).status_code == 401
+
+
+def test_status_reports_host_and_counts_detections(client_opencv, monkeypatch):
+    monkeypatch.setattr(settings, "host_label", "demo-pc")
+    before = client_opencv.get("/status", headers=AUTH).json()
+    assert before["ready"] is True
+    assert before["host"] == "demo-pc"
+    assert before["detector"] == "opencv"
+
+    assert upload(client_opencv).status_code == 200
+    after = client_opencv.get("/status", headers=AUTH).json()
+    assert after["detectionsServed"] == before["detectionsServed"] + 1
+    assert after["lastDetectionMs"] is not None
+
+
+def test_status_without_weights_says_why(client_without_model):
+    body = client_without_model.get("/status", headers=AUTH).json()
+    assert body["ready"] is False
+    assert "best.pt" in body["error"]
+    assert body["gpu"] is None and body["model"] is None

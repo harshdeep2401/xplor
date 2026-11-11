@@ -89,6 +89,13 @@
   gap: 20px;
 }
 
+.hero-btn-primary,
+.hero-btn-secondary {
+  display: inline-block;
+  text-decoration: none;
+  cursor: pointer;
+}
+
 .hero-btn-primary {
   padding: 16px 34px;
   border-radius: 40px;

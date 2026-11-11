@@ -194,6 +194,17 @@
   box-shadow: 0 8px 25px rgba(99, 102, 241, 0.4);
 }
 
+/* While a login/sign-up request is running. */
+.auth-btn:disabled,
+.auth-btn:disabled:hover,
+.google-btn:disabled,
+.google-btn:disabled:hover {
+  opacity: 0.6;
+  cursor: wait;
+  transform: none;
+  box-shadow: none;
+}
+
 .divider {
   display: flex;
   align-items: center;

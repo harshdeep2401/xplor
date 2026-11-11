@@ -20,6 +20,8 @@ function Signup() {
   })
   
   const [error, setError] = useState('')
+  // Which sign-up is running, so the buttons can't be pressed twice.
+  const [submitting, setSubmitting] = useState<'email' | 'google' | null>(null)
 
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -47,6 +49,7 @@ function Signup() {
       return
     }
 
+    setSubmitting('email')
     try {
       const data = await registerRequest({
         name: formData.name,
@@ -60,12 +63,13 @@ function Signup() {
 
       navigate('/dashboard')
     } catch (err) {
-      console.log(err)
       setError(getApiErrorMessage(err, 'Something went wrong. Please try again.'))
+      setSubmitting(null)
     }
   }
 
   const handleGoogleSignup = async () => {
+    setSubmitting('google')
     try {
       setError('')
       const result = await signInWithPopup(auth, provider)
@@ -77,9 +81,9 @@ function Signup() {
       setSession(data.token, data.user)
 
       navigate('/dashboard')
-    } catch (err) {
-      console.log(err)
+    } catch {
       setError('Google login failed. Please try again.')
+      setSubmitting(null)
     }
   }
 
@@ -93,7 +97,7 @@ function Signup() {
           <h2>Create Account</h2>
           <p>Join XPLOR and explore the future of AI</p>
 
-          {error && <div className="error-message">{error}</div>}
+          {error && <div className="error-message" role="alert">{error}</div>}
 
           <form onSubmit={handleSubmit}>
             <input
@@ -155,8 +159,8 @@ function Signup() {
               required
             />
 
-            <button type="submit" className="auth-btn">
-              Create Account
+            <button type="submit" className="auth-btn" disabled={submitting !== null}>
+              {submitting === 'email' ? 'Creating account…' : 'Create Account'}
             </button>
           </form>
 
@@ -164,8 +168,8 @@ function Signup() {
             <span>OR</span>
           </div>
 
-          <button className="google-btn" onClick={handleGoogleSignup}>
-            Continue with Google
+          <button className="google-btn" onClick={handleGoogleSignup} disabled={submitting !== null}>
+            {submitting === 'google' ? 'Waiting for Google…' : 'Continue with Google'}
           </button>
           
           <p className="auth-footer-text">

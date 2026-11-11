@@ -49,6 +49,12 @@ class Settings(BaseSettings):
     # pixels on the long side (coordinates are scaled back afterwards).
     max_vectorize_side: int = 2048
 
+    # Machine name shown on the server's System Status page (GET /status),
+    # so a demo can show which computer runs the model. Empty = this
+    # computer's name. compose.host.yml passes the Windows computer name in,
+    # since inside Docker the hostname is a random container id.
+    host_label: str = ""
+
     # Opencv heuristic tuning (see app/services/opencv_detecter.py)
     min_wall_length_px: int = 40
     min_room_area_px: int = 4000

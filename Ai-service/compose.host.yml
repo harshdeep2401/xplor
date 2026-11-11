@@ -23,6 +23,10 @@ services:
         required: true
     environment:
       ENABLE_DOCS: "false"
+      # Shown on the server's System Status page. Inside Docker the hostname
+      # is a random container id, so pass this PC's Windows name instead
+      # (or set HOST_LABEL in .env).
+      HOST_LABEL: ${HOST_LABEL:-${COMPUTERNAME:-gpu-host}}
     volumes:
       - ./Model:/app/Model:ro
     deploy:

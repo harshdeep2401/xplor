@@ -2,20 +2,24 @@
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background-color: #0a0f1c;
-  color: white;
+  background-color: rgb(var(--color-app));
+  color: rgb(var(--color-ink));
   overflow: hidden;
   position: relative;
 }
 
 .editor-loading {
   display: flex;
+  flex-direction: column;
+  gap: 16px;
   justify-content: center;
   align-items: center;
+  text-align: center;
+  padding: 0 16px;
   height: 100vh;
-  font-size: 24px;
-  background-color: #0a0f1c;
-  color: #6366f1;
+  font-size: 20px;
+  background-color: rgb(var(--color-app));
+  color: rgb(var(--color-ink-soft));
 }
 
 /* ── Top Bar ── */
@@ -52,9 +56,17 @@
   white-space: nowrap;
 }
 .scale-field input {
-  width: 52px;
-  padding: 2px 4px;
+  width: 56px;
+  padding: 3px 6px;
   font-size: 12px;
+  color: rgb(var(--color-ink));
+  background: rgb(var(--color-field) / 0.6);
+  border: 1px solid rgb(var(--color-line));
+  border-radius: var(--radius-sm);
+  outline: none;
+}
+.scale-field input:focus {
+  border-color: rgb(var(--color-primary));
 }
 
 .topbar-center {
@@ -123,15 +135,17 @@
   color: #94a3b8;
 }
 
+/* Main actions: same look as the shared <Button variant="primary">. */
 .export-btn {
-  background: linear-gradient(135deg, #6366f1, #4f46e5);
-  border: none;
+  background: rgb(var(--color-primary));
+  border-color: transparent;
   color: white;
   font-weight: 600;
 }
 
 .export-btn:hover {
-  background: linear-gradient(135deg, #818cf8, #6366f1);
+  background: rgb(var(--color-primary-hover));
+  border-color: transparent;
   color: white;
 }
 
@@ -139,6 +153,7 @@
 .editor-main {
   display: flex;
   flex: 1;
+  min-height: 0;
   overflow: hidden;
 }
 
@@ -203,6 +218,10 @@
 /* ── Canvas Area ── */
 .editor-canvas-wrapper {
   flex: 1;
+  /* Let the area shrink below the stage's current size, so the
+     ResizeObserver in Editor2D.tsx sees the real space and resizes the stage. */
+  min-width: 0;
+  min-height: 0;
   position: relative;
   background-color: #e2e5ea;
   background-image:
@@ -374,6 +393,37 @@
   font-size: 18px;
   line-height: 1;
   cursor: pointer;
+}
+
+/* Buttons in the right sidebar (multi-selection actions). */
+.sidebar-action {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: center;
+  padding: 8px 12px;
+}
+
+/* Keyboard shortcuts shown when nothing is selected. */
+.shortcut-list {
+  list-style: none;
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  color: rgb(var(--color-muted));
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.shortcut-list kbd {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  border: 1px solid rgb(var(--color-line));
+  background: rgb(var(--color-surface-2));
+  color: rgb(var(--color-ink-soft));
 }
 
 .calibrate-help {

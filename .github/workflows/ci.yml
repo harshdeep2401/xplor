@@ -10,16 +10,20 @@ on:
 
 jobs:
   client:
-    name: Client (typecheck + build)
+    name: Client (typecheck + tests + build)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          # >= 22: `npm test` passes a glob to `node --test`.
+          node-version: "22"
           cache: npm
           cache-dependency-path: client/package-lock.json
       - run: npm ci
+        working-directory: client
+      # Pure editor logic (2D editing, 3D wall pieces).
+      - run: npm test
         working-directory: client
       # `build` runs `tsc --noEmit && vite build`, so this covers typecheck too.
       - run: npm run build

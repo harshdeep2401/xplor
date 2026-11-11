@@ -99,7 +99,14 @@ interface EditorCanvasProps {
   // Bumped by the parent when a scene is (re)loaded; triggers a one-shot camera
   // frame around all objects. Rule 4: converted plans open fully in view.
   frameKey?: number;
+  // What the handles on the selected object do: move, rotate or resize it.
+  transformMode?: TransformMode;
 }
+
+export type TransformMode = "translate" | "rotate" | "scale";
+
+// Rotation handles turn in 15° steps, so objects line up with walls easily.
+const ROTATION_SNAP = THREE.MathUtils.degToRad(15);
 
 const EditorCanvas: React.FC<EditorCanvasProps> = ({
   objects,
@@ -113,6 +120,7 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
   hasRoom = false,
   initialFocusId,
   frameKey,
+  transformMode = "translate",
 }) => {
   const { gl, camera } = useThree();
   // Auto-focus camera ONCE per focus target (prevents camera jumping on every object update).
@@ -257,7 +265,13 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
     obj.position.y = THREE.MathUtils.clamp(obj.position.y, minY, maxY);
     obj.position.z = THREE.MathUtils.clamp(obj.position.z, minZ, maxZ);
 
-    // 2) Collision check vs every other non-Room object
+    // 2) Collision check vs every other non-Room object. Only while moving:
+    // reverting the position can't undo a rotation or resize, and would leave
+    // the object jumping back and forth.
+    if (transformMode !== "translate") {
+      onTransform?.();
+      return;
+    }
     const movedBox = new THREE.Box3().setFromObject(obj);
     const colliders = objects.filter(
       (o) => o.id !== selectedObject.id && o.name !== "Room",
@@ -330,6 +344,8 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
           <TransformControls
             key={o.id}
             object={o.object3d}
+            mode={transformMode}
+            rotationSnap={ROTATION_SNAP}
             // When user starts interacting with the transform, disable orbiting
             onMouseDown={(e?: THREE.Event) => {
               setIsTransforming(true);

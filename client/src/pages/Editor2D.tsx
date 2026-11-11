@@ -1,8 +1,22 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import Konva from 'konva'
+import {
+  AppWindow,
+  BrickWall,
+  CopyPlus,
+  DoorOpen,
+  MousePointer2,
+  RulerDimensionLine,
+  Scaling,
+  Tag as TagIcon,
+  Trash2,
+} from 'lucide-react'
+import type { LucideIcon } from 'lucide-react'
 import { Stage, Layer, Line, Rect, Text, Group, Arc, Label, Tag, Shape, Circle, Image as KonvaImage } from 'react-konva'
 import apiClient from '../services/apiClient'
+import { getApiErrorMessage } from '../services/errors'
+import { toast } from '../components/toast/toast'
 import type { ImportResult } from '../types/api'
 import type {
   EditorElement,
@@ -18,12 +32,32 @@ import {
   DEFAULT_PIXELS_PER_METRE,
   DEFAULT_WALL_HEIGHT_M,
 } from '../editor/canvas/canvasV2'
+import { duplicateElements, formatMetres, translateElements } from '../editor/canvas/editing'
+import NumberInput from '../components/ui/NumberInput'
 import '../styles/editor.css'
 
 // Fix for trackpads interpreting tiny finger movements as drags instead of clicks
 Konva.dragDistance = 5;
 
-type Tool = 'select' | 'wall' | 'door' | 'window' | 'label' | 'delete' | 'pan' | 'calibrate'
+type Tool = 'select' | 'wall' | 'door' | 'window' | 'label' | 'delete' | 'pan' | 'measure' | 'calibrate'
+
+// The left toolbar, top to bottom.
+const TOOLS: { tool: Tool; label: string; Icon: LucideIcon; title?: string }[] = [
+  { tool: 'select', label: 'Select', Icon: MousePointer2, title: 'Click to select, Shift+click to add, drag to move' },
+  { tool: 'wall', label: 'Wall', Icon: BrickWall },
+  { tool: 'door', label: 'Door', Icon: DoorOpen },
+  { tool: 'window', label: 'Window', Icon: AppWindow },
+  { tool: 'label', label: 'Label', Icon: TagIcon },
+  { tool: 'delete', label: 'Delete', Icon: Trash2 },
+  { tool: 'measure', label: 'Measure', Icon: RulerDimensionLine, title: 'Drag to measure a distance in metres' },
+  { tool: 'calibrate', label: 'Calibrate', Icon: Scaling, title: 'Set the real-world scale from a known length' },
+]
+
+// Arrow-key nudge distance in metres (Shift = coarse).
+const NUDGE_M = 0.05
+const NUDGE_COARSE_M = 0.5
+// How far a pasted copy is offset from the original, in canvas pixels.
+const PASTE_OFFSET_PX = 20
 
 interface Editor2DProject {
   name: string
@@ -64,7 +98,10 @@ function useTraceImage(url: string | null | undefined): HTMLImageElement | null 
     const img = new window.Image()
     img.crossOrigin = 'anonymous'
     img.onload = () => setImage(img)
-    img.onerror = () => console.error('Could not load floor-plan image:', url)
+    img.onerror = () =>
+      toast.error('Could not load the uploaded floor-plan image. You can still draw, but without the trace layer.', {
+        id: 'trace-image',
+      })
     img.src = resolveUploadUrl(url)
     return () => {
       img.onload = null
@@ -89,6 +126,9 @@ function Editor() {
     (location.state as { importResult?: ImportResult } | null)?.importResult ?? null,
   )
   const [project, setProject] = useState<Editor2DProject | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  // True after an autosave failed, so the next successful save can say so.
+  const saveFailedRef = useRef(false)
 
   // Editor State
   const [elements, setElements] = useState<EditorElement[]>([])
@@ -114,6 +154,24 @@ function Editor() {
   const [traceOpacity, setTraceOpacity] = useState(0.5)
   const [calibration, setCalibration] = useState<CalibrationLine | null>(null)
   const [calibrationMetres, setCalibrationMetres] = useState('')
+  // Measure tool: a temporary line, never saved.
+  const [measureLine, setMeasureLine] = useState<CalibrationLine | null>(null)
+
+  // Moving the selection with the mouse (walls, or several elements at once).
+  // Single doors/windows/labels use Konva's own drag, which snaps them to walls.
+  const moveRef = useRef<{
+    startX: number
+    startY: number
+    ids: Set<string>
+    base: EditorElement[]
+    moved: boolean
+  } | null>(null)
+  // Set when a mouse move just finished, so the click that follows it doesn't
+  // change the selection.
+  const justMovedRef = useRef(false)
+  // Copy/paste: the copied elements, and how many times they've been pasted
+  // (each paste lands a little further away).
+  const clipboardRef = useRef<{ elements: EditorElement[]; pastes: number } | null>(null)
 
   // Canvas View State
   const [stageScale, setStageScale] = useState(1)
@@ -122,21 +180,39 @@ function Editor() {
 
   const stageRef = useRef<Konva.Stage | null>(null)
 
+  // Size of the canvas area (between the sidebars, under the top bar), kept up
+  // to date as the window resizes. Starts with an estimate until measured.
+  const [viewport, setViewport] = useState(() => ({
+    width: Math.max(300, window.innerWidth - 500),
+    height: Math.max(300, window.innerHeight - 60),
+  }))
+  const [canvasArea, setCanvasArea] = useState<HTMLDivElement | null>(null)
+  const [measured, setMeasured] = useState(false)
+  useEffect(() => {
+    if (!canvasArea) return
+    const observer = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect
+      if (width > 0 && height > 0) {
+        setViewport({ width: Math.floor(width), height: Math.floor(height) })
+        setMeasured(true)
+      }
+    })
+    observer.observe(canvasArea)
+    return () => observer.disconnect()
+  }, [canvasArea])
+  const { width: viewportW, height: viewportH } = viewport
+
   // Calculate the minimum zoom scale that fits the entire canvas in the viewport
   const getMinScale = useCallback(() => {
-    const viewportW = window.innerWidth - 500
-    const viewportH = window.innerHeight - 60
     if (!project) return 0.1
     const scaleX = viewportW / project.canvasWidth
     const scaleY = viewportH / project.canvasHeight
     return Math.min(scaleX, scaleY) * 0.9 // 90% to leave a little padding
-  }, [project])
+  }, [project, viewportW, viewportH])
 
   // Fit canvas to screen helper
   const fitToScreen = useCallback(() => {
     if (!project) return
-    const viewportW = window.innerWidth - 500
-    const viewportH = window.innerHeight - 60
     const scaleX = viewportW / project.canvasWidth
     const scaleY = viewportH / project.canvasHeight
     const fitScale = Math.min(scaleX, scaleY) * 0.9
@@ -144,24 +220,7 @@ function Editor() {
     const offsetY = (viewportH - project.canvasHeight * fitScale) / 2
     setStageScale(fitScale)
     setStagePosition({ x: offsetX, y: offsetY })
-  }, [project])
-
-  // Global Keyboard Shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.key === 'Delete' || e.key === 'Backspace') && (e.target as HTMLElement).tagName !== 'INPUT') {
-        if (selectedElementId) {
-          updateElements(elements.filter(el => el.id !== selectedElementId));
-          setSelectedElementId(null);
-        } else if (marqueeSelectionIds.length > 0) {
-          updateElements(elements.filter(el => !marqueeSelectionIds.includes(el.id)));
-          setMarqueeSelectionIds([]);
-        }
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [elements, selectedElementId, marqueeSelectionIds]);
+  }, [project, viewportW, viewportH])
 
   // Fetch Project
   useEffect(() => {
@@ -193,30 +252,48 @@ function Editor() {
         setHistory([loadedElements])
         setHistoryStep(0)
       } catch (error) {
-        console.error('Error fetching project:', error)
+        const message = getApiErrorMessage(error, 'Could not open this project.')
+        setLoadError(message)
+        toast.error(message)
       }
     }
     fetchProject()
   }, [projectId])
 
-  // Fit to screen once project loads
+  // Fit to screen once, when the project has loaded and the canvas area has
+  // been measured. Later resizes keep the user's zoom (the Fit button refits).
+  const fittedRef = useRef(false)
   useEffect(() => {
-    if (project) {
+    if (project && measured && !fittedRef.current) {
+      fittedRef.current = true
       fitToScreen()
     }
-  }, [project, fitToScreen])
+  }, [project, measured, fitToScreen])
 
   // Autosave — persist as the canvas-v2 contract (walls/parametric openings +
   // real scale & wall height), not the legacy element list.
-  const saveProject = useCallback(async (newElements: EditorElement[]) => {
+  // Returns whether the save worked. A failure shows one toast that stays until
+  // a later save succeeds (autosave retries on the next edit).
+  const saveProject = useCallback(async (newElements: EditorElement[]): Promise<boolean> => {
     setSaveStatus('Saving...')
     try {
       await apiClient.put(`/projects/${projectId}`, {
         canvas: toCanvasV2(newElements, pixelsPerMetre, wallHeight),
       })
       setSaveStatus('Saved')
+      if (saveFailedRef.current) {
+        saveFailedRef.current = false
+        toast.success('Saved. Your changes are safe again.', { id: 'autosave' })
+      }
+      return true
     } catch (error) {
       setSaveStatus('Error saving')
+      saveFailedRef.current = true
+      toast.error(
+        `${getApiErrorMessage(error, 'Your changes could not be saved.')} Keep this tab open; saving is retried on your next edit.`,
+        { id: 'autosave', duration: 0 },
+      )
+      return false
     }
   }, [projectId, pixelsPerMetre, wallHeight])
 
@@ -234,14 +311,15 @@ function Editor() {
   // Flush a save first so the backend converts the latest drawing (not a stale
   // debounced one).
   const handleConvertTo3D = useCallback(async () => {
+    // Converting a stale drawing would silently drop the latest edits.
+    if (!(await saveProject(elements))) return
     setSaveStatus('Converting…')
     try {
-      await saveProject(elements)
       await apiClient.post(`/projects/${projectId}/convert`)
       navigate(`/editor/3d/${projectId}`)
     } catch (error) {
       setSaveStatus('Convert failed')
-      console.error('Convert to 3D failed:', error)
+      toast.error(getApiErrorMessage(error, 'Could not convert the plan to 3D. Please try again.'))
     }
   }, [projectId, elements, saveProject, navigate])
 
@@ -252,6 +330,52 @@ function Editor() {
     setHistory(newHistory)
     setHistoryStep(newHistory.length - 1)
   }, [history, historyStep])
+
+  // The current selection: one clicked element, or several (box-select or
+  // Shift+click). One element lives in selectedElementId, several in
+  // marqueeSelectionIds.
+  const selectedIds = useMemo(
+    () => (selectedElementId ? [selectedElementId] : marqueeSelectionIds),
+    [selectedElementId, marqueeSelectionIds],
+  )
+
+  const setSelection = useCallback((ids: string[]) => {
+    if (ids.length === 1) {
+      setSelectedElementId(ids[0])
+      setMarqueeSelectionIds([])
+    } else {
+      setSelectedElementId(null)
+      setMarqueeSelectionIds(ids)
+    }
+  }, [])
+
+  const deleteSelection = useCallback(() => {
+    if (selectedIds.length === 0) return
+    const ids = new Set(selectedIds)
+    updateElements(elements.filter((el) => !ids.has(el.id)))
+    setSelection([])
+  }, [elements, selectedIds, updateElements, setSelection])
+
+  // Returns false when there's nothing to copy.
+  const copySelection = useCallback(() => {
+    if (selectedIds.length === 0) return false
+    const ids = new Set(selectedIds)
+    clipboardRef.current = { elements: elements.filter((el) => ids.has(el.id)), pastes: 0 }
+    return true
+  }, [elements, selectedIds])
+
+  const pasteClipboard = useCallback(() => {
+    const clip = clipboardRef.current
+    if (!clip || clip.elements.length === 0) return
+    clip.pastes += 1
+    const copies = duplicateElements(clip.elements, PASTE_OFFSET_PX * clip.pastes)
+    updateElements([...elements, ...copies])
+    setSelection(copies.map((c) => c.id))
+  }, [elements, updateElements, setSelection])
+
+  const duplicateSelection = useCallback(() => {
+    if (copySelection()) pasteClipboard()
+  }, [copySelection, pasteClipboard])
 
   const handleUndo = useCallback(() => {
     if (historyStep > 0) {
@@ -333,6 +457,9 @@ function Editor() {
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
+      toast.success('Exported the plan as a PNG image.')
+    } catch {
+      toast.error('Could not export the plan as an image.')
     } finally {
       // Restore state
       trace?.show()
@@ -355,29 +482,49 @@ function Editor() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement).tagName === 'INPUT') return // ignore when typing in inputs
+      const tag = (e.target as HTMLElement).tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return // typing in a field
+      const ctrl = e.ctrlKey || e.metaKey
+      const key = e.key.toLowerCase()
 
       // Escape: Deselect
       if (e.key === 'Escape') {
         setSelectedElementId(null)
         setMarqueeSelectionIds([])
+        setMeasureLine(null)
         setActiveTool('select') // optionally revert to select tool
         return
       }
 
       // Undo: Ctrl+Z / Cmd+Z
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+      if (ctrl && key === 'z') {
         e.preventDefault()
         if (e.shiftKey) handleRedo()
         else handleUndo()
       }
       // Redo: Ctrl+Y / Cmd+Y
-      else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+      else if (ctrl && key === 'y') {
         e.preventDefault()
         handleRedo()
       }
+      // Copy / paste / duplicate / select all
+      else if (ctrl && key === 'c') {
+        if (copySelection()) {
+          e.preventDefault()
+          toast.info(`Copied ${selectedIds.length} item${selectedIds.length === 1 ? '' : 's'}.`, { id: 'clipboard', duration: 1500 })
+        }
+      } else if (ctrl && key === 'v') {
+        e.preventDefault()
+        pasteClipboard()
+      } else if (ctrl && key === 'd') {
+        e.preventDefault()
+        duplicateSelection()
+      } else if (ctrl && key === 'a') {
+        e.preventDefault()
+        setSelection(elements.map((el) => el.id))
+      }
       // Rotate: r
-      else if (e.key.toLowerCase() === 'r') {
+      else if (!ctrl && key === 'r') {
         e.preventDefault()
         handleRotate()
       }
@@ -389,16 +536,24 @@ function Editor() {
       }
       // Delete: Backspace / Delete
       else if (e.key === 'Backspace' || e.key === 'Delete') {
-        if (selectedElementId) {
-          updateElements(elements.filter(el => el.id !== selectedElementId))
-          setSelectedElementId(null)
-        }
+        deleteSelection()
+      }
+      // Nudge the selection with the arrow keys (Shift = bigger steps)
+      else if (e.key.startsWith('Arrow') && selectedIds.length > 0) {
+        e.preventDefault()
+        const step = (e.shiftKey ? NUDGE_COARSE_M : NUDGE_M) * pixelsPerMetre
+        const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0
+        const dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0
+        updateElements(translateElements(elements, new Set(selectedIds), dx, dy))
       }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [handleUndo, handleRedo, handleRotate, handleZoom, elements, selectedElementId, updateElements])
+  }, [
+    handleUndo, handleRedo, handleRotate, handleZoom, elements, selectedIds, updateElements,
+    copySelection, pasteClipboard, duplicateSelection, deleteSelection, setSelection, pixelsPerMetre,
+  ])
 
   const snapToWallPoints = useCallback((x: number, y: number, elementsToSnap: EditorElement[], threshold = 20) => {
     let minDistance = threshold;
@@ -492,13 +647,39 @@ function Editor() {
     logicalX = Math.max(0, Math.min(project?.canvasWidth || 1000, logicalX))
     logicalY = Math.max(0, Math.min(project?.canvasHeight || 1000, logicalY))
 
+    justMovedRef.current = false
+
     if (activeTool === 'select') {
-      const clickedOnEmpty = e.target === e.target.getStage() || e.target.name() === 'canvas-board'
-      if (clickedOnEmpty) {
-        setSelectedElementId(null)
-        setMarqueeSelectionIds([])
+      const hitId = elementIdAt(e.target)
+      if (!hitId) {
+        // Empty canvas: start a selection box (Shift keeps the current selection).
+        if (!e.evt.shiftKey) {
+          setSelectedElementId(null)
+          setMarqueeSelectionIds([])
+        }
         setSelectionBox({ startX: logicalX, startY: logicalY, endX: logicalX, endY: logicalY })
+        return
       }
+      // Pressing on part of a multi-selection moves all of it; pressing on a
+      // wall moves that wall. (Single doors/windows/labels drag themselves.)
+      const inGroup = selectedIds.length > 1 && selectedIds.includes(hitId)
+      const hit = elements.find((el) => el.id === hitId)
+      if (!e.evt.shiftKey && (inGroup || hit?.type === 'wall')) {
+        moveRef.current = {
+          startX: logicalX,
+          startY: logicalY,
+          ids: new Set(inGroup ? selectedIds : [hitId]),
+          base: elements,
+          moved: false,
+        }
+      }
+      return
+    }
+
+    if (activeTool === 'measure') {
+      setIsDrawing(true)
+      const snap = snapToWallPoints(logicalX, logicalY, elements)
+      setMeasureLine({ startX: snap.x, startY: snap.y, endX: snap.x, endY: snap.y })
       return
     }
 
@@ -592,6 +773,37 @@ function Editor() {
       return
     }
 
+    const move = moveRef.current
+    if (move && (e.evt.buttons & 1) === 0) {
+      // The button was released outside the canvas: finish the move here.
+      moveRef.current = null
+      if (move.moved) updateElements(elements)
+      return
+    }
+    if (move) {
+      const dx = logicalX - move.startX
+      const dy = logicalY - move.startY
+      // Ignore tiny jitters of a plain click (same threshold as Konva's drags).
+      if (!move.moved && Math.hypot(dx, dy) * scale < Konva.dragDistance) return
+      move.moved = true
+      setElements(translateElements(move.base, move.ids, dx, dy))
+      return
+    }
+
+    if (isDrawing && activeTool === 'measure') {
+      setMeasureLine((prev) => {
+        if (!prev) return prev
+        let { x: endX, y: endY } = snapToWallPoints(logicalX, logicalY, elements)
+        // Shift: straight horizontal or vertical.
+        if (e.evt.shiftKey) {
+          if (Math.abs(endX - prev.startX) < Math.abs(endY - prev.startY)) endX = prev.startX
+          else endY = prev.startY
+        }
+        return { ...prev, endX, endY }
+      })
+      return
+    }
+
     if (isDrawing && activeTool === 'calibrate') {
       const snap = snapToWallPoints(logicalX, logicalY, elements)
       setCalibration(prev => (prev ? { ...prev, endX: snap.x, endY: snap.y } : prev))
@@ -666,7 +878,17 @@ function Editor() {
     })
   }
 
-  const handleMouseUp = () => {
+  const handleMouseUp = (e: Konva.KonvaEventObject<MouseEvent>) => {
+    const move = moveRef.current
+    if (move) {
+      moveRef.current = null
+      if (move.moved) {
+        updateElements(elements) // one undo step for the whole move
+        justMovedRef.current = true
+      }
+      return
+    }
+
     if (selectionBox) {
       const minX = Math.min(selectionBox.startX, selectionBox.endX);
       const maxX = Math.max(selectionBox.startX, selectionBox.endX);
@@ -682,13 +904,9 @@ function Editor() {
            return el.x >= minX && el.x <= maxX && el.y >= minY && el.y <= maxY;
         }
       }).map(el => el.id);
-      
-      if (selected.length > 0) {
-        setMarqueeSelectionIds(selected);
-        setSelectedElementId(null);
-      } else {
-        setMarqueeSelectionIds([]);
-      }
+
+      // Shift adds the boxed elements to what was already selected.
+      setSelection(e.evt.shiftKey ? [...new Set([...selectedIds, ...selected])] : selected)
       setSelectionBox(null);
       return;
     }
@@ -701,6 +919,9 @@ function Editor() {
 
   const calibrationPx = calibration
     ? Math.hypot(calibration.endX - calibration.startX, calibration.endY - calibration.startY)
+    : 0
+  const measurePx = measureLine
+    ? Math.hypot(measureLine.endX - measureLine.startX, measureLine.endY - measureLine.startY)
     : 0
   const calibrationValue = Number(calibrationMetres)
   const canApplyCalibration = calibrationPx >= 1 && calibrationValue > 0
@@ -721,18 +942,49 @@ function Editor() {
 
   const selectTool = (tool: Tool) => {
     if (tool !== 'calibrate') clearCalibration()
+    if (tool !== 'measure') setMeasureLine(null)
     setActiveTool(tool)
   }
 
-  const handleElementClick = (id: string) => {
+  // Which element (if any) a Konva node belongs to: each element's top-level
+  // group/shape carries the element id as its Konva id.
+  const elementIdAt = (node: Konva.Node | null): string | null => {
+    const ids = new Set(elements.map((el) => el.id))
+    while (node && node.getType() !== 'Stage') {
+      const id = node.id()
+      if (id && ids.has(id)) return id
+      node = node.getParent()
+    }
+    return null
+  }
+
+  // additive (Shift+click): add/remove the element to/from the selection.
+  const handleElementClick = (id: string, additive = false) => {
+    if (justMovedRef.current) {
+      // The click that ends a drag-move: keep the selection as it is.
+      justMovedRef.current = false
+      return
+    }
     if (activeTool === 'delete') {
       updateElements(elements.filter(el => el.id !== id))
+    } else if (additive) {
+      setSelection(selectedIds.includes(id) ? selectedIds.filter((s) => s !== id) : [...selectedIds, id])
     } else {
-      setSelectedElementId(id)
-      setMarqueeSelectionIds([])
+      setSelection([id])
     }
   }
 
+  // Element is part of a multi-selection (moved as a group, not dragged alone).
+  const inMultiSelection = (id: string) => marqueeSelectionIds.length > 1 && marqueeSelectionIds.includes(id)
+
+  if (loadError) {
+    return (
+      <div className="editor-loading">
+        <p>{loadError}</p>
+        <button className="topbar-btn" onClick={() => navigate('/dashboard')}>Back to Dashboard</button>
+      </div>
+    )
+  }
   if (!project) return <div className="editor-loading">Loading Project...</div>
 
   const selectedElement = elements.find(el => el.id === selectedElementId)
@@ -803,7 +1055,7 @@ function Editor() {
         <div className={`import-banner ${importResult.status === 'failed' ? 'import-banner-error' : ''}`}>
           <span>
             {importResult.status === 'completed'
-              ? `Detected ${importResult.wallCount} wall${importResult.wallCount === 1 ? '' : 's'} from your floor plan. Fix any mistakes against the trace image, add doors and windows, then use 📏 Calibrate to set the real-world scale.`
+              ? `Detected ${importResult.wallCount} wall${importResult.wallCount === 1 ? '' : 's'} from your floor plan. Fix any mistakes against the trace image, add doors and windows, then use Calibrate to set the real-world scale.`
               : `Wall detection failed (${importResult.error}). Your image is loaded as a trace layer, so you can draw over it.`}
           </span>
           <button className="import-banner-close" onClick={() => setImportResult(null)} aria-label="Dismiss">×</button>
@@ -813,20 +1065,24 @@ function Editor() {
       <div className="editor-main">
         {/* Left Sidebar - Tools */}
         <div className="editor-sidebar left-sidebar">
-          <button className={`tool-btn ${activeTool === 'select' ? 'active' : ''}`} onClick={() => selectTool('select')}>🖱 Select</button>
-          <button className={`tool-btn ${activeTool === 'wall' ? 'active' : ''}`} onClick={() => selectTool('wall')}>🧱 Wall</button>
-          <button className={`tool-btn ${activeTool === 'door' ? 'active' : ''}`} onClick={() => selectTool('door')}>🚪 Door</button>
-          <button className={`tool-btn ${activeTool === 'window' ? 'active' : ''}`} onClick={() => selectTool('window')}>🪟 Window</button>
-          <button className={`tool-btn ${activeTool === 'label' ? 'active' : ''}`} onClick={() => selectTool('label')}>🏷 Label</button>
-          <button className={`tool-btn ${activeTool === 'delete' ? 'active' : ''}`} onClick={() => selectTool('delete')}>🗑 Delete</button>
-          <button className={`tool-btn ${activeTool === 'calibrate' ? 'active' : ''}`} onClick={() => selectTool('calibrate')} title="Set the real-world scale from a known length">📏 Calibrate</button>
+          {TOOLS.map(({ tool, label, Icon, title }) => (
+            <button
+              key={tool}
+              className={`tool-btn ${activeTool === tool ? 'active' : ''}`}
+              onClick={() => selectTool(tool)}
+              title={title}
+              aria-pressed={activeTool === tool}
+            >
+              <Icon size={16} aria-hidden="true" /> {label}
+            </button>
+          ))}
         </div>
 
         {/* Center Canvas */}
-        <div className="editor-canvas-wrapper">
+        <div className="editor-canvas-wrapper" ref={setCanvasArea}>
           <Stage
-            width={window.innerWidth - 500}
-            height={window.innerHeight - 60}
+            width={viewportW}
+            height={viewportH}
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
@@ -923,7 +1179,7 @@ function Editor() {
               <Text
                 x={project.canvasWidth / 2 - 40}
                 y={-22}
-                text={`${project.canvasWidth}px`}
+                text={formatMetres(project.canvasWidth, pixelsPerMetre, 1)}
                 fontSize={12}
                 fill="#64748b"
                 fontFamily="monospace"
@@ -931,7 +1187,7 @@ function Editor() {
               <Text
                 x={-45}
                 y={project.canvasHeight / 2 - 6}
-                text={`${project.canvasHeight}px`}
+                text={formatMetres(project.canvasHeight, pixelsPerMetre, 1)}
                 fontSize={12}
                 fill="#64748b"
                 fontFamily="monospace"
@@ -994,7 +1250,7 @@ function Editor() {
                 const isActiveDrawing = isDrawing && elements.length > 0 && elements[elements.length - 1]?.id === el.id;
 
                 return (
-                  <Group key={`fill_${el.id}`}>
+                  <Group key={`fill_${el.id}`} id={el.id}>
                     <Line
                       points={points}
                       tension={isCurved ? 0.5 : 0}
@@ -1002,7 +1258,7 @@ function Editor() {
                       strokeWidth={t - 2}
                       lineCap="round"
                       lineJoin="round"
-                      onClick={() => handleElementClick(el.id)}
+                      onClick={(e) => handleElementClick(el.id, e.evt.shiftKey)}
                       onTap={() => handleElementClick(el.id)}
                       onDblClick={(e) => { e.cancelBubble = true; handleElementClick(el.id); }}
                       onDblTap={(e) => { e.cancelBubble = true; handleElementClick(el.id); }}
@@ -1017,7 +1273,7 @@ function Editor() {
                         offsetY={t / 2 + 15}
                       >
                         <Tag fill="#14b8a6" cornerRadius={4} pointerDirection="down" pointerWidth={10} pointerHeight={10} />
-                        <Text text={`${Math.round(len)} px`} fill="white" padding={6} fontSize={16} fontStyle="bold" fontFamily="monospace" />
+                        <Text text={formatMetres(len, pixelsPerMetre)} fill="white" padding={6} fontSize={16} fontStyle="bold" fontFamily="monospace" />
                       </Label>
                     )}
                   </Group>
@@ -1035,14 +1291,15 @@ function Editor() {
                   return (
                     <Group
                       key={el.id}
+                      id={el.id}
                       x={el.x}
                       y={el.y}
-                      draggable={activeTool === 'select'}
+                      draggable={activeTool === 'select' && !inMultiSelection(el.id)}
                       onDragEnd={(e) => {
                         const newElements = elements.map(item => item.id === el.id ? { ...item, x: e.target.x(), y: e.target.y() } : item)
                         updateElements(newElements)
                       }}
-                      onClick={() => handleElementClick(el.id)}
+                      onClick={(e) => handleElementClick(el.id, e.evt.shiftKey)}
                       onTap={() => handleElementClick(el.id)}
                       onDblClick={(e) => { e.cancelBubble = true; handleElementClick(el.id); }}
                       onDblTap={(e) => { e.cancelBubble = true; handleElementClick(el.id); }}
@@ -1076,10 +1333,11 @@ function Editor() {
                   return (
                     <Group
                       key={el.id}
+                      id={el.id}
                       x={el.x}
                       y={el.y}
                       rotation={el.rotation || 0}
-                      draggable={activeTool === 'select'}
+                      draggable={activeTool === 'select' && !inMultiSelection(el.id)}
                       onDragMove={(e) => {
                         let newX = e.target.x()
                         let newY = e.target.y()
@@ -1101,7 +1359,7 @@ function Editor() {
                         const newElements = elements.map(item => item.id === el.id ? { ...item, x: snap.x, y: snap.y, rotation: newRotation } : item)
                         updateElements(newElements)
                       }}
-                      onClick={() => handleElementClick(el.id)}
+                      onClick={(e) => handleElementClick(el.id, e.evt.shiftKey)}
                       onTap={() => handleElementClick(el.id)}
                       onDblClick={(e) => { e.cancelBubble = true; handleElementClick(el.id); }}
                       onDblTap={(e) => { e.cancelBubble = true; handleElementClick(el.id); }}
@@ -1183,12 +1441,13 @@ function Editor() {
                   return (
                     <Group
                       key={el.id}
+                      id={el.id}
                       x={el.x}
                       y={el.y}
                       offsetX={w / 2}
                       offsetY={h / 2}
                       rotation={el.rotation || 0}
-                      draggable={activeTool === 'select'}
+                      draggable={activeTool === 'select' && !inMultiSelection(el.id)}
                       onDragMove={(e) => {
                         let newX = e.target.x()
                         let newY = e.target.y()
@@ -1215,7 +1474,7 @@ function Editor() {
                         const newElements = elements.map(item => item.id === el.id ? { ...item, x: snap.x, y: snap.y, rotation: newRotation, curvature: newCurvature, attachedWallId: snap.wall ? snap.wall.id : null } : item)
                         updateElements(newElements)
                       }}
-                      onClick={() => handleElementClick(el.id)}
+                      onClick={(e) => handleElementClick(el.id, e.evt.shiftKey)}
                       onTap={() => handleElementClick(el.id)}
                       onDblClick={(e) => { e.cancelBubble = true; handleElementClick(el.id); }}
                       onDblTap={(e) => { e.cancelBubble = true; handleElementClick(el.id); }}
@@ -1302,6 +1561,30 @@ function Editor() {
                 </Group>
               )}
 
+              {/* Measure tool line */}
+              {measureLine && activeTool === 'measure' && (
+                <Group listening={false}>
+                  <Line
+                    points={[measureLine.startX, measureLine.startY, measureLine.endX, measureLine.endY]}
+                    stroke="#14b8a6"
+                    strokeWidth={3 / stageScale}
+                    dash={[10 / stageScale, 6 / stageScale]}
+                  />
+                  <Circle x={measureLine.startX} y={measureLine.startY} radius={5 / stageScale} fill="#14b8a6" />
+                  <Circle x={measureLine.endX} y={measureLine.endY} radius={5 / stageScale} fill="#14b8a6" />
+                  <Label
+                    x={(measureLine.startX + measureLine.endX) / 2}
+                    y={(measureLine.startY + measureLine.endY) / 2}
+                    scaleX={1 / stageScale}
+                    scaleY={1 / stageScale}
+                    offsetY={28}
+                  >
+                    <Tag fill="#14b8a6" cornerRadius={4} />
+                    <Text text={formatMetres(measurePx, pixelsPerMetre)} fontSize={14} padding={5} fill="#ffffff" fontStyle="bold" />
+                  </Label>
+                </Group>
+              )}
+
               {/* Marquee Selection Box */}
               {selectionBox && (
                 <Rect
@@ -1321,8 +1604,29 @@ function Editor() {
 
         {/* Right Sidebar - Properties */}
         <div className="editor-sidebar right-sidebar">
-          <h3>{activeTool === 'calibrate' ? 'Calibrate Scale' : 'Properties'}</h3>
-          {activeTool === 'calibrate' ? (
+          <h3>
+            {activeTool === 'calibrate'
+              ? 'Calibrate Scale'
+              : activeTool === 'measure'
+                ? 'Measure'
+                : selectedIds.length > 1
+                  ? 'Selection'
+                  : 'Properties'}
+          </h3>
+          {activeTool === 'measure' ? (
+            <div className="properties-panel">
+              <p className="calibrate-help">
+                Drag across the plan to measure a distance. Hold Shift for a straight line. Measurements aren't saved.
+              </p>
+              <div className="prop-row">
+                <span>Distance</span>
+                <span>{measurePx >= 1 ? formatMetres(measurePx, pixelsPerMetre) : '—'}</span>
+              </div>
+              <p className="calibrate-help">
+                Based on the scale {pixelsPerMetre} px/m. If it looks wrong, set the scale with Calibrate first.
+              </p>
+            </div>
+          ) : activeTool === 'calibrate' ? (
             <div className="properties-panel">
               <p className="calibrate-help">
                 Drag along something whose real length you know (e.g. a wall with a dimension on the plan), then enter that length.
@@ -1359,12 +1663,25 @@ function Editor() {
                 <span>{pixelsPerMetre} px/m</span>
               </div>
             </div>
-          ) : selectedElement ? (
+          ) : selectedIds.length > 1 ? (
             <div className="properties-panel">
               <div className="prop-row">
-                <span>ID:</span>
-                <span>{selectedElement.id}</span>
+                <span>Selected</span>
+                <span>{selectedIds.length} items</span>
               </div>
+              <button className="topbar-btn sidebar-action" onClick={duplicateSelection}>
+                <CopyPlus size={14} aria-hidden="true" /> Duplicate (Ctrl+D)
+              </button>
+              <button className="topbar-btn sidebar-action" onClick={deleteSelection}>
+                <Trash2 size={14} aria-hidden="true" /> Delete (Del)
+              </button>
+              <p className="calibrate-help">
+                Drag any selected item to move them all. Arrow keys nudge by 5 cm (Shift: 50 cm). Ctrl+C / Ctrl+V
+                copy and paste. Shift+click adds or removes an item.
+              </p>
+            </div>
+          ) : selectedElement ? (
+            <div className="properties-panel">
               <div className="prop-row">
                 <span>Type:</span>
                 <span className="capitalize">{selectedElement.type}</span>
@@ -1372,12 +1689,13 @@ function Editor() {
               {selectedElement.type === 'wall' && (
                 <>
                   <div className="prop-row">
-                    <label>Length (px)</label>
-                    <input
-                      type="number"
-                      value={Math.round(Math.hypot(selectedElement.endX - selectedElement.startX, selectedElement.endY - selectedElement.startY))}
-                      onChange={(e) => {
-                        const newLen = Math.max(1, Number(e.target.value));
+                    <label>Length (m)</label>
+                    <NumberInput
+                      min={0.01}
+                      step={0.05}
+                      value={Math.hypot(selectedElement.endX - selectedElement.startX, selectedElement.endY - selectedElement.startY) / pixelsPerMetre}
+                      onChange={(metres) => {
+                        const newLen = Math.max(1, metres * pixelsPerMetre);
                         const dx = selectedElement.endX - selectedElement.startX;
                         const dy = selectedElement.endY - selectedElement.startY;
                         const currLen = Math.hypot(dx, dy);
@@ -1389,16 +1707,13 @@ function Editor() {
                     />
                   </div>
                   <div className="prop-row">
-                    <label>Thickness</label>
-                    <input
-                      type="number"
-                      value={selectedElement.thickness}
-                      onChange={(e) => {
-                        updateElements(elements.map(el => el.id === selectedElement.id ? { ...el, thickness: Number(e.target.value) } : el))
-                      }}
-                      onBlur={() => setSelectedElementId(null)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') setSelectedElementId(null)
+                    <label>Thickness (m)</label>
+                    <NumberInput
+                      min={0.01}
+                      step={0.01}
+                      value={selectedElement.thickness / pixelsPerMetre}
+                      onChange={(metres) => {
+                        updateElements(elements.map(el => el.id === selectedElement.id ? { ...el, thickness: metres * pixelsPerMetre } : el))
                       }}
                     />
                   </div>
@@ -1419,25 +1734,29 @@ function Editor() {
               {(selectedElement.type === 'door' || selectedElement.type === 'window') && (
                 <>
                   <div className="prop-row">
-                    <label>Width</label>
-                    <input
-                      type="number"
-                      value={selectedElement.width}
-                      onChange={(e) => {
-                        updateElements(elements.map(el => el.id === selectedElement.id ? { ...el, width: Number(e.target.value) } : el))
+                    <label>Width (m)</label>
+                    <NumberInput
+                      min={0.01}
+                      step={0.05}
+                      value={selectedElement.width / pixelsPerMetre}
+                      onChange={(metres) => {
+                        updateElements(elements.map(el => el.id === selectedElement.id ? { ...el, width: metres * pixelsPerMetre } : el))
                       }}
                     />
                   </div>
-                  <div className="prop-row">
-                    <label>Height</label>
-                    <input
-                      type="number"
-                      value={selectedElement.height}
-                      onChange={(e) => {
-                        updateElements(elements.map(el => el.id === selectedElement.id ? { ...el, height: Number(e.target.value) } : el))
-                      }}
-                    />
-                  </div>
+                  {selectedElement.type === 'window' && (
+                    <div className="prop-row">
+                      <label>Drawn thickness (m)</label>
+                      <NumberInput
+                        min={0.01}
+                        step={0.01}
+                        value={selectedElement.height / pixelsPerMetre}
+                        onChange={(metres) => {
+                          updateElements(elements.map(el => el.id === selectedElement.id ? { ...el, height: metres * pixelsPerMetre } : el))
+                        }}
+                      />
+                    </div>
+                  )}
                   <div className="prop-row">
                     <label>Rotation</label>
                     <input
@@ -1477,16 +1796,28 @@ function Editor() {
               )}
             </div>
           ) : (
-            <div className="no-selection">Select an object to view properties</div>
+            <>
+              <div className="no-selection">Select an object to view properties</div>
+              <ul className="shortcut-list" aria-label="Keyboard shortcuts">
+                <li><kbd>Shift</kbd>+click or drag a box: select several</li>
+                <li>Drag a selected item: move</li>
+                <li><kbd>↑↓←→</kbd> nudge 5 cm (<kbd>Shift</kbd>: 50 cm)</li>
+                <li><kbd>Ctrl</kbd>+<kbd>C</kbd> / <kbd>V</kbd> copy, paste</li>
+                <li><kbd>Ctrl</kbd>+<kbd>D</kbd> duplicate</li>
+                <li><kbd>Ctrl</kbd>+<kbd>A</kbd> select all</li>
+                <li><kbd>R</kbd> rotate a door or window</li>
+                <li><kbd>Del</kbd> delete, <kbd>Esc</kbd> deselect</li>
+              </ul>
+            </>
           )}
         </div>
       </div>
 
-      {/* Coordinates Display */}
+      {/* Coordinates Display (metres from the canvas's top-left corner) */}
       <div className="coords-display">
-        <span>X: {cursorPos.x}</span>
+        <span>X: {formatMetres(cursorPos.x, pixelsPerMetre)}</span>
         <span className="coords-sep">|</span>
-        <span>Y: {cursorPos.y}</span>
+        <span>Y: {formatMetres(cursorPos.y, pixelsPerMetre)}</span>
       </div>
     </div>
   )

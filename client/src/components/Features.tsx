@@ -2,7 +2,7 @@ import '../styles/features.css'
 
 function Features() {
   return (
-    <section className="features-section">
+    <section className="features-section" id="features">
       <div className="features-header">
         <p>Why Choose XPLOR</p>
         <h2>Powerful Features For Future Businesses</h2>

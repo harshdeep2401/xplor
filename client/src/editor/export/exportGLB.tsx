@@ -36,17 +36,14 @@ export function buildGlbBlob(objects: SceneObject[]): Promise<Blob> {
 }
 
 /**
- * Export scene as GLB (binary) and trigger a browser download.
+ * Export scene as GLB (binary) and trigger a browser download. Rejects if the
+ * export fails, so the caller can tell the user.
  */
 export async function exportGLB(objects: SceneObject[], filename = "scene.glb") {
-  try {
-    const blob = await buildGlbBlob(objects);
-    const link = document.createElement("a");
-    link.href = URL.createObjectURL(blob);
-    link.download = filename;
-    link.click();
-    URL.revokeObjectURL(link.href);
-  } catch (error) {
-    console.error("GLB export error:", error);
-  }
+  const blob = await buildGlbBlob(objects);
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(link.href);
 }

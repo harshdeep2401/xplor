@@ -10,9 +10,11 @@
 // back in one call. See ai-service/README.md ("Why sync, not async/webhook")
 // for when/why that should change.
 
+import { aiBaseUrl, describeRoute, recordAiCall } from './aiActivity'
+
 // FASTAPI_WEBHOOK_URL is the *full* endpoint (e.g. http://127.0.0.1:8000/process-floor-plan),
 // so we call it as-is and do NOT append a path. Falls back to the local default.
-const AI_SERVICE_ENDPOINT =
+export const AI_SERVICE_ENDPOINT =
   process.env.FASTAPI_WEBHOOK_URL || 'http://localhost:8000/process-floor-plan'
 const AI_SERVICE_TIMEOUT_MS = Number(process.env.AI_SERVICE_TIMEOUT_MS) || 30000
 
@@ -59,7 +61,23 @@ export const processFloorPlan = async ({
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), AI_SERVICE_TIMEOUT_MS)
 
-  let response: Response
+  // Every call goes into the System Status page's activity log.
+  const at = new Date().toISOString()
+  const started = Date.now()
+  let response: Response | undefined
+  const record = (ok: boolean, error: string | null, result?: FloorPlanResult) =>
+    recordAiCall({
+      ...describeRoute(AI_SERVICE_ENDPOINT, response?.headers.get('cf-ray') ?? null),
+      at,
+      jobId,
+      ok,
+      httpStatus: response?.status ?? null,
+      roundTripMs: Date.now() - started,
+      processingMs: result?.metadata?.processingTimeMs ?? null,
+      method: result?.metadata?.method ?? null,
+      error,
+    })
+
   try {
     response = await fetch(AI_SERVICE_ENDPOINT, {
       method: 'POST',
@@ -69,9 +87,11 @@ export const processFloorPlan = async ({
     })
   } catch (error) {
     if (error instanceof Error && error.name === 'AbortError') {
+      record(false, 'timeout')
       throw new Error(`AI service did not respond within ${AI_SERVICE_TIMEOUT_MS}ms`)
     }
     console.error(`AI service request to ${AI_SERVICE_ENDPOINT} failed:`, error)
+    record(false, 'unreachable')
     throw new Error('Could not reach the AI service (is it running?)')
   } finally {
     clearTimeout(timeout)
@@ -86,8 +106,41 @@ export const processFloorPlan = async ({
         return typeof detail === 'string' ? detail : ''
       })
       .catch(() => '')
+    record(false, `HTTP ${response.status}`)
     throw new Error(`AI service returned HTTP ${response.status}${detail ? `: ${detail}` : ''}`)
   }
 
-  return (await response.json()) as FloorPlanResult
+  const result = (await response.json()) as FloorPlanResult
+  record(result.status === 'completed', result.status === 'completed' ? null : 'detection failed', result)
+  return result
+}
+
+// The AI service's GET /status (machine, GPU, weights, activity), as seen
+// from this server, plus how the request travelled. For the System Status
+// page; never throws.
+export const getAiStatus = async () => {
+  const started = Date.now()
+  const secret = process.env.FASTAPI_SECRET
+  let route = describeRoute(AI_SERVICE_ENDPOINT, null)
+  if (!secret) {
+    return { reachable: false, route, roundTripMs: null, error: 'FASTAPI_SECRET is not set on the server', status: null }
+  }
+  try {
+    const response = await fetch(`${aiBaseUrl(AI_SERVICE_ENDPOINT)}/status`, {
+      headers: { Authorization: `Bearer ${secret}` },
+      signal: AbortSignal.timeout(5000),
+    })
+    route = describeRoute(AI_SERVICE_ENDPOINT, response.headers.get('cf-ray'))
+    const roundTripMs = Date.now() - started
+    if (!response.ok) {
+      const error =
+        response.status === 401
+          ? "The AI service rejected the server's secret (FASTAPI_SECRET differs)"
+          : `The AI service answered HTTP ${response.status}`
+      return { reachable: true, route, roundTripMs, error, status: null }
+    }
+    return { reachable: true, route, roundTripMs, error: null, status: await response.json() }
+  } catch {
+    return { reachable: false, route, roundTripMs: null, error: 'Could not reach the AI service', status: null }
+  }
 }

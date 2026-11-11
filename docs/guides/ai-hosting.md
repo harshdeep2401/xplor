@@ -88,7 +88,16 @@ Look for a line containing **`https://<random-words>.trycloudflare.com`**. Open
 
 ## Connect the server
 
-On the server (its `.env` file, or the hosting dashboard's environment variables):
+If the server runs on this PC, one command does step 1 for you (run it in `Ai-service`, then restart the
+server):
+
+```
+.\scripts\tunnel-url.ps1 -UpdateServerEnv
+```
+
+`.\scripts\tunnel-url.ps1 -Local` switches the server back to the AI service on `127.0.0.1:8000`.
+
+Otherwise, on the server (its `.env` file, or the hosting dashboard's environment variables):
 
 1. `FASTAPI_WEBHOOK_URL=https://<random-words>.trycloudflare.com/process-floor-plan`
 2. `AI_SERVICE_TIMEOUT_MS=30000` (raise it if imports time out)
@@ -96,6 +105,8 @@ On the server (its `.env` file, or the hosting dashboard's environment variables
 4. Restart the server so it picks up the new values.
 
 Then import a floor plan from the dashboard. It should open in the 2D editor with detected walls.
+The app's **System status** page (Dashboard → System status) should show the route as
+**Cloudflare tunnel** and this PC's GPU; see `docs/guides/demo.md`.
 
 ## Everyday commands (in `Ai-service`)
 
@@ -103,7 +114,7 @@ Then import a floor plan from the dashboard. It should open in the 2D editor wit
 |---|---|
 | Start / update after code changes | `docker compose -f compose.host.yml up -d --build` |
 | Is it running? | `docker compose -f compose.host.yml ps` |
-| Current tunnel address | `docker compose -f compose.host.yml logs tunnel` |
+| Current tunnel address | `.\scripts\tunnel-url.ps1` (or `docker compose -f compose.host.yml logs tunnel`) |
 | AI service log (errors, each detection) | `docker compose -f compose.host.yml logs ai-service` |
 | Stop | `docker compose -f compose.host.yml down` |
 
