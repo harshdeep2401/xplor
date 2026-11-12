@@ -82,6 +82,12 @@ jobs:
         if: env.TEST_DATABASE_URL != ''
         run: npm run test:coverage
         working-directory: server
+      # The migrations must build exactly schema.prisma (catches a schema
+      # change committed without its migration).
+      - name: Migrations match the schema
+        if: env.TEST_DATABASE_URL != ''
+        run: npm run db:check-migrations
+        working-directory: server
 
   ai-service:
     name: AI service (compile + tests)

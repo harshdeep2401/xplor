@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { Box, ImageUp, LoaderCircle, PencilRuler } from 'lucide-react'
-import { auth } from '../firebase'
 import apiClient from '../services/apiClient'
 import { getApiErrorMessage } from '../services/errors'
 import { toast } from '../components/toast/toast'
@@ -61,7 +60,9 @@ function Dashboard() {
 
   const handleLogout = () => {
     clearSession()
-    void auth.signOut()
+    // Also end a Google (Firebase) sign-in. Firebase is loaded only now, so the
+    // dashboard doesn't download it just for this.
+    void import('../firebase').then(({ auth }) => auth.signOut())
     navigate('/')
   }
 

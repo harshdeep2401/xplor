@@ -256,6 +256,21 @@ chore(deps): bump prisma to 6.4.1
 - **Never edit or delete a migration that has been merged/applied.** Fix forward with a new migration.
 - Give migrations meaningful names (`add_scene_unique_constraint`, not `update1`).
 - Review schema changes carefully in PRs — they are the hardest thing to reverse.
+- **The migrations rebuild the schema from nothing.** Since 2026-11-12 the history starts at one
+  baseline (`prisma/migrations/20261112000000_baseline`, the full schema as it was then); earlier
+  migrations were folded into it because two of them had been applied but never committed.
+  `npm run db:check-migrations` (server) proves the folder still builds exactly `schema.prisma`; CI
+  runs it when `TEST_DATABASE_URL` is set.
+- **Making a schema change:** edit `schema.prisma`, then create its migration against a disposable
+  database — the Neon *test* branch or one of your own — never the main one:
+  `DATABASE_URL=<test branch direct URL> npx prisma migrate dev --name add_x`. Commit the schema and
+  the new migration folder together, and run `npm run db:check-migrations`.
+- **Applying migrations** to a real database: `npm run db:deploy` (`prisma migrate deploy`), which
+  only applies new migrations and never resets anything. Check with `npm run db:status`.
+  **Never run `prisma migrate dev` or `migrate reset` against the main database** — they can drop it.
+- **Use Neon's direct host (without `-pooler`) for anything migration-related.** Prisma changes
+  connection settings while migrating (e.g. the schema it works in); through the pooler those
+  settings stick to pooled connections that the app then reuses. The app itself keeps the pooled URL.
 
 ---
 
