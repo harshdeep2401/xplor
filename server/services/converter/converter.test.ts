@@ -1,4 +1,4 @@
-import { test } from 'node:test'
+import { test } from 'vitest'
 import assert from 'node:assert/strict'
 import { convertCanvasToScene, ConverterError, normalizeCanvas } from './index'
 import type { CanvasV1, SceneV1 } from './types'
@@ -12,8 +12,17 @@ const legacyCanvas: CanvasV1 = {
     { id: 'w2', type: 'wall', startX: 300, startY: 0, endX: 300, endY: 200, thickness: 8 },
     { id: 'd1', type: 'door', x: 120, y: 2, width: 40, height: 80, rotation: 0 },
     {
-      id: 'win1', type: 'window', x: 300, y: 100, startX: 300, startY: 80,
-      width: 60, height: 40, rotation: 0, curvature: 0, attachedWallId: 'w2',
+      id: 'win1',
+      type: 'window',
+      x: 300,
+      y: 100,
+      startX: 300,
+      startY: 80,
+      width: 60,
+      height: 40,
+      rotation: 0,
+      curvature: 0,
+      attachedWallId: 'w2',
     },
     { id: 'lab1', type: 'label', x: 50, y: 50, text: 'Kitchen', fontSize: 16 },
     { id: 'd2', type: 'door', x: 500, y: 500, width: 40, height: 80, rotation: 0 },
@@ -34,9 +43,7 @@ const expectedScene: SceneV1 = {
       thickness: 0.08,
       height: 2.8,
       materialId: 'wall-default',
-      openings: [
-        { id: 'd1', type: 'door', center: 0.4, width: 0.4, height: 2.1, sillHeight: 0 },
-      ],
+      openings: [{ id: 'd1', type: 'door', center: 0.4, width: 0.4, height: 2.1, sillHeight: 0 }],
     },
     {
       id: 'w2',
@@ -56,19 +63,35 @@ const expectedScene: SceneV1 = {
     ambient: { color: '#ffffff', intensity: 0.6 },
     lights: [
       {
-        id: 'sun', type: 'directional', color: '#ffffff', intensity: 1,
-        position: { x: 5, y: 10, z: 5 }, target: { x: 0, y: 0, z: 0 },
+        id: 'sun',
+        type: 'directional',
+        color: '#ffffff',
+        intensity: 1,
+        position: { x: 5, y: 10, z: 5 },
+        target: { x: 0, y: 0, z: 0 },
       },
     ],
   },
-  materials: [
-    { id: 'wall-default', name: 'Wall', color: '#e8e8e8', roughness: 0.9, metalness: 0 },
-  ],
+  materials: [{ id: 'wall-default', name: 'Wall', color: '#e8e8e8', roughness: 0.9, metalness: 0 }],
 }
 
+// The golden scene was made at 100 px/m with 2.8 m walls; pass that scale, so
+// this tests the conversion and not whatever the defaults happen to be.
+const GOLDEN_SCALE = { pixelsPerMetre: 100, wallHeight: 2.8 }
+
 test('converts a legacy canvas to the expected scene (golden)', () => {
-  const scene = convertCanvasToScene(legacyCanvas)
+  const scene = convertCanvasToScene(legacyCanvas, GOLDEN_SCALE)
   assert.deepEqual(scene, expectedScene)
+})
+
+test('a legacy canvas with no scale gets the defaults (40 px/m, 1 m walls)', () => {
+  const scene = convertCanvasToScene(legacyCanvas)
+  const golden = convertCanvasToScene(legacyCanvas, GOLDEN_SCALE)
+  assert.ok(scene.walls.every((w) => w.height === 1))
+  // Same drawing at 40 px/m instead of 100: every length is 2.5× longer.
+  const len = (w: { start: { x: number; z: number }; end: { x: number; z: number } }) =>
+    Math.hypot(w.end.x - w.start.x, w.end.z - w.start.z)
+  assert.ok(Math.abs(len(scene.walls[0]) - 2.5 * len(golden.walls[0])) < 1e-9)
 })
 
 test('is deterministic: same input -> byte-identical output', () => {

@@ -1,24 +1,25 @@
-import { Undo, Redo, Save, Eye, Box, ArrowLeft } from "lucide-react"; // icons
+import { Undo, Redo, Save, Eye, Box, ArrowLeft } from 'lucide-react' // icons
+import Button from '../ui/Button'
 
-type SaveStatus = "idle" | "saving" | "saved" | "error";
+type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
 
 type NavbarProps = {
-  projectName: string;
-  onSave: () => void;
-  onUndo: () => void;
-  onRedo: () => void;
-  onVrPreview: () => void;
-  onBack?: () => void;
-  saveStatus?: SaveStatus;
-  subtitle?: string;
-};
+  projectName: string
+  onSave: () => void
+  onUndo: () => void
+  onRedo: () => void
+  onVrPreview: () => void
+  onBack?: () => void
+  saveStatus?: SaveStatus
+  subtitle?: string
+}
 
 const SAVE_STATUS_LABEL: Record<SaveStatus, string> = {
-  idle: "",
-  saving: "Saving…",
-  saved: "Saved",
-  error: "Save failed",
-};
+  idle: '',
+  saving: 'Saving…',
+  saved: 'Saved',
+  error: 'Save failed',
+}
 
 export default function Navbar({
   projectName,
@@ -27,76 +28,60 @@ export default function Navbar({
   onRedo,
   onVrPreview,
   onBack,
-  saveStatus = "idle",
+  saveStatus = 'idle',
   subtitle,
 }: NavbarProps) {
   return (
-    <nav className="flex items-center justify-between px-4 py-2 bg-gray-900 text-white shadow-md">
+    <nav className="flex items-center justify-between gap-4 border-0 border-b border-solid border-line bg-surface px-4 py-2 text-ink">
       {/* Left: Back + Logo + Project Name */}
-      <div className="flex items-center gap-2">
+      <div className="flex min-w-0 items-center gap-2">
         {onBack && (
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={onBack}
-            className="p-2 rounded-lg hover:bg-gray-800 transition"
             title="Back to dashboard"
+            aria-label="Back to dashboard"
           >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
         )}
-        <Box className="w-6 h-6 text-blue-400" />
-        <span className="font-semibold text-lg">{projectName}</span>
+        <Box className="h-6 w-6 shrink-0 text-primary" aria-hidden="true" />
+        <span className="truncate text-lg font-semibold">{projectName}</span>
         {subtitle && (
-          <span className="ml-2 text-xs text-gray-400" title="Room size (metres)">
+          <span className="ml-2 whitespace-nowrap text-xs text-muted" title="Room size (metres)">
             {subtitle}
           </span>
         )}
       </div>
 
       {/* Right: Actions */}
-      <div className="flex items-center gap-4">
-
-        {saveStatus !== "idle" && (
-          <span
-            className={`text-sm ${
-              saveStatus === "error" ? "text-red-400" : "text-gray-400"
-            }`}
-          >
+      <div className="flex items-center gap-2">
+        {saveStatus !== 'idle' && (
+          <span className={`mr-2 text-sm ${saveStatus === 'error' ? 'text-danger' : 'text-muted'}`}>
             {SAVE_STATUS_LABEL[saveStatus]}
           </span>
         )}
 
-        <button
-          onClick={onUndo}
-          className="p-2 rounded-lg hover:bg-gray-800 transition"
-          title="Undo"
-        >
-          <Undo className="w-5 h-5" />
-        </button>
-
-        <button
-          onClick={onRedo}
-          className="p-2 rounded-lg hover:bg-gray-800 transition"
-          title="Redo"
-        >
-          <Redo className="w-5 h-5" />
-        </button>
-
-        <button
+        <Button variant="ghost" size="sm" onClick={onUndo} title="Undo (Ctrl+Z)" aria-label="Undo">
+          <Undo className="h-5 w-5" />
+        </Button>
+        <Button variant="ghost" size="sm" onClick={onRedo} title="Redo (Ctrl+Y)" aria-label="Redo">
+          <Redo className="h-5 w-5" />
+        </Button>
+        <Button
+          variant="primary"
+          size="sm"
           onClick={onSave}
-          className="flex items-center gap-1 px-3 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 transition"
+          loading={saveStatus === 'saving'}
+          icon={<Save className="h-4 w-4" />}
         >
-          <Save className="w-4 h-4" />
-          <span>Save</span>
-        </button>
-
-        <button
-          onClick={onVrPreview}
-          className="flex items-center gap-1 px-3 py-1 rounded-lg bg-green-600 hover:bg-green-700 transition"
-        >
-          <Eye className="w-4 h-4" />
-          <span>VR Preview</span>
-        </button>
+          Save
+        </Button>
+        <Button size="sm" onClick={onVrPreview} icon={<Eye className="h-4 w-4" />}>
+          VR Preview
+        </Button>
       </div>
     </nav>
-  );
+  )
 }

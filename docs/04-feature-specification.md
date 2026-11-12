@@ -277,9 +277,20 @@ are **Active for the capstone**; the rest remain future/deferred.
 
 - **FB — Image Detection (Path B) · ACTIVE (capstone).** Upload a floor-plan image → CV detection → a
   `canvas-v2` payload matching the same contract Path A produces, so it reuses the entire E4–E7 pipeline.
-  Ships the **current heuristic detector** behind a **stable, swappable detection contract**
-  (`contracts/detection-v1`) so a stronger ML model can drop in without any downstream change. The
-  deterministic 2D editor is the cleanup surface for rough detections.
+  Ships a **trained segmentation model** (walls, doors, windows, rooms) behind a **stable, swappable
+  detection contract** (`contracts/detection-v1`) so a better model can drop in without any downstream
+  change. The deterministic 2D editor is the cleanup surface for imperfect detections. Acceptance:
+  - [ ] Dashboard **Import Floor Plan**: name + image (PNG/JPG/WEBP, ≤ 15 MB) → detected walls open in the
+    2D editor, with a banner reporting the result.
+  - [ ] Detected walls are **welded** at corners/T-junctions so closed rooms get floors in 3D.
+  - [ ] The uploaded image is a **trace layer** (show/hide + opacity) under the drawing, excluded from PNG
+    export.
+  - [ ] **Calibrate** tool: drag along a known length, enter metres → `pixelsPerMetre` is set and saved.
+  - [ ] Detection failure still opens the editor with the image to trace by hand; a rejected upload leaves
+    no empty project behind; importing into a project that already has a drawing is refused (409).
+  - [ ] Doors and windows are detected and attached to their walls.
+  - [ ] If the model is unavailable, the import fails with the reason; it never silently uses a weaker
+    detector.
 - **FR — Smart Furniture Suggestion Engine · ACTIVE (capstone).** A **scene-aware recommender**: given the
   scene JSON (room type/size + the objects already placed), it ranks catalog assets to add, surfaced in a
   Suggestions panel with one-click deterministic placement inside the room. Starts as a light rule/ML model

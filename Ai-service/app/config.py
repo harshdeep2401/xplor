@@ -1,33 +1,67 @@
-from pydantic_settings import BaseSettings
+from pathlib import Path
+from typing import Literal
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Ai-service/ (the directory holding pyproject.toml), so relative paths in
+# settings work no matter which directory uvicorn is started from.
+SERVICE_ROOT = Path(__file__).resolve().parents[1]
+
+# Shorter shared secrets are refused (see app/security.py).
+MIN_SECRET_LENGTH = 32
 
 
 class Settings(BaseSettings):
-    """
-    Runtime config, loaded from environment / .env.
+    """Runtime config, loaded from environment / Ai-service/.env."""
 
-    NODE_UPLOADS_BASE_URL: the Node server's public origin, used to resolve
-    relative floor plan paths (e.g. "/uploads/floor-plans/<userId>/<file>")
-    into a fetchable absolute URL. Node currently stores relative paths on
-    Project.floorPlanUrl, so this service needs to know where "home" is.
+    model_config = SettingsConfigDict(
+        env_file=SERVICE_ROOT / ".env",
+        # Old .env files may still carry removed settings (e.g. the former
+        # NODE_UPLOADS_BASE_URL); ignore them instead of refusing to start.
+        extra="ignore",
+    )
 
-    Example: NODE_UPLOADS_BASE_URL=http://localhost:5000
-    -> "/uploads/floor-plans/u1/plan.png" becomes
-       "http://localhost:5000/uploads/floor-plans/u1/plan.png"
+    # Shared secret: Node sends "Authorization: Bearer <FASTAPI_SECRET>" and
+    # it must match exactly. Same value as FASTAPI_SECRET in server/.env, at
+    # least MIN_SECRET_LENGTH characters. Without it, detection is refused.
+    fastapi_secret: str = ""
 
-    If floorPlanUrl is already absolute (http:// or https://, e.g. once R2
-    is introduced), it's used as-is and this setting is ignored.
-    """
+    # Interactive API docs (/docs, /redoc, /openapi.json). Handy locally;
+    # turned off when the service is exposed through the tunnel.
+    enable_docs: bool = True
 
-    node_uploads_base_url: str = "http://localhost:5000"
-    max_image_fetch_bytes: int = 20 * 1024 * 1024  # 20MB safety cap
-    request_timeout_seconds: float = 15.0
+    # Largest accepted upload, and the decoded-size cap (a small compressed
+    # file can still expand to a huge bitmap).
+    max_image_bytes: int = 20 * 1024 * 1024
+    max_image_pixels: int = 50_000_000
 
-    # Detection tuning (see app/services/detector.py for how these are used)
+    # Which detector serves /process-floor-plan:
+    #   "unet"   - the trained segmenter (Model/ModelInfo.md). If it can't load,
+    #              the service reports itself unavailable (HTTP 503); it never
+    #              silently falls back to the heuristic.
+    #   "opencv" - the classical heuristic, kept only for comparison runs.
+    detector: Literal["unet", "opencv"] = "unet"
+    # Weights file; relative paths are resolved against Ai-service/.
+    model_path: Path = Path("Model/best.pt")
+    # "auto" uses the NVIDIA GPU when torch can see one, else the CPU.
+    model_device: Literal["auto", "cuda", "cpu"] = "auto"
+    # The mask is vectorized at the image's own size, capped at this many
+    # pixels on the long side (coordinates are scaled back afterwards).
+    max_vectorize_side: int = 2048
+
+    # Machine name shown on the server's System Status page (GET /status),
+    # so a demo can show which computer runs the model. Empty = this
+    # computer's name. compose.host.yml passes the Windows computer name in,
+    # since inside Docker the hostname is a random container id.
+    host_label: str = ""
+
+    # Opencv heuristic tuning (see app/services/opencv_detecter.py)
     min_wall_length_px: int = 40
     min_room_area_px: int = 4000
 
-    class Config:
-        env_file = ".env"
+    @property
+    def model_file(self) -> Path:
+        return self.model_path if self.model_path.is_absolute() else SERVICE_ROOT / self.model_path
 
 
 settings = Settings()

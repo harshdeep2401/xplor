@@ -6,11 +6,15 @@ import { validateCanvasV2, validateSceneV1, formatErrors } from './validate'
 export * from './types'
 export { normalizeCanvas, type CanvasDefaults } from './normalizeCanvas'
 export { convertToScene } from './convertToScene'
-export { validateCanvasV2, validateSceneV1 } from './validate'
+export { validateCanvasV2, validateSceneV1, validateDetectionV1, formatErrors } from './validate'
+export { detectionToCanvas } from './detectionToCanvas'
 
 // Thrown when the canvas going in or the scene coming out fails schema validation.
 export class ConverterError extends Error {
-  constructor(message: string, public readonly details: string) {
+  constructor(
+    message: string,
+    public readonly details: string,
+  ) {
     super(`${message}: ${details}`)
     this.name = 'ConverterError'
   }
@@ -41,3 +45,5 @@ export function convertCanvasToScene(rawCanvas: unknown, defaults: CanvasDefault
 
   return scene
 }
+export { describeRoom, roomTypeFromName, roomTypeFromShape, pointInPolygon } from './roomSemantics'
+export { assignAssetRooms, carryOverEditorContent } from './sceneAssets'

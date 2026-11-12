@@ -7,3 +7,9 @@ __pycache__
 !.env.example
 *.log
 .DS_Store
+
+# Weights are mounted at runtime (compose), never baked into the image.
+Model/
+# Test/eval output
+.pytest_cache
+eval/results/

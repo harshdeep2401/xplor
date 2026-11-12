@@ -6,13 +6,7 @@
   padding: 140px 80px 60px;
   position: relative;
   overflow: hidden;
-  background: linear-gradient(
-    135deg,
-    #0a0f1c,
-    #0e1526,
-    #141b31,
-    #1a1f38
-  );
+  background: linear-gradient(135deg, #0a0f1c, #0e1526, #141b31, #1a1f38);
   background-size: 300% 300%;
   animation: gradientMove 12s ease infinite;
 }
@@ -51,8 +45,8 @@
   display: inline-block;
   padding: 10px 22px;
   border-radius: 30px;
-  border: 1px solid rgba(255,255,255,0.1);
-  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(20px);
   color: #818cf8;
   margin-bottom: 30px;
@@ -71,7 +65,7 @@
   background: linear-gradient(90deg, #6366f1, #14b8a6, #3b82f6);
   background-size: 300% 300%;
   animation: gradientText 6s ease infinite;
-    background-clip: text;
+  background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -89,15 +83,17 @@
   gap: 20px;
 }
 
+.hero-btn-primary,
+.hero-btn-secondary {
+  display: inline-block;
+  text-decoration: none;
+  cursor: pointer;
+}
+
 .hero-btn-primary {
   padding: 16px 34px;
   border-radius: 40px;
-  background: linear-gradient(
-    90deg,
-    #6366f1,
-    #3b82f6,
-    #14b8a6
-  );
+  background: linear-gradient(90deg, #6366f1, #3b82f6, #14b8a6);
   background-size: 300% 300%;
   animation: gradientButton 6s ease infinite;
   color: white;
@@ -114,15 +110,15 @@
 .hero-btn-secondary {
   padding: 16px 34px;
   border-radius: 40px;
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   color: white;
   backdrop-filter: blur(20px);
   transition: 0.3s;
 }
 
 .hero-btn-secondary:hover {
-  background: rgba(255,255,255,0.08);
+  background: rgba(255, 255, 255, 0.08);
   transform: translateY(-3px);
 }
 
@@ -162,9 +158,9 @@
   width: 320px;
   padding: 35px;
   border-radius: 30px;
-  background: rgba(255,255,255,0.06);
+  background: rgba(255, 255, 255, 0.06);
   backdrop-filter: blur(25px);
-  border: 1px solid rgba(255,255,255,0.08);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 0 0 40px rgba(99, 102, 241, 0.15);
   animation: floatCard 5s ease-in-out infinite alternate;
   z-index: 2;
@@ -188,16 +184,11 @@
   position: absolute;
   bottom: 80px;
   right: 280px;
-  background: linear-gradient(
-    135deg,
-    #6366f1,
-    #3b82f6,
-    #14b8a6,
-    #6366f1
-  );
+  background: linear-gradient(135deg, #6366f1, #3b82f6, #14b8a6, #6366f1);
   background-size: 300% 300%;
-  animation: orbMove 6s ease-in-out infinite alternate,
-             orbGradient 8s ease infinite;
+  animation:
+    orbMove 6s ease-in-out infinite alternate,
+    orbGradient 8s ease infinite;
   box-shadow: 0 0 80px rgba(99, 102, 241, 0.45);
 }
 

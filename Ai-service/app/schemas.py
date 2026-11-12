@@ -2,21 +2,14 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 
-# ---------------------------------------------------------------------------
-# Request (Node -> FastAPI)
-# ---------------------------------------------------------------------------
-
-class FloorPlanRequest(BaseModel):
-    jobId: str
-    projectId: Optional[str] = None
-    # Either a relative path ("/uploads/floor-plans/...") or a full URL
-    # (once R2/S3 is introduced). See app/config.py for how relative paths
-    # are resolved.
-    floorPlanUrl: str
+# Request (Node -> FastAPI): multipart/form-data {jobId, projectId?, image},
+# declared as form fields on the route in app/routers/floor_plan.py.
 
 
 # ---------------------------------------------------------------------------
 # Response (FastAPI -> Node)
+# DetectionResult + DetectionMetadata are the detection-v1 contract
+# (contracts/detection-v1.schema.json) — change both together.
 # ---------------------------------------------------------------------------
 
 class Wall(BaseModel):
@@ -57,7 +50,7 @@ class DetectionResult(BaseModel):
 
 
 class DetectionMetadata(BaseModel):
-    method: str  # "opencv-heuristic" | "mock"
+    method: str  # "unet-mitb3" | "opencv-heuristic"
     imageWidth: int
     imageHeight: int
     processingTimeMs: int
@@ -74,6 +67,42 @@ class FloorPlanResponse(BaseModel):
     error: Optional[str] = None
 
 
-class HealthResponse(BaseModel):
-    status: str = "ok"
+class GpuInfo(BaseModel):
+    name: str
+    memoryUsedMb: int  # whole GPU, all processes
+    memoryTotalMb: int
+    modelMemoryMb: int  # held by this service
+
+
+class ModelInfo(BaseModel):
+    method: str
+    file: str
+    sizeMb: float
+    sha256: str  # first 12 hex characters; identifies the weights
+
+
+class StatusResponse(BaseModel):
+    """GET /status (needs the secret): what's running and where, for the
+    server's System Status page."""
     service: str = "xplor-ai-service"
+    ready: bool
+    error: Optional[str] = None
+    host: str
+    runningIn: str  # "docker" | "local"
+    startedAt: str  # ISO 8601, UTC
+    uptimeS: int
+    detector: str
+    device: Optional[str] = None
+    gpu: Optional[GpuInfo] = None
+    model: Optional[ModelInfo] = None
+    detectionsServed: int
+    lastDetectionMs: Optional[int] = None
+    lastDetectionAt: Optional[str] = None
+
+
+class HealthResponse(BaseModel):
+    status: str = "ok"  # "ok" | "unavailable" (then HTTP 503)
+    service: str = "xplor-ai-service"
+    detector: Optional[str] = None  # "unet" | "opencv"
+    device: Optional[str] = None  # "cuda" | "cpu" once the model is loaded
+    error: Optional[str] = None  # why the service is unavailable

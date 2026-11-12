@@ -1,13 +1,12 @@
-import * as THREE from "three";
+import type * as THREE from 'three'
 
 export type SceneObject = {
-  id: string;
-  name: string;
-  object3d: THREE.Object3D;
+  id: string
+  name: string
+  object3d: THREE.Object3D
 
-  animations?: THREE.AnimationClip[];
-};
+  animations?: THREE.AnimationClip[]
+}
 
-
-export type TransformField = "position" | "rotation" | "scale";
-export type TransformAxis = "x" | "y" | "z";
+export type TransformField = 'position' | 'rotation' | 'scale'
+export type TransformAxis = 'x' | 'y' | 'z'

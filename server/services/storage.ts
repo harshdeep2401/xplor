@@ -1,12 +1,11 @@
 import fs from 'fs'
 import path from 'path'
+import { env } from '../config/env'
 
-// Blob-storage abstraction. Today it writes to local disk under server/uploads
-// (served statically at /uploads — see server.ts). To move to Cloudflare R2 / S3,
+// Blob-storage abstraction. Today it writes to local disk under UPLOAD_DIR
+// (server/uploads by default; served statically at /uploads — see app.ts). To move to Cloudflare R2 / S3,
 // reimplement putObject + getPublicUrl here; callers (controllers) don't change.
-//
-// storage.ts lives in server/services, so ".." is the server root.
-const STORAGE_ROOT = path.join(__dirname, '..', 'uploads')
+export const STORAGE_ROOT = env.UPLOAD_DIR
 
 export interface PutObjectArgs {
   // Path under the storage root, e.g. "floor-plans/<userId>/<file>"
@@ -17,8 +16,16 @@ export interface PutObjectArgs {
 }
 
 // Persist an object and return its public URL.
+// The file for a key, refusing keys that would escape the storage root
+// ("../../etc"). Keys are built by the helpers below, so this is a backstop.
+function pathFor(key: string): string {
+  const dest = path.resolve(STORAGE_ROOT, key)
+  if (!dest.startsWith(STORAGE_ROOT + path.sep)) throw new Error(`Invalid storage key: ${key}`)
+  return dest
+}
+
 export async function putObject({ key, body }: PutObjectArgs): Promise<string> {
-  const dest = path.join(STORAGE_ROOT, key)
+  const dest = pathFor(key)
   await fs.promises.mkdir(path.dirname(dest), { recursive: true })
   await fs.promises.writeFile(dest, body)
   return getPublicUrl(key)
@@ -41,10 +48,16 @@ export function glbKey(projectId: string): string {
   return `glb/${projectId}/${Date.now()}.glb`
 }
 
+// Storage key for a model/texture the 3D editor imported from the user's disk.
+export function projectFileKey(projectId: string, originalName: string): string {
+  const safeName = originalName.replace(/[^a-zA-Z0-9.\-_]/g, '_')
+  return `project-files/${projectId}/${Date.now()}-${safeName}`
+}
+
 // Delete a stored object. No-op if it's already gone (force). Used when pruning
 // old GLB exports.
 export async function deleteObject(key: string): Promise<void> {
-  const dest = path.join(STORAGE_ROOT, key)
+  const dest = pathFor(key)
   await fs.promises.rm(dest, { force: true })
 }
 

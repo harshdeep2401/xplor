@@ -1,4 +1,4 @@
-import { test } from 'node:test'
+import { test } from 'vitest'
 import assert from 'node:assert/strict'
 import { computeWallPieces, type WallPiece } from './wallPieces'
 
@@ -35,10 +35,7 @@ test('a window (raised sill) adds a sill piece below the void', () => {
   })
   const spans = p.map((x) => `${x.uStart}-${x.uEnd}|${x.yBottom}-${x.yTop}`).sort()
   // sides + header [1.5,2.5]×[2.1,2.8] + sill [1.5,2.5]×[0,0.9]
-  assert.deepEqual(
-    spans,
-    ['0-1.5|0-2.8', '1.5-2.5|0-0.9', '1.5-2.5|2.1-2.8', '2.5-4|0-2.8'].sort(),
-  )
+  assert.deepEqual(spans, ['0-1.5|0-2.8', '1.5-2.5|0-0.9', '1.5-2.5|2.1-2.8', '2.5-4|0-2.8'].sort())
   // 11.2 minus window void (1×1.2=1.2) = 10.0
   assert.ok(Math.abs(area(p) - 10.0) < 1e-9)
 })
@@ -52,7 +49,10 @@ test('two openings leave the correct middle gap', () => {
       { center: 0.75, width: 1, height: 2.1, sillHeight: 0 }, // u 4..5
     ],
   })
-  const fullHeight = p.filter((x) => x.yBottom === 0 && x.yTop === 3).map((x) => `${x.uStart}-${x.uEnd}`).sort()
+  const fullHeight = p
+    .filter((x) => x.yBottom === 0 && x.yTop === 3)
+    .map((x) => `${x.uStart}-${x.uEnd}`)
+    .sort()
   // solids: [0,1], [2,4], [5,6]
   assert.deepEqual(fullHeight, ['0-1', '2-4', '5-6'].sort())
 })

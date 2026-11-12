@@ -42,16 +42,29 @@ hatch.
 
 ---
 
-## 3. Image Detection Compute *(Path B — future)*
+## 3. Image Detection Compute *(Path B)*
 
-The GPU cost only appears when image detection ships. Until then, everything runs CPU-only on the free
-tier above.
+**Inference runs on owned GPU hardware.** The trained model (MiT-B3 + U-Net, ~190 MB of weights) is
+served directly with **PyTorch** — no ONNX export — on the team's NVIDIA machine, which also trains it.
+One plan takes ~0.1 s on the GPU (~1 s on CPU, which is fine for local development). The weights are
+distributed out of band (from the project lead), never through git. When the API moves to the cloud, the
+AI service stays on that machine and is reached through a tunnel:
 
 - **Platform:** local NVIDIA GPU + Docker + **Cloudflare Tunnels** (`cloudflared`).
 - **Why:** cloud GPU (e.g. EC2 G4/G5) costs hundreds/month; a tunnel exposes owned hardware securely.
-- **Workflow:** the FastAPI detection service loads CV models into local VRAM → `cloudflared` opens a
-  secure outbound tunnel → the Express backend calls it → results (a `canvas` payload) are written back
-  and any artifacts uploaded to R2.
+- **How it's packaged:** `Ai-service/compose.host.yml` runs the AI image with the GPU and the weights
+  mounted from `Ai-service/Model/`, plus a `cloudflared` container — a **quick tunnel** (random
+  `*.trycloudflare.com` URL that changes on restart, no account) until a domain exists, then a **named
+  tunnel** (fixed URL, `TUNNEL_TOKEN`). Both restart automatically with Docker Desktop. Step-by-step:
+  `docs/guides/ai-hosting.md`.
+- **Workflow:** the FastAPI detection service loads the model into local VRAM → `cloudflared` opens a
+  secure outbound tunnel → the Express backend calls it → results (a `detection-v1` payload, bridged to
+  `canvas-v2` by the API) are written back and any artifacts uploaded to R2.
+
+**Container build note.** The API image needs the shared `contracts/` JSON Schemas at runtime (the
+converter loads them on startup). They sit outside `./server`, so `docker-compose.yml` passes them as an
+extra build context (`additional_contexts: contracts`, Compose ≥ 2.17) and the Dockerfile copies them to
+`/contracts`. A standalone build needs `docker build --build-context contracts=./contracts server`.
 
 ---
 
@@ -78,8 +91,10 @@ When XPLOR raises, hits free-tier limits, or needs SOC 2 / ISO 27001, migration 
 2. **CORS & health** — a configurable CORS allow-list (no wildcard in production) and `/live` + `/ready`
    health endpoints for the PaaS.
 3. **Database backups** — scheduled logical backups (`pg_dump` via cron) even on the free tier.
-4. **Tunnel security** *(only when Path B GPU is live)* — restrict Cloudflare Tunnels to the backend's
-   IPs or a shared API key so nobody else can drive the GPU.
+4. **Tunnel security** — every AI-service request needs the shared secret (`FASTAPI_SECRET`, checked
+   before the upload is read); the AI container publishes no port (the tunnel is the only way in), API
+   docs are off, uploads are size-capped, and the container runs as a non-root user with read-only
+   weights. Setup: `docs/guides/ai-hosting.md`.
 5. **CI gates** — GitHub Actions run server + client lint/build and Python tests before any deploy.
 
 ---

@@ -1,0 +1,109 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://xplor.app/contracts/detection-v1.schema.json",
+  "title": "detection-v1",
+  "description": "Output of floor-plan image detection (Path B): the `detection` object returned by the AI service's POST /process-floor-plan. This is the plug-and-play seam: any detector (the current OpenCV heuristic or a future trained model) emits exactly this shape, and the Node bridge maps it to canvas-v2. All coordinates are in SOURCE-IMAGE pixels (origin top-left, +y downward); no real-world scale is applied here. Mirrors `DetectionResult` in Ai-service/app/schemas.py — keep the two in lockstep.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "walls": {
+      "type": "array",
+      "default": [],
+      "description": "Straight wall segments, each as a centre line between two endpoints (not a bounding box).",
+      "items": { "$ref": "#/$defs/wall" }
+    },
+    "rooms": {
+      "type": "array",
+      "default": [],
+      "description": "Detected room regions. Informational: the converter derives rooms from the walls itself, so these are not required downstream.",
+      "items": { "$ref": "#/$defs/room" }
+    },
+    "doors": {
+      "type": "array",
+      "default": [],
+      "description": "Door openings. Each is snapped to the nearest wall by the bridge; one farther than OPENING_SNAP_THRESHOLD_PX (60 px) from every wall is dropped.",
+      "items": { "$ref": "#/$defs/opening" }
+    },
+    "windows": {
+      "type": "array",
+      "default": [],
+      "description": "Window openings. Same attachment rule as doors.",
+      "items": { "$ref": "#/$defs/opening" }
+    }
+  },
+  "$defs": {
+    "wall": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "startX", "startY", "endX", "endY"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "description": "Unique within this result." },
+        "startX": { "type": "number" },
+        "startY": { "type": "number" },
+        "endX": { "type": "number" },
+        "endY": { "type": "number" },
+        "thickness": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "default": 8,
+          "description": "Wall thickness in image pixels."
+        }
+      }
+    },
+    "room": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "points", "areaPx"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "points": {
+          "type": "array",
+          "minItems": 3,
+          "description": "Closed polygon boundary as [x, y] pairs in image pixels (last point is not repeated).",
+          "items": {
+            "type": "array",
+            "prefixItems": [{ "type": "number" }, { "type": "number" }],
+            "minItems": 2,
+            "maxItems": 2
+          }
+        },
+        "areaPx": { "type": "number", "minimum": 0, "description": "Polygon area in square image pixels." }
+      }
+    },
+    "opening": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "x", "y"],
+      "description": "A door or window. (x, y) is the CENTRE of the opening, which should lie on or near its wall's centre line.",
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "width": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "Opening width along the wall, in image pixels. Defaults: 36 for doors, 48 for windows."
+        }
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["method", "imageWidth", "imageHeight", "processingTimeMs", "wallCount", "roomCount"],
+      "description": "Companion envelope field (`metadata` beside `detection` in the response), not part of the detection object itself. Describes how the result was produced.",
+      "properties": {
+        "method": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Detector identifier, e.g. \"opencv-heuristic\" or a model name such as \"yolo-v11\"."
+        },
+        "imageWidth": { "type": "integer", "minimum": 1 },
+        "imageHeight": { "type": "integer", "minimum": 1 },
+        "processingTimeMs": { "type": "integer", "minimum": 0 },
+        "wallCount": { "type": "integer", "minimum": 0 },
+        "roomCount": { "type": "integer", "minimum": 0 },
+        "notes": { "type": ["string", "null"] }
+      }
+    }
+  }
+}

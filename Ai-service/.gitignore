@@ -52,3 +52,5 @@ Thumbs.db
 
 # --- Logs ---
 *.log
+# --- Evaluation output (eval/evaluate.py) ---
+eval/results/

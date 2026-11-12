@@ -1,20 +1,21 @@
-import admin from 'firebase-admin'
+import { cert, initializeApp, type App } from 'firebase-admin/app'
+import { getAuth, type Auth } from 'firebase-admin/auth'
+import { env } from './env'
 
-const serviceAccount = {
-  type: process.env.FIREBASE_TYPE,
-  project_id: process.env.FIREBASE_PROJECT_ID,
-  private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID,
-  private_key: process.env.FIREBASE_PRIVATE_KEY!.replace(/\\n/g, '\n'),
-  client_email: process.env.FIREBASE_CLIENT_EMAIL,
-  client_id: process.env.FIREBASE_CLIENT_ID,
-  auth_uri: process.env.FIREBASE_AUTH_URI,
-  token_uri: process.env.FIREBASE_TOKEN_URI,
-  auth_provider_x509_cert_url: process.env.FIREBASE_AUTH_PROVIDER_CERT_URL,
-  client_x509_cert_url: process.env.FIREBASE_CLIENT_CERT_URL,
+// Firebase Admin, used only to verify Google sign-in tokens. Started on first
+// use, so the server (and its tests) run without Firebase credentials; Google
+// sign-in then fails with a clear message instead of the whole server.
+let app: App | null = null
+
+export function firebaseAuth(): Auth {
+  if (!app) {
+    const projectId = env.FIREBASE_PROJECT_ID
+    const clientEmail = env.FIREBASE_CLIENT_EMAIL
+    const privateKey = env.FIREBASE_PRIVATE_KEY
+    if (!projectId || !clientEmail || !privateKey) {
+      throw new Error('Google sign-in is not configured on this server.')
+    }
+    app = initializeApp({ credential: cert({ projectId, clientEmail, privateKey }) })
+  }
+  return getAuth(app)
 }
-
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
-})
-
-export default admin

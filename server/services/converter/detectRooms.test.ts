@@ -1,4 +1,4 @@
-import { test } from 'node:test'
+import { test } from 'vitest'
 import assert from 'node:assert/strict'
 import { detectRooms } from './detectRooms'
 import type { Vec2 } from './types'

@@ -1,6 +1,7 @@
 name: CI
 
-# Gate every push/PR: client build, server typecheck, AI-service compile.
+# Gate every push/PR: lint + format + typecheck + tests + build for client and
+# server, AI-service compile + tests.
 # Mirrors the local checks (docs/06 Phase 1) so regressions fail before merge.
 
 on:
@@ -10,29 +11,50 @@ on:
 
 jobs:
   client:
-    name: Client (typecheck + build)
+    name: Client (lint + format + tests + build)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          # >= 22: `npm test` passes a glob to `node --test`.
+          node-version: "22"
           cache: npm
           cache-dependency-path: client/package-lock.json
       - run: npm ci
+        working-directory: client
+      # Known vulnerabilities in what ships (dev tools excluded). High or
+      # critical fails the build; fix with `npm audit fix` or an upgrade.
+      - run: npm audit --omit=dev --audit-level=high
+        working-directory: client
+      - run: npm run lint
+        working-directory: client
+      - run: npm run format:check
+        working-directory: client
+      # Editor logic and components (Vitest + jsdom; the API is faked with MSW),
+      # with the coverage floors in vitest.config.js.
+      - run: npm run test:coverage
         working-directory: client
       # `build` runs `tsc --noEmit && vite build`, so this covers typecheck too.
       - run: npm run build
         working-directory: client
 
   server:
-    name: Server (typecheck + tests)
+    name: Server (typecheck + lint + format + tests)
     runs-on: ubuntu-latest
+    # Integration tests wipe the shared test database: never run two at once.
+    concurrency:
+      group: server-test-database
+      cancel-in-progress: false
+    env:
+      # Repository secret: the Neon *test* branch (never production). When it's
+      # not set (e.g. on a fork), only the unit tests run.
+      TEST_DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: npm
           cache-dependency-path: server/package-lock.json
       # postinstall runs `prisma generate` (needs the schema, not a live DB),
@@ -41,21 +63,48 @@ jobs:
         working-directory: server
       - run: npm run typecheck
         working-directory: server
-      # Converter unit tests are pure (no DB/env) — safe to run in CI.
-      - run: npm test
+      # Known vulnerabilities in what ships (dev tools excluded). High or
+      # critical fails the build; fix with `npm audit fix` or an upgrade.
+      - run: npm audit --omit=dev --audit-level=high
+        working-directory: server
+      - run: npm run lint
+        working-directory: server
+      - run: npm run format:check
+        working-directory: server
+      # Unit tests: no database, no network.
+      - name: Unit tests
+        if: env.TEST_DATABASE_URL == ''
+        run: npm run test:unit
+        working-directory: server
+      # Unit + integration (the API over HTTP against the test database), with
+      # the coverage floors in vitest.config.mts.
+      - name: All tests + coverage
+        if: env.TEST_DATABASE_URL != ''
+        run: npm run test:coverage
+        working-directory: server
+      # The migrations must build exactly schema.prisma (catches a schema
+      # change committed without its migration).
+      - name: Migrations match the schema
+        if: env.TEST_DATABASE_URL != ''
+        run: npm run db:check-migrations
         working-directory: server
 
   ai-service:
-    name: AI service (compile)
+    name: AI service (compile + tests)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: astral-sh/setup-uv@v6
         with:
-          python-version: "3.12"
-      - run: pip install -r requirements.txt
+          version: "0.12.24"
+      # Python version comes from .python-version; --frozen fails if uv.lock is stale.
+      # Note: this installs CUDA torch (several GB); CI runs it on CPU.
+      - run: uv sync --frozen
         working-directory: Ai-service
       # Byte-compile all modules: catches syntax errors deterministically
       # without needing the runtime env/config the app expects at import.
-      - run: python -m compileall app
+      - run: uv run python -m compileall app
+        working-directory: Ai-service
+      # Vectorization + service behaviour; needs no model weights.
+      - run: uv run pytest -q
         working-directory: Ai-service

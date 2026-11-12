@@ -75,7 +75,8 @@ export function computeWallPieces(wall: WallPieceInput): WallPiece[] {
   // Header above each opening; sill below each window.
   for (const v of voids) {
     if (v.voidTop < H) pieces.push({ uStart: v.uStart, uEnd: v.uEnd, yBottom: v.voidTop, yTop: H })
-    if (v.voidBottom > 0) pieces.push({ uStart: v.uStart, uEnd: v.uEnd, yBottom: 0, yTop: v.voidBottom })
+    if (v.voidBottom > 0)
+      pieces.push({ uStart: v.uStart, uEnd: v.uEnd, yBottom: 0, yTop: v.voidBottom })
   }
 
   return pieces

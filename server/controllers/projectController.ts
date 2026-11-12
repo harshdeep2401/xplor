@@ -1,330 +1,218 @@
 import type { Request, Response } from 'express'
-import { Prisma } from '@prisma/client'
+import { type Prisma } from '@prisma/client'
 import { prisma } from '../config/db'
+import { BadRequestError, ConflictError } from '../errors'
 import { processFloorPlan } from '../services/aiService'
+import { currentUserId, getOwnedProject } from '../services/access'
 import { putObject, floorPlanKey } from '../services/storage'
-import { convertCanvasToScene } from '../services/converter'
+import {
+  detectionToCanvas,
+  validateCanvasV2,
+  validateDetectionV1,
+  formatErrors,
+} from '../services/converter'
+import type { IdParams } from '../schemas/common'
+import type { CreateProjectBody, SaveProjectBody } from '../schemas/projects'
 
-const createProject = async (req: Request, res: Response) => {
-  try {
-    const { name, canvasWidth, canvasHeight, type } = req.body
+// Bodies and ids are checked by schemas/ before these run; failures are thrown
+// and answered by middleware/errorHandler.ts. Projects that belong to someone
+// else are "not found" (services/access.ts).
 
-    // User is authenticated by protect middleware
-    const userId = req.user!.id
+// The client still reads `_id` (from the MongoDB days), so every project goes
+// out with both.
+const withLegacyId = <T extends { id: string }>(project: T) => ({ ...project, _id: project.id })
 
-    const project = await prisma.project.create({
-      data: {
-        name: name || 'Untitled Floor Plan',
-        canvasWidth: canvasWidth || 2000,
-        canvasHeight: canvasHeight || 2000,
-        type: type || '2d',
-        userId,
-        canvas: { elements: [] },
-      }
-    })
-
-    // Add _id to payload so frontend doesn't break
-    const responseProject = { ...project, _id: project.id }
-
-    res.status(201).json({
-      message: 'Project created successfully',
-      project: responseProject,
-    })
-  } catch (error) {
-    res.status(500).json({
-      message: (error as Error).message,
-    })
-  }
+// POST /api/projects  Body: createProjectBody (name defaulted, sizes rounded)
+const createProject = async (req: Request<object, unknown, CreateProjectBody>, res: Response) => {
+  const { name, canvasWidth, canvasHeight, type } = req.body
+  const project = await prisma.project.create({
+    data: {
+      name,
+      canvasWidth: canvasWidth ?? 2000,
+      canvasHeight: canvasHeight ?? 2000,
+      type,
+      userId: currentUserId(req),
+      canvas: { elements: [] },
+    },
+  })
+  res.status(201).json({ message: 'Project created successfully', project: withLegacyId(project) })
 }
 
-const getProject = async (req: Request<{ id: string }>, res: Response) => {
-  try {
-    const project = await prisma.project.findUnique({
-      where: { id: req.params.id }
-    })
-
-    if (!project) {
-      return res.status(404).json({ message: 'Project not found' })
-    }
-
-    // Check ownership
-    if (project.userId !== req.user!.id) {
-      return res.status(401).json({ message: 'Not authorized to access this project' })
-    }
-
-    const responseProject = { ...project, _id: project.id }
-
-    res.status(200).json({ project: responseProject })
-  } catch (error) {
-    res.status(500).json({
-      message: (error as Error).message,
-    })
-  }
+// GET /api/projects/:id
+const getProject = async (req: Request<IdParams>, res: Response) => {
+  const project = await getOwnedProject(req.params.id, currentUserId(req))
+  res.status(200).json({ project: withLegacyId(project) })
 }
 
+// GET /api/projects  (newest first)
 const getProjects = async (req: Request, res: Response) => {
-  try {
-    const projects = await prisma.project.findMany({
-      where: { userId: req.user!.id },
-      orderBy: { updatedAt: 'desc' },
-    })
-
-    const responseProjects = projects.map(p => ({ ...p, _id: p.id }))
-
-    res.status(200).json({ projects: responseProjects })
-  } catch (error) {
-    res.status(500).json({
-      message: (error as Error).message,
-    })
-  }
+  const projects = await prisma.project.findMany({
+    where: { userId: currentUserId(req) },
+    orderBy: { updatedAt: 'desc' },
+  })
+  res.status(200).json({ projects: projects.map(withLegacyId) })
 }
 
-const saveProject = async (req: Request<{ id: string }>, res: Response) => {
-  try {
-    const { canvas } = req.body
-
-    // Verify the project exists and belongs to the caller before writing.
-    // Without this check any authenticated user could overwrite any project.
-    const existing = await prisma.project.findUnique({
-      where: { id: req.params.id }
-    })
-
-    if (!existing) {
-      return res.status(404).json({ message: 'Project not found' })
-    }
-
-    if (existing.userId !== req.user!.id) {
-      return res.status(401).json({ message: 'Not authorized to modify this project' })
-    }
-
-    const project = await prisma.project.update({
-      where: { id: req.params.id },
-      data: { canvas }
-    })
-
-    const responseProject = { ...project, _id: project.id }
-
-    res.status(200).json({
-      message: 'Project saved successfully',
-      project: responseProject,
-    })
-  } catch (error) {
-    if ((error as Prisma.PrismaClientKnownRequestError).code === 'P2025') {
-      return res.status(404).json({ message: 'Project not found' })
-    }
-    res.status(500).json({
-      message: (error as Error).message,
-    })
-  }
+// PUT /api/projects/:id  Body: { canvas } (canvas-v2, from the 2D editor)
+const saveProject = async (req: Request<IdParams, unknown, SaveProjectBody>, res: Response) => {
+  const existing = await getOwnedProject(req.params.id, currentUserId(req))
+  const project = await prisma.project.update({
+    where: { id: existing.id },
+    data: { canvas: req.body.canvas as unknown as Prisma.InputJsonValue },
+  })
+  res.status(200).json({ message: 'Project saved successfully', project: withLegacyId(project) })
 }
 
-const deleteProject = async (req: Request<{ id: string }>, res: Response) => {
-  try {
-    const project = await prisma.project.findUnique({
-      where: { id: req.params.id }
-    })
-
-    if (!project) {
-      return res.status(404).json({ message: 'Project not found' })
-    }
-
-    // Check ownership
-    if (project.userId !== req.user!.id) {
-      return res.status(401).json({ message: 'Not authorized to delete this project' })
-    }
-
-    await prisma.project.delete({
-      where: { id: req.params.id }
-    })
-
-    res.status(200).json({ message: 'Project deleted successfully' })
-  } catch (error) {
-    res.status(500).json({
-      message: (error as Error).message,
-    })
-  }
+// DELETE /api/projects/:id
+const deleteProject = async (req: Request<IdParams>, res: Response) => {
+  const project = await getOwnedProject(req.params.id, currentUserId(req))
+  await prisma.project.delete({ where: { id: project.id } })
+  res.status(200).json({ message: 'Project deleted successfully' })
 }
 
 // POST /api/projects/:id/upload-floor-plan
-// multer (uploadMiddleware) has already written the file to disk by the
-// time this runs and populated req.file. This handler just:
-//   1. verifies the project exists and belongs to the caller
-//   2. records where the file landed (floorPlanUrl)
-//   3. creates a Job row (status: 'pending') that will later be picked up
-//      and sent to the FastAPI AI service
-const uploadFloorPlan = async (req: Request<{ id: string }>, res: Response) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ message: 'No file uploaded. Expected field name "floorPlan".' })
-    }
+// multer (uploadMiddleware) has buffered the file and populated req.file.
+// This handler:
+//   1. verifies the project belongs to the caller and is still empty
+//   2. stores the image (floorPlanUrl) and creates a Job
+//   3. calls the AI service; on success, validates the detection-v1 result and
+//      bridges it to canvas-v2 in project.canvas (sized to the image, so the
+//      2D editor can show the upload as a 1:1 trace layer)
+const uploadFloorPlan = async (req: Request<IdParams>, res: Response) => {
+  if (!req.file) {
+    throw new BadRequestError('No file uploaded. Expected field name "floorPlan".', 'NO_FILE')
+  }
+  const userId = currentUserId(req)
+  const project = await getOwnedProject(req.params.id, userId)
 
-    const project = await prisma.project.findUnique({
-      where: { id: req.params.id }
-    })
+  // Detection replaces the whole canvas, so never run it over existing work.
+  if (hasDrawing(project.canvas)) {
+    throw new ConflictError(
+      'Project already has a drawing. Import a floor plan into a new project instead.',
+      'PROJECT_NOT_EMPTY',
+    )
+  }
 
-    if (!project) {
-      return res.status(404).json({ message: 'Project not found' })
-    }
+  // Persist the buffered upload via the storage module and get its public URL.
+  // Local disk today → R2/S3 later, without touching this controller.
+  const floorPlanUrl = await putObject({
+    key: floorPlanKey(userId, req.file.originalname),
+    body: req.file.buffer,
+    contentType: req.file.mimetype,
+  })
 
-    if (project.userId !== req.user!.id) {
-      return res.status(401).json({ message: 'Not authorized to modify this project' })
-    }
+  let updatedProject = await prisma.project.update({
+    where: { id: project.id },
+    data: { floorPlanUrl },
+  })
 
-    // Persist the buffered upload via the storage module and get its public URL.
-    // Local disk today → R2/S3 later, without touching this controller.
-    const floorPlanUrl = await putObject({
-      key: floorPlanKey(req.user!.id, req.file.originalname),
-      body: req.file.buffer,
-      contentType: req.file.mimetype,
-    })
-
-    const updatedProject = await prisma.project.update({
-      where: { id: project.id },
-      data: { floorPlanUrl }
-    })
-
-    let job = await prisma.job.create({
-      data: {
-        userId: req.user!.id,
-        projectId: project.id,
-        jobType: 'floor_plan_processing',
-        status: 'pending',
-        metadata: {
-          floorPlanUrl,
-          originalFilename: req.file.originalname,
-          fileSizeBytes: req.file.size,
-          mimeType: req.file.mimetype,
-        },
-      }
-    })
-
-    const responseProject = { ...updatedProject, _id: updatedProject.id }
-
-    // Call the AI service synchronously and fold the result into the job
-    // before responding. See ai-service/README.md for why this is sync
-    // rather than a queue/webhook at this stage.
-    //
-    // Errors here (AI service unreachable, bad detection, etc.) do NOT
-    // fail this request — the upload itself already succeeded. They're
-    // recorded on the job instead, and the client finds out by polling
-    // GET /api/jobs/:id like it already does.
-    try {
-      job = await prisma.job.update({
-        where: { id: job.id },
-        data: { status: 'processing' },
-      })
-
-      const result = await processFloorPlan({
-        jobId: job.id,
-        projectId: project.id,
+  let job = await prisma.job.create({
+    data: {
+      userId,
+      projectId: project.id,
+      jobType: 'floor_plan_processing',
+      status: 'pending',
+      metadata: {
         floorPlanUrl,
-      })
+        originalFilename: req.file.originalname,
+        fileSizeBytes: req.file.size,
+        mimeType: req.file.mimetype,
+      },
+    },
+  })
 
-      if (result.status === 'completed' && result.detection) {
-        // Calculate appropriate scale pixels per meter (default 40)
-        let ppm = project.scalePixelsPerMeter || 40
-        if (result.metadata?.imageWidth && result.metadata.imageWidth > 2500) {
-          ppm = Math.round(result.metadata.imageWidth / 25)
-        }
-        const wallHeight = project.defaultWallHeightM || 1.0
+  // Call the AI service synchronously and fold the result into the job
+  // before responding. See ai-service/README.md for why this is sync
+  // rather than a queue/webhook at this stage.
+  //
+  // Errors here (AI service unreachable, bad detection, etc.) do NOT
+  // fail this request — the upload itself already succeeded. They're
+  // recorded on the job instead, and the client reads them from the job.
+  try {
+    job = await prisma.job.update({ where: { id: job.id }, data: { status: 'processing' } })
 
-        const walls = (result.detection.walls ?? []).map((w: any) => ({
-          id: w.id || `wall_${Math.random().toString(36).substring(2, 10)}`,
-          start: { x: Number(w.startX), y: Number(w.startY) },
-          end: { x: Number(w.endX), y: Number(w.endY) },
-          thickness: 20, // 20px on 2D canvas -> 0.2m (20cm) realistic wall thickness in 3D
-        }))
+    const result = await processFloorPlan({
+      jobId: job.id,
+      projectId: project.id,
+      image: req.file.buffer,
+      filename: req.file.originalname,
+      mimeType: req.file.mimetype,
+    })
 
-        const canvasV2 = {
-          version: 'canvas-v2',
-          scale: { pixelsPerMetre: ppm },
-          wallHeight: wallHeight,
-          walls,
-          openings: [],
-          labels: [],
-        }
-
-        // Store canvas-v2 to project so 2D editor can load and edit the layout
-        await prisma.project.update({
-          where: { id: project.id },
-          data: { canvas: canvasV2 as unknown as Prisma.InputJsonValue },
-        })
-
-        // Convert canvas-v2 to canonical scene-v1 (proper meters scaling for 3D editor)
-        const scene = convertCanvasToScene(canvasV2, {
-          pixelsPerMetre: ppm,
-          wallHeight: wallHeight,
-        })
-
-        // Deactivate previous active scenes and save the newly converted scene-v1
-        await prisma.$transaction(async (tx) => {
-          await tx.scene.updateMany({
-            where: { projectId: project.id, isActive: true },
-            data: { isActive: false },
-          })
-          await tx.scene.create({
-            data: {
-              projectId: project.id,
-              version: 1,
-              sceneData: scene as unknown as Prisma.InputJsonValue,
-              metadata: result.metadata,
-              isActive: true,
-              sourceJobId: job.id,
-            },
-          })
-        })
-
-        job = await prisma.job.update({
-          where: { id: job.id },
-          data: {
-            status: 'completed',
-            completedAt: new Date(),
-            metadata: {
-              ...((job.metadata as Record<string, unknown>) ?? {}),
-              ...result.metadata,
-            } as Prisma.InputJsonValue,
-          },
-        })
-      } else {
-        job = await prisma.job.update({
-          where: { id: job.id },
-          data: {
-            status: 'failed',
-            completedAt: new Date(),
-            errorMessage: result.error || 'AI service reported failure',
-          },
-        })
-      }
-    } catch (aiError) {
-      // Transport-level failure (service down, timeout, etc.) — same
-      // handling as a reported "failed" result above.
+    if (result.status !== 'completed') {
       job = await prisma.job.update({
         where: { id: job.id },
         data: {
           status: 'failed',
           completedAt: new Date(),
-          errorMessage: (aiError as Error).message,
+          errorMessage: result.error || 'AI service reported failure',
+        },
+      })
+    } else {
+      const detection = result.detection
+      if (!validateDetectionV1(detection)) {
+        throw new Error(
+          `AI service returned invalid detection-v1: ${formatErrors(validateDetectionV1.errors)}`,
+        )
+      }
+      const canvas = detectionToCanvas(detection, {
+        pixelsPerMetre: project.scalePixelsPerMeter,
+        wallHeight: project.defaultWallHeightM,
+      })
+      if (!validateCanvasV2(canvas)) {
+        throw new Error(`Bridged canvas failed canvas-v2: ${formatErrors(validateCanvasV2.errors)}`)
+      }
+
+      updatedProject = await prisma.project.update({
+        where: { id: project.id },
+        data: {
+          canvas: canvas as unknown as Prisma.InputJsonValue,
+          // Image pixels map 1:1 to canvas pixels.
+          ...(result.metadata?.imageWidth && result.metadata?.imageHeight
+            ? { canvasWidth: result.metadata.imageWidth, canvasHeight: result.metadata.imageHeight }
+            : {}),
+        },
+      })
+
+      job = await prisma.job.update({
+        where: { id: job.id },
+        data: {
+          status: 'completed',
+          completedAt: new Date(),
+          metadata: {
+            ...((job.metadata as Record<string, unknown>) ?? {}),
+            ...result.metadata,
+          } as Prisma.InputJsonValue,
         },
       })
     }
-
-    res.status(201).json({
-      message: 'Floor plan uploaded, job created',
-      project: responseProject,
-      job,
-    })
-  } catch (error) {
-    res.status(500).json({
-      message: (error as Error).message,
+  } catch (aiError) {
+    // Transport-level failure (service down, timeout, etc.) or an invalid
+    // detection — same handling as a reported "failed" result above.
+    job = await prisma.job.update({
+      where: { id: job.id },
+      data: {
+        status: 'failed',
+        completedAt: new Date(),
+        errorMessage: aiError instanceof Error ? aiError.message : String(aiError),
+      },
     })
   }
+
+  res.status(201).json({
+    message: 'Floor plan uploaded, job created',
+    project: withLegacyId(updatedProject),
+    job,
+  })
 }
 
-export {
-  createProject,
-  getProject,
-  getProjects,
-  saveProject,
-  deleteProject,
-  uploadFloorPlan,
+// True if a stored canvas (legacy {elements} or canvas-v2) has any content.
+function hasDrawing(canvas: unknown): boolean {
+  if (typeof canvas !== 'object' || canvas === null) return false
+  const c = canvas as Record<string, unknown>
+  return ['elements', 'walls', 'openings', 'labels'].some(
+    (key) => Array.isArray(c[key]) && (c[key] as unknown[]).length > 0,
+  )
 }
+
+export { createProject, getProject, getProjects, saveProject, deleteProject, uploadFloorPlan }

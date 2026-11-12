@@ -1,3 +1,3 @@
-export * from "./addObjects";
-export * from "./updateObjects";
-export * from "./deleteObjects";
+export * from './addObjects'
+export * from './updateObjects'
+export * from './deleteObjects'

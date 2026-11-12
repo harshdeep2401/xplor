@@ -1,4 +1,4 @@
-import type { SceneObject } from "../../types/scene";
+import type { SceneObject } from '../../types/scene'
 
 /**
  * Update light intensity (immutable SceneObject update)
@@ -6,40 +6,36 @@ import type { SceneObject } from "../../types/scene";
 export function updateLightIntensity(
   objects: SceneObject[],
   id: string,
-  intensity: number
+  intensity: number,
 ): SceneObject[] {
   return objects.map((o) => {
-    if (o.id !== id) return o;
+    if (o.id !== id) return o
 
-    const cloned = o.object3d.clone(true);
+    const cloned = o.object3d.clone(true)
     cloned.userData = {
       ...cloned.userData,
       intensity,
-    };
+    }
 
-    return { ...o, object3d: cloned };
-  });
+    return { ...o, object3d: cloned }
+  })
 }
 
 /**
  * Update light color
  */
-export function updateLightColor(
-  objects: SceneObject[],
-  id: string,
-  color: number
-): SceneObject[] {
+export function updateLightColor(objects: SceneObject[], id: string, color: number): SceneObject[] {
   return objects.map((o) => {
-    if (o.id !== id) return o;
+    if (o.id !== id) return o
 
-    const cloned = o.object3d.clone(true);
+    const cloned = o.object3d.clone(true)
     cloned.userData = {
       ...cloned.userData,
       lightColor: color,
-    };
+    }
 
-    return { ...o, object3d: cloned };
-  });
+    return { ...o, object3d: cloned }
+  })
 }
 
 /**
@@ -48,17 +44,17 @@ export function updateLightColor(
 export function updateLightUserData(
   objects: SceneObject[],
   id: string,
-  data: Record<string, any>
+  data: Record<string, unknown>,
 ): SceneObject[] {
   return objects.map((o) => {
-    if (o.id !== id) return o;
+    if (o.id !== id) return o
 
-    const cloned = o.object3d.clone(true);
+    const cloned = o.object3d.clone(true)
     cloned.userData = {
       ...cloned.userData,
       ...data,
-    };
+    }
 
-    return { ...o, object3d: cloned };
-  });
+    return { ...o, object3d: cloned }
+  })
 }

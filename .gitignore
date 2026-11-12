@@ -30,6 +30,9 @@ server/node_modules/
 .env
 client/.env
 server/.env
+# Any other env file (.env.test, .env.local, ...); the examples are committed.
+.env.*
+!.env.example
 dist/
 build/
 .next/
@@ -47,3 +50,20 @@ venv/
 
 # glb files generated during testing
 uploads/
+reports/
+
+
+curiosity.md
+MAKEthisMAKEsense.txt
+
+*.glb
+*.png
+# ...except the furniture catalog that ships with the server (CC0, ~2.6 MB).
+!server/public/furniture/models/*.glb
+!server/public/furniture/previews/*.png
+
+# Test coverage reports (npm run test:coverage)
+coverage/
+# Playwright end-to-end runs (npm run e2e)
+playwright-report/
+test-results/

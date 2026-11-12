@@ -1,0 +1,16 @@
+# Add-on for docker-compose.yml: give the AI service the NVIDIA GPU.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.gpu.yml up --build
+#
+# Needs an NVIDIA GPU, a current NVIDIA driver, and Docker Desktop (WSL 2).
+# Without a GPU, leave this file out: the AI service then runs on the CPU.
+
+services:
+  ai-service:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

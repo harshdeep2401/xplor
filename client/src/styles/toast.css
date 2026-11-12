@@ -1,0 +1,93 @@
+/* Toasts (components/toast/Toaster.tsx). Above everything, including the 3D
+   editor's modals (z-50) and the 2D editor's panels. */
+.toaster {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(380px, calc(100vw - 32px));
+  pointer-events: none;
+}
+
+.toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 12px 12px 14px;
+  border-radius: 12px;
+  background: rgb(var(--color-surface));
+  color: rgb(var(--color-ink));
+  border: 1px solid rgb(var(--color-line));
+  border-left: 4px solid var(--toast-accent);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.4;
+  animation: toastIn 180ms ease-out;
+}
+
+.toast-success {
+  --toast-accent: rgb(var(--color-success));
+}
+.toast-error {
+  --toast-accent: rgb(var(--color-danger));
+}
+.toast-info {
+  --toast-accent: rgb(var(--color-primary));
+}
+
+.toast-icon {
+  flex: 0 0 auto;
+  margin-top: 1px;
+  color: var(--toast-accent);
+}
+
+.toast-message {
+  flex: 1;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.toast-close {
+  flex: 0 0 auto;
+  display: flex;
+  padding: 2px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: rgb(var(--color-muted));
+  cursor: pointer;
+}
+
+.toast-close:hover {
+  color: rgb(var(--color-ink));
+  background: rgba(255, 255, 255, 0.08);
+}
+
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    animation: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .toaster {
+    right: 16px;
+    bottom: 16px;
+  }
+}

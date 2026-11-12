@@ -46,11 +46,7 @@ export interface CanvasV1Label {
   text: string
   fontSize: number
 }
-export type CanvasV1Element =
-  | CanvasV1Wall
-  | CanvasV1Door
-  | CanvasV1Window
-  | CanvasV1Label
+export type CanvasV1Element = CanvasV1Wall | CanvasV1Door | CanvasV1Window | CanvasV1Label
 export interface CanvasV1 {
   elements?: CanvasV1Element[]
 }
@@ -94,6 +90,37 @@ export interface CanvasV2 {
 }
 
 // ---------------------------------------------------------------------------
+// detection-v1 — contracts/detection-v1.schema.json (source-image pixels).
+// Output of the AI service's detector; mapped to canvas-v2 by detectionToCanvas.
+// ---------------------------------------------------------------------------
+export interface DetectionWall {
+  id: string
+  startX: number
+  startY: number
+  endX: number
+  endY: number
+  thickness?: number
+}
+export interface DetectionRoom {
+  id: string
+  points: [number, number][]
+  areaPx: number
+}
+export interface DetectionOpening {
+  id: string
+  // Centre of the opening, on or near its wall's centre line.
+  x: number
+  y: number
+  width?: number
+}
+export interface DetectionV1 {
+  walls?: DetectionWall[]
+  rooms?: DetectionRoom[]
+  doors?: DetectionOpening[]
+  windows?: DetectionOpening[]
+}
+
+// ---------------------------------------------------------------------------
 // scene-v1 — contracts/scene-v1.schema.json (metres, Y-up, floor at y=0)
 // ---------------------------------------------------------------------------
 export interface Vec2 {
@@ -123,9 +150,12 @@ export interface SceneWall {
   openings?: SceneOpening[]
   materialId?: string
 }
+export type RoomType =
+  'living' | 'bedroom' | 'kitchen' | 'dining' | 'bathroom' | 'office' | 'hallway' | 'other'
 export interface SceneRoom {
   id: string
   name?: string
+  type?: RoomType
   floorPolygon: Vec2[]
   area?: number
   materialId?: string
@@ -138,7 +168,11 @@ export interface SceneTransform {
 export interface SceneAsset {
   id: string
   name?: string
+  kind?: 'model' | 'primitive'
   source?: string
+  catalogId?: string
+  baseSize?: Vec3
+  roomId?: string
   transform: SceneTransform
   materialId?: string
 }

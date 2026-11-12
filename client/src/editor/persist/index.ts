@@ -1,2 +1,1 @@
-export * from "./serializeScene";
-export * from "./deserializeScene";
+export * from './sceneV1'

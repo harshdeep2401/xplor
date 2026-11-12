@@ -1,0 +1,53 @@
+[project]
+name = "xplor-ai-service"
+version = "0.1.0"
+description = "XPLOR floor-plan detection service: 2D image -> detection-v1 JSON (FastAPI)."
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi==0.115.6",
+    "uvicorn[standard]==0.34.0",
+    "pydantic==2.10.4",
+    # Also pulls in python-dotenv, which it uses for Settings(env_file=".env").
+    "pydantic-settings==2.7.1",
+    "opencv-python-headless==4.10.0.84",
+    "numpy==2.2.1",
+    # Trained floor-plan segmenter (Model/best.pt): MiT-B3 + U-Net. smp is pinned
+    # because it defines the architecture and the weight names (Model/ModelInfo.md).
+    "torch==2.14.1",
+    "torchvision==0.29.1",
+    "segmentation-models-pytorch==0.5.0",
+    # Skeletonization for mask -> wall centre lines.
+    "scikit-image>=0.25",
+    # Form/file parsing: Node uploads the plan image as multipart/form-data.
+    "python-multipart==0.0.20",
+]
+
+[tool.uv]
+# A deployable app, not an installable library: `uv sync` installs only the
+# dependencies, and `uv run` works from this directory.
+package = false
+# Lock for Windows (dev + the hosting PC) and Linux (Docker) only: the CUDA
+# torch index has no macOS wheels.
+environments = ["sys_platform == 'win32'", "sys_platform == 'linux'"]
+
+# torch/torchvision come from PyTorch's CUDA 12.6 index. cu126 is the newest
+# build that still supports Pascal GPUs (the Quadro P6000 the model was trained
+# on); it also runs on CPU when there is no NVIDIA GPU.
+[[tool.uv.index]]
+name = "pytorch-cu126"
+url = "https://download.pytorch.org/whl/cu126"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu126" }
+torchvision = { index = "pytorch-cu126" }
+
+[dependency-groups]
+dev = [
+    "httpx==0.28.1",
+    "pytest>=9.1.1",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

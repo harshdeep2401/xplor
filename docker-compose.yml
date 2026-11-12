@@ -2,26 +2,39 @@
 #
 # The client is NOT here — it's a static Vite build (Vercel / CF Pages) and stays
 # on `vite dev` for daily work (see docs/06 Phase 1). Docker is for parity/deploy,
-# not the inner loop; keep using tsx/vite day to day.
+# not the inner loop; keep using tsx/vite/uv day to day.
 #
 # Usage:
-#   cp server/.env.example server/.env        # fill in DATABASE_URL, JWT_SECRET, Firebase…
-#   cp Ai-service/.env.example Ai-service/.env  # optional; defaults work
-#   docker compose up --build
+#   cp server/.env.example server/.env          # fill in DATABASE_URL, JWT_SECRET, Firebase…
+#   cp Ai-service/.env.example Ai-service/.env  # set FASTAPI_SECRET (same value in both files)
+#   put the model weights at Ai-service/Model/best.pt (from the project lead)
+#   docker compose up --build                                               # AI on CPU
+#   docker compose -f docker-compose.yml -f docker-compose.gpu.yml up --build  # AI on an NVIDIA GPU
+#
+# To serve the AI service from this PC to a cloud-hosted API instead, see
+# Ai-service/compose.host.yml and docs/guides/ai-hosting.md.
 #
 # Service-to-service URLs are wired to the compose network names below, so they
 # override whatever localhost values sit in the .env files.
 
 services:
   server:
-    build: ./server
+    build:
+      context: ./server
+      # The converter loads the JSON Schemas in /contracts at startup
+      # (services/converter/validate.ts); they live outside ./server.
+      additional_contexts:
+        contracts: ./contracts
     ports:
-      - "5001:5001"
+      - "127.0.0.1:5001:5001"
     env_file:
       - path: ./server/.env
         required: true
     environment:
       PORT: "5001"
+      # This stack runs on a developer's PC: relax the image's production rules
+      # (readable logs, error details, dev-strength secrets allowed).
+      NODE_ENV: "development"
       # Reach the AI service by its compose service name, not localhost.
       FASTAPI_WEBHOOK_URL: "http://ai-service:8000/process-floor-plan"
     volumes:
@@ -38,20 +51,22 @@ services:
 
   ai-service:
     build: ./Ai-service
+    # Only this PC can reach it (not the local network).
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     env_file:
       - path: ./Ai-service/.env
-        required: false
-    environment:
-      # Node serves /uploads; resolve relative floorPlanUrl paths against the API service.
-      NODE_UPLOADS_BASE_URL: "http://server:5001"
+        required: true
+    volumes:
+      # Model weights, read-only (not baked into the image).
+      - ./Ai-service/Model:/app/Model:ro
     healthcheck:
+      # 503 (model or secret missing) counts as unhealthy.
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)"]
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 10s
+      start_period: 60s
 
 volumes:
   uploads:

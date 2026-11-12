@@ -1,204 +1,149 @@
 import type { Request, Response } from 'express'
 import bcrypt from 'bcryptjs'
-import jwt from 'jsonwebtoken'
 import { prisma } from '../config/db'
-import admin from '../config/firebaseAdmin'
+import { firebaseAuth } from '../config/firebaseAdmin'
+import { signAppToken } from '../services/tokens'
+import {
+  BadRequestError,
+  ConflictError,
+  ServiceUnavailableError,
+  UnauthorizedError,
+} from '../errors'
+import type { GoogleLoginBody, LoginBody, RegisterBody } from '../schemas/auth'
 
-const signAppToken = (user: { id: string; email: string }) =>
-  jwt.sign(
-    {
-      id: user.id,
-      email: user.email,
-    },
-    process.env.JWT_SECRET as string,
-    {
-      expiresIn: '7d',
-    }
-  )
+// Bodies are checked by schemas/auth.ts before these run; failures are thrown
+// and answered by middleware/errorHandler.ts.
 
-const registerUser = async (req: Request, res: Response) => {
-  const {
-    name,
-    email,
-    countryCode,
-    phone,
-    password,
-  } = req.body
+// bcrypt work factor: ~250 ms per hash on a typical server. Older hashes (10)
+// keep working; the cost is stored inside each hash.
+const BCRYPT_ROUNDS = 12
+// Compared against when the email is unknown, so a wrong email takes as long
+// as a wrong password and response times don't reveal who has an account.
+const DUMMY_HASH = bcrypt.hashSync('not-a-real-password', BCRYPT_ROUNDS)
 
-  // Password Validation: At least 6 characters and 1 capital letter
-  const passwordRegex = /^(?=.*[A-Z]).{6,}$/
-  if (!passwordRegex.test(password)) {
-    return res.status(400).json({
-      message: 'Password must be at least 6 characters long and contain at least one capital letter.',
-    })
+// The user fields sent to the client after signing in.
+const publicUser = (user: {
+  id: string
+  name: string
+  email: string
+  profileImage?: string | null
+}) => ({ id: user.id, name: user.name, email: user.email, profileImage: user.profileImage })
+
+// POST /api/auth/register
+const registerUser = async (req: Request<object, unknown, RegisterBody>, res: Response) => {
+  const { name, email, countryCode, phone, password } = req.body
+
+  const existingUser = await prisma.user.findUnique({ where: { email } })
+  if (existingUser) {
+    throw new ConflictError('An account with this email already exists.', 'EMAIL_TAKEN')
   }
 
-  try {
-    const existingUser = await prisma.user.findUnique({ where: { email } })
-
-    if (existingUser) {
-      return res.status(400).json({
-        message: 'User already exists',
-      })
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10)
-
-    const user = await prisma.user.create({
-      data: {
-        name,
-        email,
-        countryCode,
-        phone,
-        password: hashedPassword,
-        authProvider: 'local',
-      }
-    })
-
-    const appToken = signAppToken(user)
-
-    return res.status(201).json({
-      message: 'Account created successfully',
-      token: appToken,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-      },
-    })
-  } catch (error) {
-    return res.status(500).json({
-      message: (error as Error).message,
-    })
-  }
-}
-
-const googleLogin = async (req: Request, res: Response) => {
-  const { token } = req.body
-
-  try {
-    const decodedToken = await admin.auth().verifyIdToken(token)
-
-    const uid = decodedToken.uid
-    const email = decodedToken.email
-    const name = decodedToken.name
-    const picture = decodedToken.picture
-
-    console.log('Google User:', {
-      uid,
-      email,
+  const user = await prisma.user.create({
+    data: {
       name,
-      picture,
-    })
+      email,
+      countryCode,
+      phone,
+      password: await bcrypt.hash(password, BCRYPT_ROUNDS),
+      authProvider: 'local',
+    },
+  })
 
-    let user = await prisma.user.findUnique({ where: { email } })
-
-    if (!user) {
-      user = await prisma.user.create({
-        data: {
-          name: name as string,
-          email: email as string,
-          googleId: uid,
-          profileImage: picture,
-          authProvider: 'google',
-        }
-      })
-
-      console.log('New Google user created:', user)
-    } else {
-      const updates: {
-        googleId?: string
-        profileImage?: string
-        name?: string
-        authProvider?: string
-      } = {}
-
-      if (!user.googleId) {
-        updates.googleId = uid
-      }
-
-      if (!user.profileImage && picture) {
-        updates.profileImage = picture
-      }
-
-      if (!user.name && name) {
-        updates.name = name
-      }
-
-      if (Object.keys(updates).length > 0 || user.authProvider !== 'google') {
-        updates.authProvider = user.password ? 'local-google' : 'google'
-
-        user = await prisma.user.update({
-          where: { id: user.id },
-          data: updates,
-        })
-      }
-
-      console.log('Existing user found:', user)
-    }
-
-    const appToken = signAppToken(user)
-
-    return res.status(200).json({
-      message: 'Google login successful',
-      token: appToken,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        profileImage: user.profileImage,
-      },
-    })
-  } catch (error) {
-    console.log('Google Login Error:', error)
-
-    return res.status(500).json({
-      message: (error as Error).message,
-    })
-  }
+  res.status(201).json({
+    message: 'Account created successfully',
+    token: signAppToken(user),
+    user: publicUser(user),
+  })
 }
 
-const loginUser = async (req: Request, res: Response) => {
-  const { email, password } = req.body
-
+// POST /api/auth/google-login  Body: { token } (a Firebase ID token)
+const googleLogin = async (req: Request<object, unknown, GoogleLoginBody>, res: Response) => {
+  let auth
   try {
-    const user = await prisma.user.findUnique({ where: { email } })
+    auth = firebaseAuth()
+  } catch {
+    throw new ServiceUnavailableError(
+      'Google sign-in is not available right now. Sign in with your email instead.',
+      'GOOGLE_SIGN_IN_UNAVAILABLE',
+    )
+  }
 
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' })
-    }
+  let decodedToken
+  try {
+    decodedToken = await auth.verifyIdToken(req.body.token)
+  } catch {
+    throw new UnauthorizedError('Google sign-in failed. Please try again.', 'INVALID_GOOGLE_TOKEN')
+  }
 
-    if (!user.password) {
-      return res.status(400).json({ message: 'Please login with Google' })
-    }
+  const { uid, email, name, picture } = decodedToken
+  if (!email) {
+    throw new BadRequestError(
+      'Your Google account has no email address we can use.',
+      'GOOGLE_EMAIL_MISSING',
+    )
+  }
 
-    const isMatch = await bcrypt.compare(password, user.password)
+  let user = await prisma.user.findUnique({ where: { email } })
 
-    if (!isMatch) {
-      return res.status(400).json({ message: 'Invalid credentials' })
-    }
-
-    const appToken = signAppToken(user)
-
-    return res.status(200).json({
-      message: 'Login successful',
-      token: appToken,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        profileImage: user.profileImage,
+  if (!user) {
+    user = await prisma.user.create({
+      data: {
+        name: typeof name === 'string' && name ? name : email,
+        email,
+        googleId: uid,
+        profileImage: picture,
+        authProvider: 'google',
       },
     })
-  } catch (error) {
-    return res.status(500).json({
-      message: (error as Error).message,
-    })
+  } else {
+    const updates: {
+      googleId?: string
+      profileImage?: string
+      name?: string
+      authProvider?: string
+    } = {}
+    if (!user.googleId) updates.googleId = uid
+    if (!user.profileImage && picture) updates.profileImage = picture
+    if (!user.name && typeof name === 'string' && name) updates.name = name
+
+    if (Object.keys(updates).length > 0 || user.authProvider !== 'google') {
+      updates.authProvider = user.password ? 'local-google' : 'google'
+      user = await prisma.user.update({ where: { id: user.id }, data: updates })
+    }
   }
+
+  res.status(200).json({
+    message: 'Google login successful',
+    token: signAppToken(user),
+    user: publicUser(user),
+  })
 }
 
-export {
-  registerUser,
-  googleLogin,
-  loginUser,
+// POST /api/auth/login
+// A wrong email and a wrong password get the same answer, so the login form
+// can't be used to find out who has an account.
+const loginUser = async (req: Request<object, unknown, LoginBody>, res: Response) => {
+  const { email, password } = req.body
+  const invalid = () => new UnauthorizedError('Incorrect email or password.', 'INVALID_CREDENTIALS')
+
+  const user = await prisma.user.findUnique({ where: { email } })
+  if (!user) {
+    await bcrypt.compare(password, DUMMY_HASH)
+    throw invalid()
+  }
+  if (!user.password) {
+    throw new BadRequestError(
+      'This account uses Google sign-in. Continue with Google instead.',
+      'USE_GOOGLE_SIGN_IN',
+    )
+  }
+  if (!(await bcrypt.compare(password, user.password))) throw invalid()
+
+  res.status(200).json({
+    message: 'Login successful',
+    token: signAppToken(user),
+    user: publicUser(user),
+  })
 }
+
+export { registerUser, googleLogin, loginUser }
