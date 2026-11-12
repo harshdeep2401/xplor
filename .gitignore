@@ -64,3 +64,6 @@ MAKEthisMAKEsense.txt
 
 # Test coverage reports (npm run test:coverage)
 coverage/
+# Playwright end-to-end runs (npm run e2e)
+playwright-report/
+test-results/

@@ -5,6 +5,7 @@ import { OrbitControls, TransformControls } from '@react-three/drei'
 import * as THREE from 'three'
 import type { SceneObject } from '../../types/scene'
 import { isFloor, isLocked } from '../../editor/scene/objectMeta'
+import { keepInRoom } from '../../editor/scene/room'
 
 function createRectGridGeometry(width: number, length: number, step = 1) {
   const safeStep = Math.max(0.1, step)
@@ -201,12 +202,6 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [frameKey])
 
-  // Use gridWidth and gridLength for grid size
-  const gridBounds = {
-    min: new THREE.Vector3(-gridWidth / 2, 0, -gridLength / 2),
-    max: new THREE.Vector3(gridWidth / 2, gridHeight, gridLength / 2),
-  }
-
   const gridGeometry = useMemo(
     () => createRectGridGeometry(gridWidth, gridLength, 1),
     [gridWidth, gridLength],
@@ -295,16 +290,7 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
     if (!selectedObject) return
     const obj = selectedObject.object3d
 
-    obj.updateMatrixWorld(true)
-    const box = new THREE.Box3().setFromObject(obj)
-    if (!box.isEmpty()) {
-      const shift = (min: number, max: number, lo: number, hi: number) =>
-        min < lo ? lo - min : max > hi ? Math.max(hi - max, lo - min) : 0
-      obj.position.x += shift(box.min.x, box.max.x, gridBounds.min.x, gridBounds.max.x)
-      obj.position.y += shift(box.min.y, box.max.y, gridBounds.min.y, gridBounds.max.y)
-      obj.position.z += shift(box.min.z, box.max.z, gridBounds.min.z, gridBounds.max.z)
-      obj.updateMatrixWorld(true)
-    }
+    keepInRoom(obj, { width: gridWidth, length: gridLength, height: gridHeight })
 
     // Collisions only while moving: reverting a position can't undo a rotation
     // or resize, and would leave the object jumping back and forth.

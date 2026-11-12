@@ -234,6 +234,17 @@ chore(deps): bump prisma to 6.4.1
     check the canvases by hand in the browser.
   - `npm test`, `npm run test:watch`, `npm run test:coverage` (floors: statements 95%, branches 85%,
     functions 95%, lines 96%; CI runs it).
+- **End-to-end** (Playwright, `client/e2e/`, `client/playwright.config.ts`): the real client and API in
+  a real browser, against the **test** database (same `server/.env.test` / `TEST_DATABASE_URL` and the
+  same refusal to touch the main database). Playwright starts both servers on their own ports (API 5101,
+  app 5273), so `npm run dev` can keep running. Locally it uses the installed Chrome.
+  - Cover user *journeys* (sign up → draw → convert → furnish → save → reload), not details the unit
+    and component tests already check. The canvases are driven with the mouse in screen space; check
+    the outcome through the API (`fixtures.ts`: `api.canvas()`, `api.scene()`), not pixels. Set up
+    starting states through the API too (`api.createProject`, `api.saveCanvas`, `api.convert`).
+  - Users are `e2e-*@example.test` and are deleted after the run (with their projects).
+  - `npm run e2e` (headless), `npm run e2e:headed` (watch it), `npm run e2e:report` (last report;
+    failures keep a trace and screenshot).
 - **CI runs the full suite on every PR.** A feature is not "done" until its tests exist and pass.
 - Don't claim something is tested if it isn't — say what's covered and what isn't.
 
@@ -316,3 +327,16 @@ The stack must work the same on macOS, Windows and Linux (CI and containers are 
   broken, what's next. **All progress tracking goes here.**
 - When behavior or architecture *changes*, update the relevant foundational doc **in the same PR**.
   When you want to record *progress*, add or update a status report instead.
+- **Editor code is layered; keep page files thin.** A page wires pieces together and holds little logic:
+  - *pure logic* (no React): `client/src/editor/` — e.g. `editor/canvas/snapping.ts`, `drawing.ts`,
+    `canvasV2.ts`, `editing.ts`, each with a `*.test.ts`;
+  - *state and behaviour* (hooks, one concern each): `client/src/pages/editor2d/` — project loading
+    and autosave, undo history, selection, viewport, pointer tools, shortcuts, export — and
+    `client/src/pages/editor3d/` — scene load/save, suggestions, placing objects, keyboard, exports;
+  - *rendering*: `client/src/components/Editor2D/` — top bar, tool palette, properties sidebar, and
+    the Konva stage with one file per kind of shape (`shapes/`); `client/src/components/Editor/` for 3D.
+  - Room bounds for 3D objects go through `editor/scene/room.ts` (`keepInRoom` works from the object's
+    real bounding box — furniture's origin is its base). Never mutate objects inside a `setObjects`
+    updater: React runs updaters twice in development; change the object first, then set state.
+  New behaviour goes into the layer it belongs to, not back into the page. The DOM parts get
+  component tests; the Konva and WebGL canvases are covered by the Playwright journeys.

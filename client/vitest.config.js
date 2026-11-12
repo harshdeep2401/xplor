@@ -33,11 +33,15 @@ export default mergeConfig(
           'src/pages/Signup.tsx',
           'src/services/**/*.ts',
         ],
-        // Need a WebGL canvas (react-three-fiber); their logic is tested in editor/.
+        // Canvas components jsdom cannot draw: WebGL (react-three-fiber) and Konva.
+        // Their logic is tested in editor/; the canvases themselves in e2e/.
         exclude: [
           '**/*.test.*',
           'src/components/Editor/EditorCanvas.tsx',
           'src/components/Editor/LightsFromObjects.tsx',
+          // Konva (2D canvas): covered by the Playwright journeys in e2e/.
+          'src/components/Editor2D/PlanStage.tsx',
+          'src/components/Editor2D/shapes/**',
         ],
         reporter: ['text-summary', 'text', 'html'],
         // Floors at the level reached in step 5; raise them as tests are added.
